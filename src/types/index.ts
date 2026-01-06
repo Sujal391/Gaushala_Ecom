@@ -37,8 +37,8 @@ export interface AuthResponse {
 export interface User {
   id?: number;
   userId?: number;
-  name: string;
-  email: string;
+  name?: string;
+  email?: string;
   mobileNo?: string;
   role?: string;
   isAdmin?: boolean;
@@ -172,4 +172,8 @@ export interface PaymentFailureResponse {
   orderId: number;
   paymentStatus: string;
   reason: string;
+}
+
+export interface LayoutProps {
+  children: React.ReactNode;
 }

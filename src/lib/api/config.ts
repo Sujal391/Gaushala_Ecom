@@ -1,7 +1,7 @@
 // src/lib/api/config.ts
 
 // Base API URL - Update this with your actual backend URL
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/';
 
 // API endpoints
 export const API_ENDPOINTS = {
@@ -10,7 +10,11 @@ export const API_ENDPOINTS = {
     LOGIN: '/api/auth/login',
   },
   DASHBOARD: '/api/dashboard',
-  ADMIN_CUSTOMERS: '/api/admin/customers',
+  ADMIN_CUSTOMERS: {
+    BASE: '/api/admin/customers',
+    UPDATE_STATUS: (userId: number | string) =>
+      `/api/admin/customers/${userId}/status`,
+  },
   PRODUCTS: {
     LIST: '/api/products',
     DETAIL: (id: string | number) => `/api/products/${id}`,
@@ -28,6 +32,8 @@ export const API_ENDPOINTS = {
     CHECKOUT: '/api/orders/checkout',
     MY_ORDERS: (userId: number) => `/api/orders/my/${userId}`,
     ALL_ORDERS: '/api/orders/all',
+    UPDATE_STATUS: (orderId: number) => `/api/orders/status/${orderId}`,
+    CANCEL_MY_ORDER: (orderId: number, userId: number) => `/api/orders/cancel/${orderId}/customer/${userId}`,
   },
   PAYMENT: {
     INITIATE: (orderId: number) => `/api/payment/initiate?orderId=${orderId}`,

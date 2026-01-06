@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Sheet,
   SheetContent,
@@ -39,7 +40,7 @@ import {
 import { toast } from "sonner";
 import AdminGuard from "../../../components/guards/AdminGuard";
 import { removeAuthToken } from "../../../lib/api/config";
-import { getAdminCustomers } from "../../../lib/api/auth";
+import { getAdminCustomers, updateCustomerStatus } from "../../../lib/api/auth";
 
 interface Customer {
   id: number;
@@ -116,6 +117,34 @@ export default function AdminCustomersPage() {
           c.id.toString().includes(query)
       )
     );
+  };
+
+  const handleStatusToggle = async (customerId: number, currentStatus: boolean) => {
+    try {
+      const newStatus = !currentStatus;
+      
+      // Optimistically update UI
+      setCustomers((prev) =>
+        prev.map((c) =>
+          c.id === customerId ? { ...c, isActive: newStatus } : c
+        )
+      );
+      
+      await updateCustomerStatus(customerId, newStatus);
+      
+      toast.success(
+        `Customer ${newStatus ? "activated" : "deactivated"} successfully`
+      );
+    } catch (error) {
+      console.error(error);
+      // Revert on error
+      setCustomers((prev) =>
+        prev.map((c) =>
+          c.id === customerId ? { ...c, isActive: currentStatus } : c
+        )
+      );
+      toast.error("Failed to update customer status");
+    }
   };
 
   const formatDate = (date: string) =>
@@ -296,8 +325,8 @@ export default function AdminCustomersPage() {
                               <TableHead>Name</TableHead>
                               <TableHead>Email</TableHead>
                               <TableHead>Mobile</TableHead>
-                              <TableHead>Status</TableHead>
                               <TableHead>Joined</TableHead>
+                              <TableHead className="text-right">Status</TableHead>
                             </TableRow>
                           </TableHeader>
 
@@ -312,20 +341,19 @@ export default function AdminCustomersPage() {
                                   {c.email}
                                 </TableCell>
                                 <TableCell>{c.mobileNo}</TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant="outline"
-                                    className={
-                                      c.isActive
-                                        ? "bg-green-100 text-green-700 border-green-200"
-                                        : "bg-red-100 text-red-700 border-red-200"
-                                    }
-                                  >
-                                    {c.isActive ? "Active" : "Inactive"}
-                                  </Badge>
-                                </TableCell>
                                 <TableCell className="text-muted-foreground">
                                   {formatDate(c.createdAt)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Switch
+                                    checked={c.isActive}
+                                    onCheckedChange={() => handleStatusToggle(c.id, c.isActive)}
+                                    className={`${
+                                      c.isActive 
+                                        ? "data-[state=checked]:bg-green-500" 
+                                        : "data-[state=unchecked]:bg-red-600"
+                                    }`}
+                                  />
                                 </TableCell>
                               </TableRow>
                             ))}

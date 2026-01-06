@@ -30,22 +30,51 @@ import type {
 
 // ==================== HELPER FUNCTIONS ====================
 
+// src/lib/api/api.ts
+
 async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   try {
     const data = await response.json();
-    console.log('handleResponse - HTTP Status:', response.status, response.ok);
-    console.log('handleResponse - Response data:', data);
-
+    
     if (!response.ok) {
-      console.error('handleResponse - Request failed:', data);
+      // Handle error responses (could be raw error or formatted)
+      const errorMessage = data.message || data.error || `Request failed with status ${response.status}`;
       return {
         success: false,
-        message: data.message || 'Request failed',
-        error: data.error || 'Request failed',
+        message: errorMessage,
+        error: errorMessage,
       };
     }
 
-    return data;
+    // Check if response is already in ApiResponse format
+    if (data && typeof data === 'object' && 'success' in data) {
+      return data as ApiResponse<T>;
+    }
+
+    // If response has 'data' property (some APIs wrap data like this)
+    if (data && typeof data === 'object' && 'data' in data) {
+      return {
+        success: true,
+        message: 'Request successful',
+        data: data.data as T,
+      };
+    }
+
+    // If response has 'message' property (success with message)
+    if (data && typeof data === 'object' && 'message' in data) {
+      return {
+        success: true,
+        message: data.message,
+        data: data.data || data, // Try to get data property, fall back to whole object
+      };
+    }
+
+    // Raw data response (most common case for you)
+    return {
+      success: true,
+      message: 'Request successful',
+      data: data as T,
+    };
   } catch (error) {
     console.error('handleResponse - Parse error:', error);
     return {
@@ -83,6 +112,28 @@ function getFormDataHeaders(includeAuth: boolean = false): HeadersInit {
   
   // Don't set Content-Type for FormData - browser will set it with boundary
   return headers;
+}
+
+export function extractData<T>(apiResponse: ApiResponse<T> | any): T | null {
+  // If it's already ApiResponse format
+  if (apiResponse && typeof apiResponse === 'object' && 'success' in apiResponse) {
+    return apiResponse.success ? apiResponse.data : null;
+  }
+  
+  // If it's raw data (most of your APIs)
+  return apiResponse as T;
+}
+
+export function extractMessage(apiResponse: ApiResponse<any> | any): string | undefined {
+  if (apiResponse && typeof apiResponse === 'object' && 'message' in apiResponse) {
+    return apiResponse.message;
+  }
+  
+  if (apiResponse && typeof apiResponse === 'object' && 'success' in apiResponse) {
+    return apiResponse.message;
+  }
+  
+  return undefined;
 }
 
 // ==================== AUTH APIs ====================
@@ -384,10 +435,7 @@ export async function getDashboardStats(): Promise<ApiResponse<DashboardStats>> 
     console.log('Fetching dashboard stats...');
     const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.DASHBOARD}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getAuthToken()}`,
-      },
+      headers: getHeaders(true),
     });
 
     console.log('Dashboard API response status:', response.status);
@@ -422,13 +470,10 @@ export async function getAdminCustomers(): Promise<ApiResponse<Customer[]>> {
     console.log('Fetching admin customers...');
 
     const response = await fetch(
-      `${API_BASE_URL}${API_ENDPOINTS.ADMIN_CUSTOMERS}`, // "/api/admin/customers"
+      `${API_BASE_URL}${API_ENDPOINTS.ADMIN_CUSTOMERS.BASE}`, // "/api/admin/customers"
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
+        headers: getHeaders(true),
       }
     );
 
@@ -451,6 +496,32 @@ export async function getAdminCustomers(): Promise<ApiResponse<Customer[]>> {
     return {
       success: false,
       message: 'Failed to fetch customers',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function updateCustomerStatus(
+  userId: number | string,
+  isActive: boolean
+): Promise<ApiResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.ADMIN_CUSTOMERS.UPDATE_STATUS(
+        userId
+      )}?isActive=${isActive}`,
+      {
+        method: 'PUT',
+        headers: getHeaders(true),
+      }
+    );
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error('Update customer status error:', error);
+    return {
+      success: false,
+      message: 'Failed to update customer status',
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
@@ -518,6 +589,64 @@ export async function getAllOrders(): Promise<ApiResponse<Order[]>> {
       success: false,
       message: 'Failed to fetch orders',
       error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function updateOrderStatus(
+  orderId: number,
+  status: 'Placed' | 'Packed' | 'Dispatched' | 'Delivered'
+): Promise<ApiResponse<null>> {
+  try {
+    // Build URL with query parameter
+    const url = new URL(
+      `${API_BASE_URL}${API_ENDPOINTS.ORDERS.UPDATE_STATUS(orderId)}`
+    );
+    
+    // Add status as query parameter
+    url.searchParams.append('status', status);
+    
+    const response = await fetch(
+      url.toString(),
+      {
+        method: 'PUT',
+        headers: getHeaders(true),
+      }
+    );
+
+    return handleResponse<null>(response);
+  } catch (error) {
+    console.error('Update order status error:', error);
+    return {
+      success: false,
+      message: 'Failed to update order status',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      data: null,
+    };
+  }
+}
+
+export async function cancelMyOrder(
+  orderId: number,
+  userId: number
+): Promise<ApiResponse<null>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/orders/cancel/${orderId}/customer/${userId}`,
+      {
+        method: 'PUT', // ✅ fixed
+        headers: getHeaders(true),
+      }
+    );
+
+    return handleResponse<null>(response);
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    return {
+      success: false,
+      message: 'Failed to cancel order',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      data: null,
     };
   }
 }
@@ -612,6 +741,8 @@ export default {
   checkout,
   getMyOrders,
   getAllOrders,
+  updateOrderStatus,
+  cancelMyOrder,
   
   // Payment
   initiatePayment,

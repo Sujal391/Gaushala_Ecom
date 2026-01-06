@@ -18,6 +18,9 @@ import {
   Loader2,
   ShoppingBag,
   Filter,
+  Edit,
+  Save,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { getAllOrders } from "../../../lib/api/auth";
+import { getAllOrders, updateOrderStatus } from "../../../lib/api/auth";
 import AdminGuard from "../../../components/guards/AdminGuard";
 import { removeAuthToken } from "../../../lib/api/config";
 
@@ -55,6 +58,19 @@ interface Order {
   items: OrderItem[];
 }
 
+// Valid statuses for the backend
+const VALID_STATUSES = ['PLACED', 'PACKED', 'DISPATCHED', 'DELIVERED', 'CANCELLED'] as const;
+type OrderStatus = typeof VALID_STATUSES[number];
+
+// Status display mapping
+const STATUS_DISPLAY_MAP: Record<string, string> = {
+  'PLACED': 'Placed',
+  'PACKED': 'Packed',
+  'DISPATCHED': 'Dispatched',
+  'DELIVERED': 'Delivered',
+  'CANCELLED': 'Cancelled',
+};
+
 export default function AdminOrdersPage() {
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -65,6 +81,9 @@ export default function AdminOrdersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
+  const [editingOrder, setEditingOrder] = useState<number | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<{ [key: number]: OrderStatus }>({});
+  const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -80,22 +99,31 @@ export default function AdminOrdersPage() {
       const response = await getAllOrders();
       console.log("Orders API response:", response);
 
-      let ordersData = [];
+      let ordersData: any[] = [];
 
-      if (response && response.success && response.data) {
+      if (response?.success && response.data) {
         ordersData = response.data;
-      } else if (response && Array.isArray(response)) {
+      } else if (Array.isArray(response)) {
         ordersData = response;
-      } else if (response && response.data) {
+      } else if (response?.data) {
         ordersData = response.data;
       }
 
-      const mappedOrders = ordersData.map((order: any) => ({
-        orderId: order.orderId,
+      // Log status values for debugging
+      console.log("Order statuses found:", 
+        ordersData.slice(0, 5).map((o: any) => ({
+          id: o.orderId,
+          status: o.orderStatus,
+          uppercase: o.orderStatus?.toUpperCase()
+        }))
+      );
+
+      const mappedOrders: Order[] = ordersData.map((order: any) => ({
+        orderId: order.orderId || order.id,
         userId: order.userId,
-        totalAmount: order.totalAmount,
-        orderStatus: order.orderStatus,
-        orderDate: order.orderDate || order.createdAt,
+        totalAmount: order.totalAmount || 0,
+        orderStatus: order.orderStatus || 'PLACED',
+        orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
         items: order.items || [],
       }));
 
@@ -108,9 +136,9 @@ export default function AdminOrdersPage() {
       setOrders(sortedOrders);
       setFilteredOrders(sortedOrders);
       toast.success(`Loaded ${sortedOrders.length} orders`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching orders:", error);
-      toast.error("Failed to load orders. Please try again.");
+      toast.error(error.message || "Failed to load orders. Please try again.");
       setOrders([]);
       setFilteredOrders([]);
     } finally {
@@ -122,10 +150,11 @@ export default function AdminOrdersPage() {
     let filtered = [...orders];
 
     if (searchQuery) {
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (order) =>
-          order.orderId.toString().includes(searchQuery) ||
-          (order.userId && order.userId.toString().includes(searchQuery))
+          order.orderId.toString().toLowerCase().includes(query) ||
+          (order.userId && order.userId.toString().toLowerCase().includes(query))
       );
     }
 
@@ -154,17 +183,111 @@ export default function AdminOrdersPage() {
   };
 
   const getStatusColor = (status: string) => {
-    const statusColors: { [key: string]: string } = {
-      PLACED: "bg-blue-100 text-blue-800 border-blue-200",
-      CONFIRMED: "bg-purple-100 text-purple-800 border-purple-200",
-      SHIPPED: "bg-yellow-100 text-yellow-800 border-yellow-200",
-      DELIVERED: "bg-green-100 text-green-800 border-green-200",
-      CANCELLED: "bg-red-100 text-red-800 border-red-200",
+    const statusColors: Record<string, string> = {
+      'PLACED': "bg-blue-100 text-blue-800 border-blue-200",
+      'PACKED': "bg-purple-100 text-purple-800 border-purple-200",
+      'CONFIRMED': "bg-purple-100 text-purple-800 border-purple-200",
+      'DISPATCHED': "bg-yellow-100 text-yellow-800 border-yellow-200",
+      'SHIPPED': "bg-yellow-100 text-yellow-800 border-yellow-200",
+      'DELIVERED': "bg-green-100 text-green-800 border-green-200",
+      'CANCELLED': "bg-red-100 text-red-800 border-red-200",
     };
+    
+    const statusUpper = status.toUpperCase();
     return (
-      statusColors[status.toUpperCase()] ||
+      statusColors[statusUpper] ||
       "bg-gray-100 text-gray-800 border-gray-200"
     );
+  };
+
+  const getStatusDisplay = (status: string): string => {
+    const statusUpper = status.toUpperCase();
+    return STATUS_DISPLAY_MAP[statusUpper] || status;
+  };
+
+  const handleUpdateStatus = async (orderId: number) => {
+    const newStatus = selectedStatus[orderId];
+    
+    if (!newStatus) {
+      toast.error("Please select a status");
+      return;
+    }
+
+    // Validate status
+    if (!VALID_STATUSES.includes(newStatus)) {
+      toast.error(`Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`);
+      return;
+    }
+
+    setUpdatingStatus(orderId);
+    try {
+      console.log('Updating order status:', {
+        orderId,
+        status: newStatus
+      });
+
+      const res = await updateOrderStatus(orderId, newStatus);
+      console.log('Update response:', res);
+
+      if (res.success) {
+        toast.success(res.message || "Order status updated successfully");
+        
+        // Update the order in local state
+        setOrders(prevOrders => 
+          prevOrders.map(order => 
+            order.orderId === orderId 
+              ? { ...order, orderStatus: newStatus }
+              : order
+          )
+        );
+        
+        // Exit edit mode
+        setEditingOrder(null);
+        setSelectedStatus(prev => {
+          const updated = { ...prev };
+          delete updated[orderId];
+          return updated;
+        });
+      } else {
+        toast.error(res.message || "Failed to update order status");
+      }
+    } catch (error: any) {
+      console.error("Error updating status:", error);
+      
+      // Detailed error handling
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.errors) {
+          Object.keys(errorData.errors).forEach(key => {
+            toast.error(`${key}: ${errorData.errors[key].join(', ')}`);
+          });
+        } else if (errorData.message) {
+          toast.error(errorData.message);
+        } else {
+          toast.error("Failed to update order status");
+        }
+      } else {
+        toast.error("Failed to update order status. Please check console.");
+      }
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const startEditingStatus = (orderId: number, currentStatus: string) => {
+    setEditingOrder(orderId);
+    // Convert to uppercase for backend
+    const statusUpper = currentStatus.toUpperCase() as OrderStatus;
+    setSelectedStatus(prev => ({ ...prev, [orderId]: statusUpper }));
+  };
+
+  const cancelEditingStatus = (orderId: number) => {
+    setEditingOrder(null);
+    setSelectedStatus(prev => {
+      const updated = { ...prev };
+      delete updated[orderId];
+      return updated;
+    });
   };
 
   const toggleOrderExpansion = (orderId: number) => {
@@ -272,15 +395,17 @@ export default function AdminOrdersPage() {
                 <h1 className="text-xl sm:text-2xl font-bold">Orders</h1>
               </div>
 
-              <Button
-                onClick={fetchOrders}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
-                <Loader2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchOrders}
+                  className="gap-2"
+                >
+                  <Loader2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Refresh</span>
+                </Button>
+              </div>
             </div>
           </header>
 
@@ -387,7 +512,9 @@ export default function AdminOrdersPage() {
                           <SelectContent>
                             <SelectItem value="ALL">All Status</SelectItem>
                             <SelectItem value="PLACED">Placed</SelectItem>
+                            <SelectItem value="PACKED">Packed</SelectItem>
                             <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                            <SelectItem value="DISPATCHED">Dispatched</SelectItem>
                             <SelectItem value="SHIPPED">Shipped</SelectItem>
                             <SelectItem value="DELIVERED">Delivered</SelectItem>
                             <SelectItem value="CANCELLED">Cancelled</SelectItem>
@@ -439,16 +566,67 @@ export default function AdminOrdersPage() {
                                 </div>
                               </div>
                               <div className="flex flex-col sm:items-end gap-2">
-                                <Badge
-                                  variant="outline"
-                                  className={`${getStatusColor(
-                                    order.orderStatus
-                                  )} font-semibold`}
-                                >
-                                  {order.orderStatus}
-                                </Badge>
+                                {editingOrder === order.orderId ? (
+                                  <div className="flex items-center gap-2">
+                                    <Select
+                                      value={selectedStatus[order.orderId] || order.orderStatus.toUpperCase()}
+                                      onValueChange={(value: OrderStatus) => 
+                                        setSelectedStatus(prev => ({ ...prev, [order.orderId]: value }))
+                                      }
+                                    >
+                                      <SelectTrigger className="w-40">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {VALID_STATUSES.map((status) => (
+                                          <SelectItem key={status} value={status}>
+                                            {STATUS_DISPLAY_MAP[status] || status}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      onClick={() => handleUpdateStatus(order.orderId)}
+                                      disabled={updatingStatus === order.orderId}
+                                    >
+                                      {updatingStatus === order.orderId ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Save className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => cancelEditingStatus(order.orderId)}
+                                      disabled={updatingStatus === order.orderId}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <Badge
+                                      variant="outline"
+                                      className={`${getStatusColor(
+                                        order.orderStatus
+                                      )} font-semibold`}
+                                    >
+                                      {getStatusDisplay(order.orderStatus)}
+                                    </Badge>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => startEditingStatus(order.orderId, order.orderStatus)}
+                                      disabled={updatingStatus === order.orderId}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                )}
                                 <div className="flex items-center gap-1 font-bold text-lg text-primary">
-                                  {/* <DollarSign className="h-4 w-4" /> */}
                                   ₹ {order.totalAmount.toFixed(2)}
                                 </div>
                               </div>
@@ -508,7 +686,6 @@ export default function AdminOrdersPage() {
                                                 alt={item.productName}
                                                 className="w-full h-full object-cover"
                                                 onError={() => {
-                                                  // Add productId to error set
                                                   setImageErrors(prev => new Set(prev).add(item.productId));
                                                 }}
                                               />
