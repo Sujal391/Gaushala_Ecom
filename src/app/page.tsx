@@ -1,9 +1,21 @@
-export default function Home() {
+"use client";
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function HomePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.push('/shop');
+  }, [router]);
+
   return (
-    <main className="min-h-screen flex items-center justify-center">
-      <h1 className="text-2xl font-semibold">
-        My Next.js App
-      </h1>
-    </main>
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Redirecting to store...</p>
+      </div>
+    </div>
   );
 }

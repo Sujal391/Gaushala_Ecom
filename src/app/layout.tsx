@@ -1,18 +1,18 @@
 import "./globals.css";
+import { Toaster } from "sonner";
 
 export const metadata = {
   title: "My App",
   description: "Clean Next.js starter",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html>
+      <body>
+        {children}
+        <Toaster position="top-right" richColors />
+      </body>
     </html>
-  );
+  )
 }
