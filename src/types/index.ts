@@ -1,0 +1,175 @@
+// src/types/index.ts
+
+// ==================== COMMON TYPES ====================
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message: string;
+  data?: T;
+  error?: string;
+}
+
+// ==================== AUTH TYPES ====================
+
+export interface RegisterPayload {
+  name: string;
+  email: string;
+  mobileNo: string;
+  password: string;
+  confirmPassword: string;
+  createdAt: string;
+}
+
+export interface LoginPayload {
+  emailOrMobile: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  userId: number;
+  name: string;
+  role: string;
+  email?: string;
+  mobileNo?: string;
+}
+
+export interface User {
+  id?: number;
+  userId?: number;
+  name: string;
+  email: string;
+  mobileNo?: string;
+  role?: string;
+  isAdmin?: boolean;
+}
+
+// ==================== PRODUCT TYPES ====================
+
+export interface Product {
+  id: number;
+  name: string;
+  price: number;
+  description: string;
+  stockQty: number;
+  images: string[];
+  createdAt: string;
+}
+
+export interface CreateProductPayload {
+  name: string;
+  price: number;
+  description: string;
+  stockQty: number;
+  images: File[];
+}
+
+export interface UpdateProductPayload {
+  name: string;
+  price: number;
+  description: string;
+  stockQty: number;
+}
+
+// ==================== CART TYPES ====================
+
+export interface AddToCartPayload {
+  userId: number;
+  productId: number;
+  quantity: number;
+}
+
+export interface CartItem {
+  cartItemId: number;
+  productId: number;
+  productName: string;
+  price: number;
+  quantity: number;
+  totalPrice: number;
+  images: string[];
+}
+
+export interface CartResponse {
+  items: CartItem[];
+  cartTotal: number;
+}
+
+// ==================== ORDER TYPES ====================
+
+export interface CheckoutPayload {
+  userId: number;
+  houseNo: string;
+  street: string;
+  landmark: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+export interface OrderItem {
+  productId: number;
+  productName: string;
+  quantity: number;
+  price: number;
+}
+
+export interface Order {
+  orderId: number;
+  userId?: number;
+  totalAmount: number;
+  orderStatus: string;
+  createdAt?: string;
+  orderDate?: string;
+  items?: OrderItem[];
+}
+
+// ==================== DASHBOARD TYPES ====================
+
+export interface DashboardStats {
+  totalRevenue: number;
+  totalProducts: number;
+  totalOrders: number;
+  totalCustomers: number;
+  recentOrders: Order[];
+}
+
+// ==================== CUSTOMER TYPES ====================
+
+export interface Customer {
+  id: number;
+  name: string;
+  email: string;
+  mobileNo: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+
+// ==================== PAYMENT TYPES ====================
+
+export interface PaymentInitiateResponse {
+  orderId: number;
+  paymentId: string;
+  amount: number;
+  currency: string;
+  paymentGateway: string;
+  gatewayPayload: {
+    key: string;
+    order_id: string;
+    amount: number;
+    currency: string;
+  };
+}
+
+export interface PaymentSuccessResponse {
+  orderId: number;
+  paymentStatus: string;
+  transactionId: string;
+  paidAt: string;
+}
+
+export interface PaymentFailureResponse {
+  orderId: number;
+  paymentStatus: string;
+  reason: string;
+}
