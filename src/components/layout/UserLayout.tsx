@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { ShoppingBag, User, Search, ShoppingCart, Loader2, Package } from 'lucide-react';
+import { ShoppingBag, User as UserIcon, Search, ShoppingCart, Loader2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,17 +13,17 @@ import {
 } from '@/components/ui/dialog';
 import { getUser, removeAuthToken, isAuthenticated, isAdmin } from '../../lib/api/config';
 import { loginUser, registerUser } from '../../lib/api/auth';
-import { API_BASE_URL, API_ENDPOINTS } from '../../lib/api/config';
 import { toast } from 'sonner';
+import { CartItem, LayoutProps, User } from '../../types/index';
 
-export default function UserLayout({ children }) {
+export default function UserLayout({ children }: LayoutProps) {
   const router = useRouter();
   const pathName = usePathname();
 
-  const [cart, setCart] = useState([]);
-  const [user, setUser] = useState(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [user, setUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login'); // 'login' or 'register'
+  const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -93,7 +93,9 @@ export default function UserLayout({ children }) {
     router.push('/shop');
   };
 
-  const openAuthModal = (mode) => {
+  type AuthMode = 'login' | 'register';
+  
+  const openAuthModal = (mode: AuthMode) => {
     setAuthMode(mode);
     setShowAuthModal(true);
     setError('');
@@ -106,7 +108,7 @@ export default function UserLayout({ children }) {
     setRegisterForm({ name: '', email: '', mobileNo: '', password: '', confirmPassword: '' });
   };
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
   e.preventDefault();
   setError('');
   setLoading(true);
@@ -163,7 +165,7 @@ export default function UserLayout({ children }) {
   }
 };
 
-  const handleRegister = async (e) => {
+  const handleRegister = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setError('');
 
@@ -272,7 +274,7 @@ export default function UserLayout({ children }) {
               {user ? (
                 <div className="flex items-center gap-5">
                   <span className="text-sm font-medium hidden sm:inline">
-                    Hi, {user.name || user.email}
+                    Hi, {user?.name || user?.email}
                   </span>
                   <Button variant="outline" size="sm" onClick={handleLogout}>
                     Logout
@@ -281,11 +283,11 @@ export default function UserLayout({ children }) {
               ) : (
                 <>
                   <Button onClick={() => openAuthModal('login')} className="hidden sm:flex">
-                    <User className="mr-2 h-4 w-4" />
+                    <UserIcon className="mr-2 h-4 w-4" />
                     Login
                   </Button>
                   <Button onClick={() => openAuthModal('login')} size="icon" className="sm:hidden">
-                    <User className="h-4 w-4" />
+                    <UserIcon className="h-4 w-4" />
                   </Button>
                 </>
               )}

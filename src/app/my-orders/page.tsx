@@ -2,12 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Package, Loader2, ShoppingBag, ArrowLeft, Calendar, DollarSign } from 'lucide-react';
+import { Package, Loader2, ShoppingBag, ArrowLeft, Calendar, DollarSign, XCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import UserLayout from '../../components/layout/UserLayout';
-import { getMyOrders } from '../../lib/api/auth';
+import { getMyOrders, cancelMyOrder } from '../../lib/api/auth';
 import { isAuthenticated, getUserId } from '../../lib/api/config';
 import { toast } from 'sonner';
 
@@ -35,6 +46,12 @@ export default function MyOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
+  const [cancellingOrder, setCancellingOrder] = useState<number | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<{
+    orderId: number;
+    orderNumber: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -112,8 +129,16 @@ export default function MyOrdersPage() {
       'SHIPPED': 'bg-yellow-100 text-yellow-800 border-yellow-200',
       'DELIVERED': 'bg-green-100 text-green-800 border-green-200',
       'CANCELLED': 'bg-red-100 text-red-800 border-red-200',
+      'PROCESSING': 'bg-orange-100 text-orange-800 border-orange-200',
+      'OUT_FOR_DELIVERY': 'bg-indigo-100 text-indigo-800 border-indigo-200',
     };
     return statusColors[normalizedStatus] || 'bg-gray-100 text-gray-800 border-gray-200';
+  };
+
+  const isCancellable = (orderStatus: string) => {
+    const normalizedStatus = orderStatus.toUpperCase();
+    // Only allow cancellation for orders that are PLACED or PROCESSING
+    return ['PLACED', 'PROCESSING', 'CONFIRMED'].includes(normalizedStatus);
   };
 
   const toggleOrderExpansion = (orderId: number) => {
@@ -122,10 +147,80 @@ export default function MyOrdersPage() {
 
   const getProductImage = (images?: string[]) => {
     if (images && images.length > 0) {
-      // Assuming the images array contains relative paths
       return images[0];
     }
     return '/placeholder-product.jpg';
+  };
+
+  const handleCancelClick = (orderId: number) => {
+    const order = orders.find(o => o.orderId === orderId);
+    if (order) {
+      setOrderToCancel({
+        orderId,
+        orderNumber: `#${orderId}`
+      });
+      setShowCancelDialog(true);
+    }
+  };
+
+  const confirmCancelOrder = async () => {
+    if (!orderToCancel) return;
+
+    try {
+      setCancellingOrder(orderToCancel.orderId);
+      const userId = getUserId();
+      
+      if (!userId) {
+        toast.error('User not found. Please login again.');
+        return;
+      }
+
+      const response = await cancelMyOrder(orderToCancel.orderId, userId);
+      
+      if (response.success) {
+        toast.success('Order cancelled successfully');
+        
+        // Update the order status locally
+        setOrders(prevOrders =>
+          prevOrders.map(order =>
+            order.orderId === orderToCancel.orderId
+              ? { ...order, orderStatus: 'CANCELLED' }
+              : order
+          )
+        );
+      } else {
+        toast.error(response.message || 'Failed to cancel order');
+      }
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      toast.error('Failed to cancel order. Please try again.');
+    } finally {
+      setCancellingOrder(null);
+      setOrderToCancel(null);
+      setShowCancelDialog(false);
+    }
+  };
+
+  const getOrderStatusMessage = (status: string) => {
+    const normalizedStatus = status.toUpperCase();
+    switch (normalizedStatus) {
+      case 'PLACED':
+        return 'Order has been placed successfully';
+      case 'CONFIRMED':
+        return 'Order has been confirmed';
+      case 'PROCESSING':
+        return 'Order is being processed';
+      case 'SHIPPED':
+        return 'Order has been shipped';
+      case 'OUT_FOR_DELIVERY':
+        return 'Order is out for delivery';
+      case 'DELIVERED':
+        return 'Order has been delivered';
+      case 'CANCELLED':
+        return 'Order has been cancelled';
+      default:
+        return `Order is ${status.toLowerCase()}`;
+    }
   };
 
   if (loading) {
@@ -194,7 +289,6 @@ export default function MyOrdersPage() {
                         {order.orderStatus.toUpperCase()}
                       </Badge>
                       <div className="flex items-center gap-1 font-bold text-lg text-primary">
-                        {/* <DollarSign className="h-4 w-4" /> */}
                         ₹ {order.totalAmount.toFixed(2)}
                       </div>
                     </div>
@@ -203,17 +297,45 @@ export default function MyOrdersPage() {
 
                 <CardContent className="p-0">
                   <div className="p-4 border-b">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">
-                        {order.items.length} item{order.items.length !== 1 ? 's' : ''} in this order
-                      </p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleOrderExpansion(order.orderId)}
-                      >
-                        {expandedOrder === order.orderId ? 'Hide Details' : 'View Details'}
-                      </Button>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          {order.items.length} item{order.items.length !== 1 ? 's' : ''} in this order
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {order.orderStatus.toUpperCase() === 'DELIVERED' ? (
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          ) : order.orderStatus.toUpperCase() === 'CANCELLED' ? (
+                            <XCircle className="h-4 w-4 text-red-600" />
+                          ) : null}
+                          <span className="text-xs text-muted-foreground">
+                            {getOrderStatusMessage(order.orderStatus)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleOrderExpansion(order.orderId)}
+                        >
+                          {expandedOrder === order.orderId ? 'Hide Details' : 'View Details'}
+                        </Button>
+                        {isCancellable(order.orderStatus) && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleCancelClick(order.orderId)}
+                            disabled={cancellingOrder === order.orderId}
+                          >
+                            {cancellingOrder === order.orderId ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              'Cancel Order'
+                            )}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -229,16 +351,15 @@ export default function MyOrdersPage() {
                             <div className="flex items-center gap-3">
                               <div className="w-12 h-12 bg-muted rounded-md overflow-hidden flex-shrink-0">
                                 <img
-                                      src={imageErrors.has(item.productId) 
-                                  ? '/placeholder-product.jpg'
-                                  : (item.images?.[0] 
-                                    ? `http://gaushalaecommerce.runasp.net${item.images[0]}`
-                                    : '/placeholder-product.jpg')
-                                }
+                                  src={imageErrors.has(item.productId) 
+                                    ? '/placeholder-product.jpg'
+                                    : (item.images?.[0] 
+                                      ? `http://gaushalaecommerce.runasp.net${item.images[0]}`
+                                      : '/placeholder-product.jpg')
+                                  }
                                   alt={item.productName}
                                   className="w-full h-full object-cover"
                                   onError={() => {
-                                    // Add productId to error set
                                     setImageErrors(prev => new Set(prev).add(item.productId));
                                   }}
                                 />
@@ -302,6 +423,38 @@ export default function MyOrdersPage() {
             </Button>
           </div>
         )}
+
+        {/* Cancel Order Confirmation Dialog */}
+        <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel Order {orderToCancel?.orderNumber}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to cancel this order? This action cannot be undone.
+                Any payment will be refunded according to the refund policy.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={cancellingOrder !== null}>
+                Keep Order
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmCancelOrder}
+                disabled={cancellingOrder !== null}
+                className="bg-destructive text-white hover:bg-destructive/90"
+              >
+                {cancellingOrder !== null ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Cancelling...
+                  </>
+                ) : (
+                  'Yes, Cancel Order'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </UserLayout>
   );

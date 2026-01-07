@@ -19,6 +19,17 @@ interface CartUpdate {
   quantity: number;
 }
 
+interface CartItemApi {
+  cartItemId: number;
+  productId: number;
+  productName: string;
+  productPrice: number;
+  price: number;
+  quantity: number;
+  totalPrice: number;
+  images: string[];
+}
+
 export default function CartPage() {
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -102,7 +113,7 @@ export default function CartPage() {
       }
 
       // Map API response to match CartItem interface
-      let mappedCart = cartItems.map((item: any) => ({
+      let mappedCart = cartItems.map((item: CartItemApi) => ({
         cartItemId: item.cartItemId,
         productId: item.productId,
         productName: item.productName,
@@ -341,12 +352,12 @@ export default function CartPage() {
 
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold">Shopping Cart</h1>
-          {hasUnsavedChanges && (
+          {/* {hasUnsavedChanges && (
             <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1.5 rounded-md">
               <div className="h-2 w-2 bg-amber-600 rounded-full animate-pulse"></div>
               Unsaved changes
             </div>
-          )}
+          )} */}
         </div>
 
         {cart.length === 0 ? (
@@ -455,11 +466,11 @@ export default function CartPage() {
                       </div>
                     </div>
                   </div>
-                  {hasUnsavedChanges && (
+                  {/* {hasUnsavedChanges && (
                     <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-800">
                       Cart will be updated when you checkout
                     </div>
-                  )}
+                  )} */}
                   <Button
                     className="w-full mb-3"
                     size="lg"

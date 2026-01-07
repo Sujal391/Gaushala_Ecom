@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '../../../hooks/useToast';
 import UserLayout from '../../../components/layout/UserLayout';
-import { getProductById, addToCart } from '../../../lib/api/auth';
+import { getProductById, addToCart, extractData, extractMessage } from '../../../lib/api/auth';
 import { isAuthenticated, getUserId } from '../../../lib/api/config';
 import type { Product } from '../../../types/index';
 
@@ -25,36 +25,69 @@ export default function ProductDetailPage() {
     fetchProduct();
   }, [params.id]);
 
-  const fetchProduct = async () => {
-    try {
-      setLoading(true);
-      const response = await getProductById(params.id);
-      
-      // Handle different response formats
-      if (Array.isArray(response)) {
-        setProduct(response[0]);
-      } else if (response.data) {
-        setProduct(response.data);
-      } else if (response.id) {
-        setProduct(response);
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to load product",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching product:', error);
+const fetchProduct = async () => {
+  try {
+    setLoading(true);
+    
+    // Handle params.id which could be string, string[], or undefined
+    let productId: string | number | null = null;
+    
+    if (!params.id) {
       toast({
         title: "Error",
-        description: "Failed to load product. Please try again.",
+        description: "Product ID is missing",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+    
+    // Convert params.id to string or number
+    if (Array.isArray(params.id)) {
+      // Take the first ID if it's an array
+      productId = params.id[0];
+    } else {
+      productId = params.id;
+    }
+    
+    // Ensure productId is not empty
+    if (!productId) {
+      toast({
+        title: "Error",
+        description: "Invalid product ID",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const response = await getProductById(productId);
+    
+    // Use the helper to extract data from any response format
+    const productData = extractData<Product>(response);
+    
+    if (productData) {
+      setProduct(productData);
+    } else {
+      // Get error message if available
+      const errorMessage = extractMessage(response) || "Failed to load product";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      setProduct(null);
+    }
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    toast({
+      title: "Error",
+      description: "Failed to load product. Please try again.",
+      variant: "destructive",
+    });
+    setProduct(null);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleAddToCart = async () => {
     // Check if user is authenticated
