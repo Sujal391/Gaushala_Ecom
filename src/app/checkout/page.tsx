@@ -2,16 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, Loader2, MapPin, ArrowLeft } from 'lucide-react';
+import { ShoppingCart, Loader2, MapPin, ArrowLeft, Tag, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import UserLayout from '../../components/layout/UserLayout';
-import { getUserCart, checkout } from '../../lib/api/auth';
+import { getUserCart, checkout, applyOffer } from '../../lib/api/auth';
 import { isAuthenticated, getUserId } from '../../lib/api/config';
 import { toast } from 'sonner';
 import type { CartItem } from '../../types/index';
+import Lottie from "lottie-react";
+import placedAnimation from "../../animations/placed.json";
 
 // Cache key for localStorage
 const CART_CACHE_KEY = 'cart_updates_cache';
@@ -30,11 +32,21 @@ interface AddressForm {
   pincode: string;
 }
 
+interface AppliedOffer {
+  offerCode: string;
+  discount: number;
+  discountPercentage?: number;
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
+  const [applyingOffer, setApplyingOffer] = useState(false);
+  const [offerCode, setOfferCode] = useState('');
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [appliedOffer, setAppliedOffer] = useState<AppliedOffer | null>(null);
   const [address, setAddress] = useState<AddressForm>({
     houseNo: '',
     street: '',
@@ -55,6 +67,16 @@ export default function CheckoutPage() {
 
     loadCart();
   }, []);
+
+  useEffect(() => {
+    if (!showSuccessAnimation) return;
+
+    const timer = setTimeout(() => {
+      router.replace('/my-orders');
+    }, 2800);
+
+    return () => clearTimeout(timer);
+  }, [showSuccessAnimation, router]);
 
   // Load cached updates from localStorage
   const loadCachedUpdates = (): Map<number, number> => {
@@ -137,6 +159,57 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleApplyOffer = async () => {
+    if (!offerCode.trim()) {
+      toast.error('Please enter an offer code');
+      return;
+    }
+
+    const userId = getUserId();
+    if (!userId) {
+      toast.error('User not found');
+      return;
+    }
+
+    try {
+      setApplyingOffer(true);
+      const response = await applyOffer(userId, offerCode.trim());
+
+      if (response.success && response.data) {
+        // Extract discount information from response
+        const discount = response.data.discount || 0;
+        const discountPercentage = response.data.discountPercentage;
+
+        setAppliedOffer({
+          offerCode: offerCode.trim(),
+          discount,
+          discountPercentage
+        });
+
+        toast.success('Offer applied successfully!', {
+          description: `You saved ₹${discount.toFixed(2)}`,
+        });
+        setOfferCode(''); // Clear input after successful application
+      } else {
+        toast.error('Invalid offer code', {
+          description: response.message || 'This offer code is not valid or has expired',
+        });
+      }
+    } catch (error) {
+      console.error('Error applying offer:', error);
+      toast.error('Failed to apply offer', {
+        description: 'Please try again later',
+      });
+    } finally {
+      setApplyingOffer(false);
+    }
+  };
+
+  const handleRemoveOffer = () => {
+    setAppliedOffer(null);
+    toast.info('Offer code removed');
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Partial<AddressForm> = {};
 
@@ -190,26 +263,24 @@ export default function CheckoutPage() {
         ...address
       });
 
-      console.log('Checkout response:', response); // For debugging
+      console.log('Checkout response:', response);
 
-      // Check if response exists and has orderId and success message
-      if (response && response.orderId && response.message) {
-        // Clear cart cache
+      if (response?.success && response?.data?.orderId) {
         localStorage.removeItem(CART_CACHE_KEY);
-        
-        toast.success('Order Placed Successfully!', {
-          description: `Order #${response.orderId} has been confirmed. Redirecting to orders...`,
-          duration: 3000,
-        });
-        
-        // Redirect to orders page
-        setTimeout(() => {
-          router.push('/my-orders');
-        }, 1000);
+        setAppliedOffer(null);
+
+        toast.success('Order Placed Successfully!');
+
+        setShowSuccessAnimation(true);
+
+        // requestAnimationFrame(() => {
+        //   setTimeout(() => {
+        //     router.push('/my-orders');
+        //   }, 2800);
+        // });
       } else {
         toast.error('Order Failed', {
           description: response?.message || 'Failed to place order. Please try again.',
-          duration: 4000,
         });
       }
     } catch (error) {
@@ -231,8 +302,15 @@ export default function CheckoutPage() {
     return getSubtotal() * 0.1;
   };
 
+  const getDiscount = () => {
+    return appliedOffer ? appliedOffer.discount : 0;
+  };
+
   const getTotal = () => {
-    return getSubtotal() + getTax();
+    const subtotal = getSubtotal();
+    const tax = getTax();
+    const discount = getDiscount();
+    return subtotal + tax - discount;
   };
 
   if (loading) {
@@ -243,6 +321,26 @@ export default function CheckoutPage() {
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
             <p className="text-muted-foreground">Loading checkout...</p>
           </div>
+        </div>
+      </UserLayout>
+    );
+  }
+
+  if (showSuccessAnimation) {
+    return (
+      <UserLayout>
+        <div className="flex flex-col items-center justify-center min-h-[70vh]">
+          <div className="w-64 h-64">
+            <Lottie animationData={placedAnimation} loop={false} />
+          </div>
+
+          <h2 className="text-xl font-semibold mt-4">
+            Order Placed Successfully 🎉
+          </h2>
+
+          <p className="text-muted-foreground mt-2">
+            Redirecting to your orders...
+          </p>
         </div>
       </UserLayout>
     );
@@ -387,7 +485,6 @@ export default function CheckoutPage() {
                             alt={item.productName}
                             className="w-full h-full object-cover"
                             onError={() => {
-                              // Add productId to error set
                               setImageErrors(prev => new Set(prev).add(item.productId));
                             }}
                           />
@@ -414,25 +511,99 @@ export default function CheckoutPage() {
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3 mb-6">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium">₹{getSubtotal().toFixed(2)}</span>
+                <div className="space-y-4 mb-6">
+                  {/* Offer Code Section */}
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <Label className="flex items-center gap-2 text-sm font-medium">
+                      <Tag className="h-4 w-4" />
+                      Have an offer code?
+                    </Label>
+                    
+                    {appliedOffer ? (
+                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-md">
+                        <div className="flex items-center gap-2">
+                          <Tag className="h-4 w-4 text-green-600" />
+                          <div>
+                            <p className="text-sm font-medium text-green-900">
+                              {appliedOffer.offerCode}
+                            </p>
+                            <p className="text-xs text-green-700">
+                              Saved ₹{appliedOffer.discount.toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRemoveOffer}
+                          className="h-8 w-8 p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Enter code"
+                          value={offerCode}
+                          onChange={(e) => setOfferCode(e.target.value.toUpperCase())}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              handleApplyOffer();
+                            }
+                          }}
+                          disabled={applyingOffer}
+                          className="flex-1"
+                        />
+                        <Button
+                          onClick={handleApplyOffer}
+                          disabled={applyingOffer || !offerCode.trim()}
+                          variant="outline"
+                        >
+                          {applyingOffer ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            'Apply'
+                          )}
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tax (10%)</span>
-                    <span className="font-medium">₹{getTax().toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Shipping</span>
-                    <span className="font-medium text-green-600">Free</span>
-                  </div>
-                  <div className="border-t pt-3">
-                    <div className="flex justify-between">
-                      <span className="font-semibold">Total</span>
-                      <span className="text-xl font-bold text-primary">
-                        ₹{getTotal().toFixed(2)}
-                      </span>
+
+                  {/* Price Breakdown */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span className="font-medium">₹{getSubtotal().toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Tax (10%)</span>
+                      <span className="font-medium">₹{getTax().toFixed(2)}</span>
+                    </div>
+                    {appliedOffer && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-green-600">Discount</span>
+                        <span className="font-medium text-green-600">
+                          -₹{getDiscount().toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Shipping</span>
+                      <span className="font-medium text-green-600">Free</span>
+                    </div>
+                    <div className="border-t pt-3">
+                      <div className="flex justify-between">
+                        <span className="font-semibold">Total</span>
+                        <span className="text-xl font-bold text-primary">
+                          ₹{getTotal().toFixed(2)}
+                        </span>
+                      </div>
+                      {appliedOffer && (
+                        <p className="text-xs text-muted-foreground mt-1 text-right">
+                          You saved ₹{getDiscount().toFixed(2)}!
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -441,7 +612,7 @@ export default function CheckoutPage() {
                   className="w-full"
                   size="lg"
                   onClick={placeOrder}
-                  disabled={placing || cart.length === 0}
+                  disabled={placing || showSuccessAnimation || cart.length === 0}
                 >
                   {placing ? (
                     <>

@@ -21,6 +21,8 @@ import {
   Edit,
   Save,
   X,
+  TagIcon,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,12 +51,23 @@ interface OrderItem {
   images?: string[];
 }
 
+interface Customer {
+  userId: number;
+  name: string;
+  email: string;
+  mobileNo: string;
+}
+
 interface Order {
   orderId: number;
   userId?: number;
   totalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+  isReferralDiscountApplied: boolean;
   orderStatus: string;
   orderDate: string;
+  customer: Customer; // Add this
   items: OrderItem[];
 }
 
@@ -122,8 +135,17 @@ export default function AdminOrdersPage() {
         orderId: order.orderId || order.id,
         userId: order.userId,
         totalAmount: order.totalAmount || 0,
+        discountAmount: order.discountAmount || 0,
+        finalAmount: order.finalAmount || 0,
+        isReferralDiscountApplied: order.isReferralDiscountApplied || false,
         orderStatus: order.orderStatus || 'PLACED',
         orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
+        customer: order.customer || { // Add this mapping
+          userId: order.userId || 0,
+          name: 'Unknown Customer',
+          email: '',
+          mobileNo: ''
+        },
         items: order.items || [],
       }));
 
@@ -314,6 +336,8 @@ export default function AdminOrdersPage() {
     { icon: LayoutDashboard, label: "Dashboard", href: "/admin" },
     { icon: Package, label: "Products", href: "/admin/products" },
     { icon: ShoppingCart, label: "Orders", href: "/admin/orders" },
+    { icon: Clock, label: 'Pending Orders', href: '/admin/pending' },
+    { icon: TagIcon, label: 'Offers', href: '/admin/offer' },
     { icon: Users, label: "Customers", href: "/admin/customers" },
     { icon: Settings, label: "Settings", href: "/admin/settings" },
   ];
@@ -546,23 +570,36 @@ export default function AdminOrdersPage() {
                           <CardHeader className="bg-muted/50 p-4 sm:p-6">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                               <div className="space-y-1">
-                                <div className="flex items-center gap-3 flex-wrap">
-                                  <CardTitle className="text-base sm:text-lg">
-                                    Order #{order.orderId}
-                                  </CardTitle>
-                                  {order.userId && (
-                                    <Badge
-                                      variant="outline"
-                                      className="bg-blue-50 text-blue-700 border-blue-200"
-                                    >
-                                      <User className="h-3 w-3 mr-1" />
-                                      User #{order.userId}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                                  <Calendar className="h-4 w-4" />
-                                  {formatDate(order.orderDate)}
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-3 flex-wrap">
+                                    <CardTitle className="text-base sm:text-lg">
+                                      Order #{order.orderId}
+                                    </CardTitle>
+                                    {order.customer && (
+                                      <div className="flex items-center gap-2">
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-blue-50 text-blue-700 border-blue-200"
+                                        >
+                                          <User className="h-3 w-3 mr-1" />
+                                          {order.customer.name}
+                                        </Badge>
+                                        <div className="text-xs text-muted-foreground hidden sm:block">
+                                          {order.customer.email}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                                    <Calendar className="h-4 w-4" />
+                                    {formatDate(order.orderDate)}
+                                    {order.customer && (
+                                      <>
+                                        <span className="mx-1">•</span>
+                                        <span>{order.customer.mobileNo}</span>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               <div className="flex flex-col sm:items-end gap-2">

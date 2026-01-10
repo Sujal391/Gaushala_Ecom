@@ -8,6 +8,7 @@ export const API_ENDPOINTS = {
   AUTH: {
     REGISTER: '/api/auth/register',
     LOGIN: '/api/auth/login',
+    ME: '/api/auth/me',
   },
   DASHBOARD: '/api/dashboard',
   ADMIN_CUSTOMERS: {
@@ -34,12 +35,18 @@ export const API_ENDPOINTS = {
     ALL_ORDERS: '/api/orders/all',
     UPDATE_STATUS: (orderId: number) => `/api/orders/status/${orderId}`,
     CANCEL_MY_ORDER: (orderId: number, userId: number) => `/api/orders/cancel/${orderId}/customer/${userId}`,
+    PENDING_ORDERS: '/api/orders/pending',
   },
   PAYMENT: {
     INITIATE: (orderId: number) => `/api/payment/initiate?orderId=${orderId}`,
     SUCCESS: '/api/payment/success',
     FAILURE: '/api/payment/failure',
   },
+  OFFER: {
+    LIST: '/api/offers/active',
+    CREATE: '/api/offers/create',
+    APPLY: '/api/offers/apply',
+  }
 } as const;
 
 // Get auth token from localStorage
@@ -100,7 +107,7 @@ export function isAdmin(): boolean {
   // 2. email is admin@example.com (demo admin)
   // 3. isAdmin field is true
   return user?.role === 'Admin' || 
-         user?.email === 'admin@example.com' || 
+        //  user?.email === 'admin@example.com' || 
          user?.isAdmin === true;
 }
 

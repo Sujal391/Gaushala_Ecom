@@ -67,7 +67,7 @@ const handleAddToCart = async (product: Product) => {
       description: "Please login to add items to cart",
       variant: "destructive",
     });
-    router.push("/userLayout");
+    router.push("/shop");
     return;
   }
 
@@ -78,7 +78,7 @@ const handleAddToCart = async (product: Product) => {
       description: "User ID not found. Please login again.",
       variant: "destructive",
     });
-    router.push("/login");
+    router.push("/shop");
     return;
   }
 

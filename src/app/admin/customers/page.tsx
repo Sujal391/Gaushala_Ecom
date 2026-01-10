@@ -16,6 +16,8 @@ import {
   UserX,
   Calendar,
   ShoppingBag,
+  TagIcon,
+  Clock,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -155,30 +157,30 @@ export default function AdminCustomersPage() {
     });
 
   const menuItems = [
-    { icon: LayoutDashboard, label: "Dashboard", href: "/admin" },
-    { icon: Package, label: "Products", href: "/admin/products" },
-    { icon: ShoppingCart, label: "Orders", href: "/admin/orders" },
-    { icon: Users, label: "Customers", href: "/admin/customers" },
-    { icon: Settings, label: "Settings", href: "/admin/settings" },
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/admin', active: true },
+    { icon: Package, label: 'Products', href: '/admin/products', active: false },
+    { icon: ShoppingCart, label: 'Orders', href: '/admin/orders', active: false },
+    { icon: Clock, label: 'Pending Orders', href: '/admin/pending', active: false },
+    { icon: TagIcon, label: 'Offers', href: '/admin/offer', active: false },
+    { icon: Users, label: 'Customers', href: '/admin/customers', active: false },
+    { icon: Settings, label: 'Settings', href: '/admin/settings', active: false },
   ];
 
-  const Sidebar = ({ isMobile = false }: { isMobile?: boolean }) => (
-    <div
-      className={`${
-        isMobile ? "w-full" : "w-64"
-      } bg-card border-r flex flex-col h-full`}
-    >
-      <div className="p-6 border-b flex items-center gap-2">
-        <ShoppingBag className="h-8 w-8 text-primary" />
-        <span className="text-2xl font-bold">StyleHub Admin</span>
+  const Sidebar = ({ isMobile = false }) => (
+    <div className={`${isMobile ? 'w-full' : 'w-64'} bg-card border-r flex flex-col h-full`}>
+      <div className="p-4 sm:p-6 border-b">
+        <div className="flex items-center gap-2">
+          <ShoppingBag className="h-8 w-8 text-primary" />
+          <span className="text-xl sm:text-2xl font-bold">StyleHub Admin</span>
+        </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-3 sm:p-4 space-y-1 sm:space-y-2">
         {menuItems.map((item) => (
           <Button
             key={item.label}
-            variant={item.href === "/admin/customers" ? "secondary" : "ghost"}
-            className="w-full justify-start gap-3"
+            variant={item.href === "/admin/customers" ? 'secondary' : 'ghost'}
+            className="w-full justify-start gap-3 text-sm sm:text-base py-2 sm:py-3 h-auto"
             onClick={() => {
               router.push(item.href);
               if (isMobile) setIsSidebarOpen(false);
@@ -190,7 +192,7 @@ export default function AdminCustomersPage() {
         ))}
       </nav>
 
-      <div className="p-4 border-t">
+      <div className="p-3 sm:p-4 border-t">
         <Button
           variant="ghost"
           className="w-full justify-start gap-3 text-destructive"
