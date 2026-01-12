@@ -46,7 +46,7 @@ export default function UserLayout({ children }: LayoutProps) {
     {
       id: "shop",
       label: "Shop",
-      path: "/shop",
+      path: "/user/shop",
       icon: ShoppingBag,
       show: true,
     },
@@ -110,7 +110,7 @@ export default function UserLayout({ children }: LayoutProps) {
             {/* Logo */}
             <div
               className="flex items-center gap-2 cursor-pointer"
-              onClick={() => router.push("/shop")}
+              onClick={() => router.push("/user/shop")}
             >
               <ShoppingBag className="h-8 w-8 text-primary" />
               <span className="text-2xl font-bold">StyleHub Store</span>
@@ -177,9 +177,9 @@ export default function UserLayout({ children }: LayoutProps) {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={handleLogout}
-                      className="text-destructive justify-center gap-2"
+                      className="text-destructive pl-3 gap-3 hover:text-destructive focus:text-destructive"
                     >
-                      <LogOut className="h-4 w-4" />
+                      <LogOut className="h-4 w-4 text-destructive" />
                       Logout
                     </DropdownMenuItem>
                   </DropdownMenuContent>

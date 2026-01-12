@@ -286,7 +286,7 @@ export default function MyOrdersPage() {
                         {order.orderStatus.toUpperCase()}
                       </Badge>
                       <div className="flex items-center gap-1 font-bold text-lg text-primary">
-                        ₹ {order.totalAmount.toFixed(2)}
+                        ₹ {order.finalAmount.toFixed(2)}
                       </div>
                     </div>
                   </div>
