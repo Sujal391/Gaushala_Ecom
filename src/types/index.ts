@@ -32,6 +32,8 @@ export interface AuthResponse {
   role: string;
   email?: string;
   mobileNo?: string;
+  referralCode?: string;
+  referredByUserId?: number;
 }
 
 export interface User {
@@ -42,6 +44,16 @@ export interface User {
   mobileNo?: string;
   role?: string;
   isAdmin?: boolean;
+}
+
+export interface MyProfileResponse {
+  userId: number;
+  name: string;
+  email: string;
+  mobileNo: string;
+  referralCode: string;
+  referredByUserId: number | null;
+  createdAt: string; // ISO date-time
 }
 
 // ==================== PRODUCT TYPES ====================
@@ -123,6 +135,14 @@ export interface Order {
   items?: OrderItem[];
 }
 
+export interface PendingOrder {
+  orderId: number;
+  userId: number;
+  totalAmount: number;
+  orderStatus: string;
+  createdAt: string;
+}
+
 // ==================== DASHBOARD TYPES ====================
 
 export interface DashboardStats {
@@ -172,6 +192,37 @@ export interface PaymentFailureResponse {
   orderId: number;
   paymentStatus: string;
   reason: string;
+}
+
+// ==================== OFFERS TYPES ====================
+
+export interface OfferProduct {
+  productId: number;
+  productName: string;
+}
+
+export interface Offer {
+  offerId: number;
+  offerCode: string;
+  discountPercent: number;
+  minQuantity: number;
+  validFrom: string; // ISO date string
+  validTo: string;   // ISO date string
+  products: OfferProduct[];
+}
+
+export interface CreateOfferRequest {
+  offerCode: string;
+  discountPercent: number;
+  minQuantity: number;
+  validFrom: string; // ISO date string
+  validTo: string;   // ISO date string
+  productIds: number[];
+}
+
+export interface ApplyOfferRequest {
+  userId: number;
+  offerCode: string;
 }
 
 export interface LayoutProps {

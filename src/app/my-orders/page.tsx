@@ -20,6 +20,7 @@ import {
 import UserLayout from '../../components/layout/UserLayout';
 import { getMyOrders, cancelMyOrder } from '../../lib/api/auth';
 import { isAuthenticated, getUserId } from '../../lib/api/config';
+import OrderStatusAnimation from '../../components/OrderStatusAnimation';
 import { toast } from 'sonner';
 
 interface OrderItem {
@@ -205,19 +206,15 @@ export default function MyOrdersPage() {
     const normalizedStatus = status.toUpperCase();
     switch (normalizedStatus) {
       case 'PLACED':
-        return 'Order has been placed successfully';
-      case 'CONFIRMED':
-        return 'Order has been confirmed';
-      case 'PROCESSING':
-        return 'Order is being processed';
-      case 'SHIPPED':
-        return 'Order has been shipped';
-      case 'OUT_FOR_DELIVERY':
-        return 'Order is out for delivery';
+        return 'Order has been placed successfully.';
+      case 'PACKED':
+        return 'Order has been packed and is ready for dispatch.';
+      case 'DISPATCHED':
+        return 'Order has been dispatched.';
       case 'DELIVERED':
-        return 'Order has been delivered';
+        return 'Order has been delivered.';
       case 'CANCELLED':
-        return 'Order has been cancelled';
+        return 'Order has been cancelled.';
       default:
         return `Order is ${status.toLowerCase()}`;
     }
@@ -289,7 +286,7 @@ export default function MyOrdersPage() {
                         {order.orderStatus.toUpperCase()}
                       </Badge>
                       <div className="flex items-center gap-1 font-bold text-lg text-primary">
-                        ₹ {order.totalAmount.toFixed(2)}
+                        ₹ {order.finalAmount.toFixed(2)}
                       </div>
                     </div>
                   </div>
@@ -302,15 +299,12 @@ export default function MyOrdersPage() {
                         <p className="text-sm text-muted-foreground">
                           {order.items.length} item{order.items.length !== 1 ? 's' : ''} in this order
                         </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {order.orderStatus.toUpperCase() === 'DELIVERED' ? (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                          ) : order.orderStatus.toUpperCase() === 'CANCELLED' ? (
-                            <XCircle className="h-4 w-4 text-red-600" />
-                          ) : null}
-                          <span className="text-xs text-muted-foreground">
+                        <div className="flex items-center gap-3 mt-2">
+                          <OrderStatusAnimation status={order.orderStatus} />
+
+                          {/* <span className="text-xs text-muted-foreground">
                             {getOrderStatusMessage(order.orderStatus)}
-                          </span>
+                          </span> */}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">

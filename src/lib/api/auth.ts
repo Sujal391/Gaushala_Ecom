@@ -15,17 +15,19 @@ import type {
   LoginPayload,
   AuthResponse,
   Product,
-  CreateProductPayload,
   UpdateProductPayload,
   AddToCartPayload,
-  CartItem,
   CartResponse,
   DashboardStats,
   CheckoutPayload,
-  OrderItem,
   Order,
+  PendingOrder,
   PaymentInitiateResponse,
   Customer,
+  Offer,
+  ApplyOfferRequest,
+  CreateOfferRequest,
+  MyProfileResponse,
 } from '../../types/index';
 
 // ==================== HELPER FUNCTIONS ====================
@@ -231,6 +233,24 @@ export async function loginUser(payload: LoginPayload): Promise<ApiResponse<Auth
     return {
       success: false,
       message: 'Network error. Please try again.',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function getMyProfile(): Promise<ApiResponse<MyProfileResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.ME}`, {
+      method: 'GET',
+      headers: getHeaders(true),
+    });
+
+    return handleResponse<MyProfileResponse>(response);
+  } catch (error) {
+    console.error('Get my profile error:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch my profile',
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
@@ -651,6 +671,33 @@ export async function cancelMyOrder(
   }
 }
 
+export async function getPendingOrders(
+  params?: { date?: string }
+): Promise<ApiResponse<PendingOrder[]>> {
+  try {
+    const queryString = params?.date
+      ? `?date=${encodeURIComponent(params.date)}`
+      : '';
+
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.ORDERS.PENDING_ORDERS}${queryString}`,
+      {
+        method: 'GET',
+        headers: getHeaders(true),
+      }
+    );
+
+    return handleResponse<PendingOrder[]>(response);
+  } catch (error) {
+    console.error('Get pending orders error:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch pending orders',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
 // ==================== PAYMENT APIs ====================
 
 export async function initiatePayment(
@@ -716,6 +763,72 @@ export async function paymentFailure(gatewayResponse: any): Promise<ApiResponse>
     };
   }
 }
+// ==================== OFFERS APIs ====================
+
+export async function getAllOffers(): Promise<ApiResponse<Offer[]>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.OFFER.LIST}`,
+      {
+        method: 'GET',
+        headers: getHeaders(true),
+      }
+    );
+
+    return handleResponse<Offer[]>(response);
+  } catch (error) {
+    console.error('Get offers error:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch offers',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function createOffer(payload: CreateOfferRequest): Promise<ApiResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.OFFER.CREATE}`,
+      {
+        method: 'POST',
+        headers: getHeaders(true),
+        body: JSON.stringify(payload),
+      }
+    );
+
+    return handleResponse(response);
+  } catch (error) {
+    console.error('Create offer error:', error);
+    return {
+      success: false,
+      message: 'Failed to create offer',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function applyOffer(userId: number, offerCode: string): Promise<ApiResponse<ApplyOfferRequest>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.OFFER.APPLY}`,
+      {
+        method: 'POST',
+        headers: getHeaders(true),
+        body: JSON.stringify({ userId, offerCode }),
+      }
+    );
+
+    return handleResponse(response);
+  } catch (error) {
+    console.error('Apply offer error:', error);
+    return {
+      success: false,
+      message: 'Failed to apply offer',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
 
 // ==================== EXPORTS ====================
 
@@ -723,6 +836,7 @@ export default {
   // Auth
   registerUser,
   loginUser,
+  getMyProfile,
   
   // Products
   getAllProducts,

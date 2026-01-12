@@ -15,6 +15,8 @@ import {
   ShoppingBag,
   ArrowLeft,
   Loader2,
+  TagIcon,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -186,6 +188,8 @@ export default function EditProductPage() {
     { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
     { icon: Package, label: 'Products', href: '/admin/products' },
     { icon: ShoppingCart, label: 'Orders', href: '/admin/orders' },
+    { icon: Clock, label: 'Pending Orders', href: '/admin/pending' },
+    { icon: TagIcon, label: 'Offers', href: '/admin/offer' },
     { icon: Users, label: 'Customers', href: '/admin/customers' },
     { icon: Settings, label: 'Settings', href: '/admin/settings' },
   ];

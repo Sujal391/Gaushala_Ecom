@@ -14,6 +14,8 @@ import {
   DollarSign,
   ShoppingBag,
   Loader2,
+  TagIcon,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -153,6 +155,8 @@ export default function AdminDashboard() {
     { icon: LayoutDashboard, label: 'Dashboard', href: '/admin', active: true },
     { icon: Package, label: 'Products', href: '/admin/products', active: false },
     { icon: ShoppingCart, label: 'Orders', href: '/admin/orders', active: false },
+    { icon: Clock, label: 'Pending Orders', href: '/admin/pending', active: false },
+    { icon: TagIcon, label: 'Offers', href: '/admin/offer', active: false },
     { icon: Users, label: 'Customers', href: '/admin/customers', active: false },
     { icon: Settings, label: 'Settings', href: '/admin/settings', active: false },
   ];
