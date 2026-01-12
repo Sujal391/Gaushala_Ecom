@@ -46,7 +46,7 @@ export default function UserLayout({ children }: LayoutProps) {
     {
       id: "shop",
       label: "Shop",
-      path: "/user/shop",
+      path: "/shop",
       icon: ShoppingBag,
       show: true,
     },
@@ -110,7 +110,7 @@ export default function UserLayout({ children }: LayoutProps) {
             {/* Logo */}
             <div
               className="flex items-center gap-2 cursor-pointer"
-              onClick={() => router.push("/user/shop")}
+              onClick={() => router.push("/shop")}
             >
               <ShoppingBag className="h-8 w-8 text-primary" />
               <span className="text-2xl font-bold">StyleHub Store</span>
