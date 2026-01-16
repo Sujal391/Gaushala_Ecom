@@ -6,9 +6,12 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost
 // API endpoints
 export const API_ENDPOINTS = {
   AUTH: {
-    REGISTER: '/api/auth/register',
+    REGISTER_P1: '/api/auth/register/phase1',
+    REGISTER_P2: '/api/auth/register/phase2',
+    PARTIAL_USERS: '/api/auth/incomplete-users',
     LOGIN: '/api/auth/login',
     ME: '/api/auth/me',
+    REFERRAL_SUMMARY: '/api/auth/referrals/summary',
   },
   DASHBOARD: '/api/dashboard',
   ADMIN_CUSTOMERS: {
@@ -46,6 +49,10 @@ export const API_ENDPOINTS = {
     LIST: '/api/offers/active',
     CREATE: '/api/offers/create',
     APPLY: '/api/offers/apply',
+  },
+  FEEDBACK: {
+    SUBMIT: '/api/feedback/submit',
+    GET: '/api/feedback/product/{productId}',
   }
 } as const;
 

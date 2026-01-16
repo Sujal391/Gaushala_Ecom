@@ -3,33 +3,19 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  Users,
-  Settings,
-  LogOut,
-  Menu,
   Loader2,
-  ShoppingBag,
   Tag,
   Plus,
   Calendar,
   Percent,
   X,
-  Clock,
-  Tag as TagIcon,
+  Package,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
@@ -50,7 +36,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 import { toast } from "sonner";
 import AdminGuard from "../../../components/guards/AdminGuard";
-import { removeAuthToken } from "../../../lib/api/config";
+import AdminLayout from "../../../components/layout//AdminLayout";
 import { getAllOffers, createOffer, getAllProducts } from "../../../lib/api/auth";
 
 interface Product {
@@ -85,7 +71,6 @@ interface ProductOption {
 export default function AdminOffersPage() {
   const router = useRouter();
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -269,382 +254,311 @@ export default function AdminOffersPage() {
     return now >= start && now <= end;
   };
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/admin', active: true },
-    { icon: Package, label: 'Products', href: '/admin/products', active: false },
-    { icon: ShoppingCart, label: 'Orders', href: '/admin/orders', active: false },
-    { icon: Clock, label: 'Pending Orders', href: '/admin/pending', active: false },
-    { icon: TagIcon, label: 'Offers', href: '/admin/offer', active: false },
-    { icon: Users, label: 'Customers', href: '/admin/customers', active: false },
-    { icon: Settings, label: 'Settings', href: '/admin/settings', active: false },
-  ];
-
-  const Sidebar = ({ isMobile = false }) => (
-    <div className={`${isMobile ? 'w-full' : 'w-64'} bg-card border-r flex flex-col h-full`}>
-      <div className="p-4 sm:p-6 border-b">
-        <div className="flex items-center gap-2">
-          <ShoppingBag className="h-8 w-8 text-primary" />
-          <span className="text-xl sm:text-2xl font-bold">StyleHub Admin</span>
-        </div>
-      </div>
-
-      <nav className="flex-1 p-3 sm:p-4 space-y-1 sm:space-y-2">
-        {menuItems.map((item) => (
-          <Button
-            key={item.label}
-            variant={item.active ? 'secondary' : 'ghost'}
-            className="w-full justify-start gap-3 text-sm sm:text-base py-2 sm:py-3 h-auto"
-            onClick={() => {
-              router.push(item.href);
-              if (isMobile) setIsSidebarOpen(false);
-            }}
-          >
-            <item.icon className="h-5 w-5" />
-            {item.label}
+  const headerAction = (
+    <div className="flex items-center gap-2">
+      <Button 
+        onClick={fetchOffers} 
+        variant="outline" 
+        size="sm"
+        className="gap-2"
+      >
+        <Loader2 className="h-4 w-4" />
+        <span className="hidden sm:inline">Refresh</span>
+      </Button>
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogTrigger asChild>
+          <Button size="sm" className="gap-2">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Create Offer</span>
+            <span className="sm:hidden">Create</span>
           </Button>
-        ))}
-      </nav>
+        </DialogTrigger>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Offer</DialogTitle>
+          </DialogHeader>
 
-      <div className="p-3 sm:p-4 border-t">
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-destructive"
-          onClick={() => {
-            removeAuthToken();
-            router.push("/shop");
-          }}
-        >
-          <LogOut className="h-5 w-5" />
-          Logout
-        </Button>
-      </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="offerCode">Offer Code *</Label>
+                <Input
+                  id="offerCode"
+                  name="offerCode"
+                  value={formData.offerCode}
+                  onChange={handleInputChange}
+                  placeholder="SUMMER10"
+                  className="uppercase"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="discountPercent">Discount (%) *</Label>
+                <Input
+                  id="discountPercent"
+                  name="discountPercent"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={formData.discountPercent || ""}
+                  onChange={handleInputChange}
+                  placeholder="10"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="minQuantity">Minimum Quantity *</Label>
+              <Input
+                id="minQuantity"
+                name="minQuantity"
+                type="number"
+                min="1"
+                value={formData.minQuantity || ""}
+                onChange={handleInputChange}
+                placeholder="1"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="validFrom">Valid From *</Label>
+                <Input
+                  id="validFrom"
+                  name="validFrom"
+                  type="datetime-local"
+                  value={formData.validFrom}
+                  onChange={handleInputChange}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="validTo">Valid To *</Label>
+                <Input
+                  id="validTo"
+                  name="validTo"
+                  type="datetime-local"
+                  value={formData.validTo}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Select Products *</Label>
+              {isLoadingProducts ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="border rounded-md p-4 max-h-60 overflow-y-auto space-y-2">
+                  {products.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No products available
+                    </p>
+                  ) : (
+                    products.map((product) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center space-x-2"
+                      >
+                        <Checkbox
+                          id={`product-${product.id}`}
+                          checked={formData.productIds.includes(product.id)}
+                          onCheckedChange={() => handleProductToggle(product.id)}
+                        />
+                        <label
+                          htmlFor={`product-${product.id}`}
+                          className="text-sm cursor-pointer flex-1"
+                        >
+                          {product.name}
+                        </label>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+              {formData.productIds.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  {formData.productIds.length} product(s) selected
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setIsCreateDialogOpen(false);
+                  resetForm();
+                }}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={isSubmitting}
+                onClick={handleCreateOffer}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Offer"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
   return (
     <AdminGuard>
-      <div className="min-h-screen bg-background flex">
-        {/* Desktop Sidebar */}
-        <aside className="hidden lg:block fixed left-0 top-0 h-full z-40">
-          <Sidebar />
-        </aside>
-
-        {/* Main Content */}
-        <div className="flex-1 lg:ml-64">
-          {/* Header */}
-          <header className="sticky top-0 z-30 bg-background border-b">
-            <div className="flex items-center justify-between px-6 py-4">
-              <div className="flex items-center gap-3">
-                <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-                  <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="lg:hidden">
-                      <Menu className="h-6 w-6" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="left" className="p-0 w-[300px]">
-                    <Sidebar isMobile />
-                  </SheetContent>
-                </Sheet>
-
-                <h1 className="text-2xl font-bold">Offers</h1>
-              </div>
-
-              <div className="flex gap-2">
-                <Button onClick={fetchOffers} variant="outline" size="sm">
-                  Refresh
-                </Button>
-                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Offer
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Create New Offer</DialogTitle>
-                    </DialogHeader>
-
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="offerCode">Offer Code *</Label>
-                          <Input
-                            id="offerCode"
-                            name="offerCode"
-                            value={formData.offerCode}
-                            onChange={handleInputChange}
-                            placeholder="SUMMER10"
-                            className="uppercase"
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="discountPercent">Discount (%) *</Label>
-                          <Input
-                            id="discountPercent"
-                            name="discountPercent"
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={formData.discountPercent || ""}
-                            onChange={handleInputChange}
-                            placeholder="10"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="minQuantity">Minimum Quantity *</Label>
-                        <Input
-                          id="minQuantity"
-                          name="minQuantity"
-                          type="number"
-                          min="1"
-                          value={formData.minQuantity || ""}
-                          onChange={handleInputChange}
-                          placeholder="1"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="validFrom">Valid From *</Label>
-                          <Input
-                            id="validFrom"
-                            name="validFrom"
-                            type="datetime-local"
-                            value={formData.validFrom}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="validTo">Valid To *</Label>
-                          <Input
-                            id="validTo"
-                            name="validTo"
-                            type="datetime-local"
-                            value={formData.validTo}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>Select Products *</Label>
-                        {isLoadingProducts ? (
-                          <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                          </div>
-                        ) : (
-                          <div className="border rounded-md p-4 max-h-60 overflow-y-auto space-y-2">
-                            {products.length === 0 ? (
-                              <p className="text-sm text-muted-foreground text-center py-4">
-                                No products available
-                              </p>
-                            ) : (
-                              products.map((product) => (
-                                <div
-                                  key={product.id}
-                                  className="flex items-center space-x-2"
-                                >
-                                  <Checkbox
-                                    id={`product-${product.id}`}
-                                    checked={formData.productIds.includes(product.id)}
-                                    onCheckedChange={() => handleProductToggle(product.id)}
-                                  />
-                                  <label
-                                    htmlFor={`product-${product.id}`}
-                                    className="text-sm cursor-pointer flex-1"
-                                  >
-                                    {product.name}
-                                  </label>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
-                        {formData.productIds.length > 0 && (
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {formData.productIds.length} product(s) selected
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex gap-2 pt-4">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => {
-                            setIsCreateDialogOpen(false);
-                            resetForm();
-                          }}
-                          disabled={isSubmitting}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          className="flex-1"
-                          disabled={isSubmitting}
-                          onClick={handleCreateOffer}
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Creating...
-                            </>
-                          ) : (
-                            "Create Offer"
-                          )}
-                        </Button>
-                      </div>
+      <AdminLayout title="Offers" headerAction={headerAction}>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground">Loading offers...</p>
+          </div>
+        ) : (
+          <>
+            {/* Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
+              <Card>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Total Offers</p>
+                      <p className="text-xl sm:text-2xl font-bold">{offers.length}</p>
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
-          </header>
+                    <Tag className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
+                  </div>
+                </CardContent>
+              </Card>
 
-          {/* Content */}
-          <main className="p-6">
-            {isLoading ? (
-              <div className="flex flex-col items-center py-12">
-                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                Loading offers...
-              </div>
+              <Card>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Active Now</p>
+                      <p className="text-xl sm:text-2xl font-bold">
+                        {offers.filter((o) => isOfferActive(o)).length}
+                      </p>
+                    </div>
+                    <Percent className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Offers Table */}
+            {offers.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 sm:py-12 text-center">
+                  <Tag className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <h3 className="text-lg font-semibold mb-2">No offers found</h3>
+                  <p className="text-muted-foreground">
+                    Create your first offer to get started
+                  </p>
+                </CardContent>
+              </Card>
             ) : (
               <>
-                {/* Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                  <Card>
-                    <CardContent className="p-6 flex justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Offers</p>
-                        <p className="text-2xl font-bold">{offers.length}</p>
-                      </div>
-                      <Tag className="h-8 w-8 text-blue-500" />
-                    </CardContent>
-                  </Card>
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs sm:text-sm">Offer Code</TableHead>
+                            <TableHead className="text-xs sm:text-sm">Discount</TableHead>
+                            <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Min Qty</TableHead>
+                            <TableHead className="text-xs sm:text-sm hidden md:table-cell">Valid From</TableHead>
+                            <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Valid To</TableHead>
+                            <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Products</TableHead>
+                            <TableHead className="text-right text-xs sm:text-sm">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
 
-                  <Card>
-                    <CardContent className="p-6 flex justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Active Now</p>
-                        <p className="text-2xl font-bold">
-                          {offers.filter((o) => isOfferActive(o)).length}
-                        </p>
-                      </div>
-                      <Percent className="h-8 w-8 text-green-500" />
-                    </CardContent>
-                  </Card>
-
-                  {/* <Card>
-                    <CardContent className="p-6 flex justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Avg Discount</p>
-                        <p className="text-2xl font-bold">
-                          {offers.length > 0
-                            ? Math.round(
-                                offers.reduce((sum, o) => sum + o.discountPercent, 0) /
-                                  offers.length
-                              )
-                            : 0}
-                          %
-                        </p>
-                      </div>
-                      <Calendar className="h-8 w-8 text-purple-500" />
-                    </CardContent>
-                  </Card> */}
-                </div>
-
-                {/* Offers Table */}
-                {offers.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-12 text-center text-muted-foreground">
-                      <Tag className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No offers found</p>
-                      <p className="text-sm mt-2">Create your first offer to get started</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card>
-                    <CardContent className="p-0">
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Offer Code</TableHead>
-                              <TableHead>Discount</TableHead>
-                              <TableHead>Min Qty</TableHead>
-                              <TableHead>Valid From</TableHead>
-                              <TableHead>Valid To</TableHead>
-                              <TableHead>Products</TableHead>
-                              <TableHead>Status</TableHead>
-                            </TableRow>
-                          </TableHeader>
-
-                          <TableBody>
-                            {offers.map((offer) => (
-                              <TableRow key={offer.offerId}>
-                                <TableCell className="font-medium">
-                                  <Badge variant="outline" className="font-mono">
-                                    {offer.offerCode}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="secondary">
-                                    {offer.discountPercent}% OFF
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>{offer.minQuantity}</TableCell>
-                                <TableCell className="text-muted-foreground text-sm">
-                                  {formatDateTime(offer.validFrom)}
-                                </TableCell>
-                                <TableCell className="text-muted-foreground text-sm">
-                                  {formatDateTime(offer.validTo)}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex flex-wrap gap-1">
-                                    {offer.products.slice(0, 2).map((p) => (
-                                      <Badge key={p.productId} variant="outline" className="text-xs">
-                                        {p.productName}
-                                      </Badge>
-                                    ))}
-                                    {offer.products.length > 2 && (
-                                      <Badge variant="outline" className="text-xs">
-                                        +{offer.products.length - 2}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  {isOfferActive(offer) ? (
-                                    <Badge className="bg-green-500">Active</Badge>
-                                  ) : new Date() < new Date(offer.validFrom) ? (
-                                    <Badge variant="outline">Upcoming</Badge>
-                                  ) : (
-                                    <Badge variant="secondary">Expired</Badge>
+                        <TableBody>
+                          {offers.map((offer) => (
+                            <TableRow key={offer.offerId} className="hover:bg-muted/30">
+                              <TableCell className="font-medium">
+                                <Badge variant="outline" className="font-mono text-xs">
+                                  {offer.offerCode}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="text-xs">
+                                  {offer.discountPercent}% OFF
+                                </Badge>
+                                <div className="text-xs text-muted-foreground sm:hidden mt-1">
+                                  Min Qty: {offer.minQuantity}
+                                </div>
+                              </TableCell>
+                              <TableCell className="hidden sm:table-cell">
+                                {offer.minQuantity}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-xs hidden md:table-cell">
+                                {formatDateTime(offer.validFrom)}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-xs hidden lg:table-cell">
+                                {formatDateTime(offer.validTo)}
+                              </TableCell>
+                              <TableCell className="hidden lg:table-cell">
+                                <div className="flex flex-wrap gap-1">
+                                  {offer.products.slice(0, 2).map((p) => (
+                                    <Badge key={p.productId} variant="outline" className="text-xs">
+                                      {p.productName}
+                                    </Badge>
+                                  ))}
+                                  {offer.products.length > 2 && (
+                                    <Badge variant="outline" className="text-xs">
+                                      +{offer.products.length - 2}
+                                    </Badge>
                                   )}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {isOfferActive(offer) ? (
+                                  <Badge className="bg-green-500 text-xs">Active</Badge>
+                                ) : new Date() < new Date(offer.validFrom) ? (
+                                  <Badge variant="outline" className="text-xs">Upcoming</Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="text-xs">Expired</Badge>
+                                )}
+                                <div className="text-xs text-muted-foreground mt-1 md:hidden">
+                                  {formatDate(offer.validFrom)} - {formatDate(offer.validTo)}
+                                </div>
+                                {offer.products.length > 0 && (
+                                  <div className="text-xs text-muted-foreground mt-1 lg:hidden">
+                                    {offer.products.length} product(s)
+                                  </div>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 <div className="mt-6 text-center text-sm text-muted-foreground">
                   Showing {offers.length} offer{offers.length !== 1 ? "s" : ""}
                 </div>
               </>
             )}
-          </main>
-        </div>
-      </div>
+          </>
+        )}
+      </AdminLayout>
     </AdminGuard>
   );
 }
