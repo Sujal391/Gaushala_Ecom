@@ -53,7 +53,33 @@ export interface MyProfileResponse {
   mobileNo: string;
   referralCode: string;
   referredByUserId: number | null;
-  createdAt: string; // ISO date-time
+  createdAt: string;
+}
+
+// ==================== REFERRAL TYPES ====================
+
+export interface ReferredUser {
+  userId: number;
+  name: string;
+  email: string;
+  mobileNo: string;
+  registeredAt: string;
+  isReferralUsed: boolean;
+}
+
+export interface Referrer {
+  referrerUserId: number;
+  referrerName: string;
+  referrerEmail: string;
+  referralCode: string;
+  totalReferredCount: number;
+  referredUsers: ReferredUser[];
+}
+
+export interface ReferralSummaryResponse {
+  success: boolean;
+  totalReferrers: number;
+  data: Referrer[];
 }
 
 // ==================== PRODUCT TYPES ====================
@@ -104,6 +130,24 @@ export interface CartItem {
 export interface CartResponse {
   items: CartItem[];
   cartTotal: number;
+}
+
+// ==================== FEEDBACK TYPES ====================
+
+export interface Feedback {
+  feedbackId: number;
+  productId: number;
+  userId: number;
+  rating: number;
+  review: string;
+  createdAt: string;
+}
+
+export interface FeedbackApiResponse {
+  success: boolean;
+  message: string;
+  data: Feedback[];
+  error?: string;
 }
 
 // ==================== ORDER TYPES ====================
@@ -164,6 +208,13 @@ export interface Customer {
   createdAt: string;
 }
 
+export interface IncompleteUser {
+  userId: number;
+  name: string;
+  email: string;
+  mobileNo: string;
+  createdAt: string;
+}
 
 // ==================== PAYMENT TYPES ====================
 

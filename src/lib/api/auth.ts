@@ -28,6 +28,9 @@ import type {
   ApplyOfferRequest,
   CreateOfferRequest,
   MyProfileResponse,
+  FeedbackApiResponse,
+  IncompleteUser,
+  ReferralSummaryResponse,
 } from '../../types/index';
 
 // ==================== HELPER FUNCTIONS ====================
@@ -140,7 +143,45 @@ export function extractMessage(apiResponse: ApiResponse<any> | any): string | un
 
 // ==================== AUTH APIs ====================
 
-export async function registerUser(payload: RegisterPayload): Promise<ApiResponse> {
+export async function registerUserPhase1(
+  payload: {
+    name: string;
+    email: string;
+    mobileNo: string;
+  }
+): Promise<ApiResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.AUTH.REGISTER_P1}`,
+      {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          name: payload.name,
+          email: payload.email,
+          mobileNo: payload.mobileNo,
+        }),
+      }
+    );
+
+    return handleResponse(response);
+  } catch (error) {
+    console.error('Register Phase 1 error:', error);
+    return {
+      success: false,
+      message: 'Network error. Please try again.',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function registerUserPhase2(
+  payload: {
+    emailOrMobile: string;
+    password: string;
+    confirmPassword: string;
+  }
+): Promise<ApiResponse> {
   try {
     if (payload.password !== payload.confirmPassword) {
       return {
@@ -150,15 +191,48 @@ export async function registerUser(payload: RegisterPayload): Promise<ApiRespons
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.REGISTER}`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify(payload),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.AUTH.REGISTER_P2}`,
+      {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          emailOrMobile: payload.emailOrMobile,
+          password: payload.password,
+          confirmPassword: payload.confirmPassword,
+        }),
+      }
+    );
 
     return handleResponse(response);
   } catch (error) {
-    console.error('Register error:', error);
+    console.error('Register Phase 2 error:', error);
+    return {
+      success: false,
+      message: 'Network error. Please try again.',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function getIncompleteUsers(): Promise<
+  ApiResponse<{
+    count: number;
+    data: IncompleteUser[];
+  }>
+> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.AUTH.PARTIAL_USERS}`,
+      {
+        method: 'GET',
+        headers: getHeaders(true),
+      }
+    );
+
+    return handleResponse(response);
+  } catch (error) {
+    console.error('Get incomplete users error:', error);
     return {
       success: false,
       message: 'Network error. Please try again.',
@@ -251,6 +325,27 @@ export async function getMyProfile(): Promise<ApiResponse<MyProfileResponse>> {
     return {
       success: false,
       message: 'Failed to fetch my profile',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function getReferralSummary(): Promise<ApiResponse<ReferralSummaryResponse>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.AUTH.REFERRAL_SUMMARY}`,
+      {
+        method: 'GET',
+        headers: getHeaders(true),
+      }
+    );
+
+    return handleResponse<ReferralSummaryResponse>(response);
+  } catch (error) {
+    console.error('Get referral summary error:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch referral summary',
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
@@ -479,6 +574,77 @@ export async function getDashboardStats(): Promise<ApiResponse<DashboardStats>> 
       success: false,
       message: 'Failed to fetch dashboard stats',
       error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+// ==================== FEEDBACK APIs ====================
+
+export async function submitFeedback(payload: {
+  orderId: number;
+  productId: number;
+  rating: number;
+  review: string;
+}): Promise<ApiResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.FEEDBACK.SUBMIT}`,
+      {
+        method: 'POST',
+        headers: getHeaders(true),
+        body: JSON.stringify(payload),
+      }
+    );
+
+    return handleResponse(response);
+  } catch (error) {
+    console.error('Submit feedback error:', error);
+    return {
+      success: false,
+      message: 'Failed to submit feedback',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function getFeedbackByProduct(productId: number): Promise<FeedbackApiResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.FEEDBACK.GET.replace('{productId}', productId.toString())}`,
+      {
+        method: 'GET',
+        headers: getHeaders(true),
+      }
+    );
+
+    // Check if response is OK
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `HTTP error! status: ${response.status}`,
+        error: errorData.error || 'Network response was not ok',
+        data: []
+      };
+    }
+
+    const result = await response.json();
+    
+    // Ensure consistent response structure
+    return {
+      success: result.success ?? true,
+      data: result.data ?? [],
+      message: result.message || 'Feedback fetched successfully',
+      error: result.error
+    };
+    
+  } catch (error) {
+    console.error('Get feedback error:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch feedback',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      data: []
     };
   }
 }
@@ -834,9 +1000,12 @@ export async function applyOffer(userId: number, offerCode: string): Promise<Api
 
 export default {
   // Auth
-  registerUser,
+  registerUserPhase1,
+  registerUserPhase2,
+  getIncompleteUsers,
   loginUser,
   getMyProfile,
+  getReferralSummary,
   
   // Products
   getAllProducts,

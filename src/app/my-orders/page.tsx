@@ -2,11 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Package, Loader2, ShoppingBag, ArrowLeft, Calendar, DollarSign, XCircle, CheckCircle } from 'lucide-react';
+import { 
+  Package, Loader2, ShoppingBag, ArrowLeft, Calendar, 
+  DollarSign, XCircle, CheckCircle, MessageSquare, Star 
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,8 +22,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import UserLayout from '../../components/layout/UserLayout';
 import { getMyOrders, cancelMyOrder } from '../../lib/api/auth';
+import { submitFeedback } from '../../lib/api/auth'; // You'll need to create this
 import { isAuthenticated, getUserId } from '../../lib/api/config';
 import OrderStatusAnimation from '../../components/OrderStatusAnimation';
 import { toast } from 'sonner';
@@ -31,6 +52,7 @@ interface OrderItem {
   quantity: number;
   totalPrice: number;
   images?: string[];
+  hasFeedback?: boolean; // Add this to track if feedback already given
 }
 
 interface Order {
@@ -39,6 +61,14 @@ interface Order {
   orderStatus: string;
   orderDate: string;
   items: OrderItem[];
+  finalAmount: number;
+}
+
+interface FeedbackFormData {
+  orderId: number;
+  productId: number;
+  rating: number;
+  review: string;
 }
 
 export default function MyOrdersPage() {
@@ -53,6 +83,22 @@ export default function MyOrdersPage() {
     orderId: number;
     orderNumber: string;
   } | null>(null);
+  
+  // Feedback states
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<{
+    orderId: number;
+    productId: number;
+    productName: string;
+    image?: string;
+  } | null>(null);
+  const [feedbackForm, setFeedbackForm] = useState<FeedbackFormData>({
+    orderId: 0,
+    productId: 0,
+    rating: 5,
+    review: '',
+  });
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -105,6 +151,83 @@ export default function MyOrdersPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Feedback functions
+  const openFeedbackDialog = (orderId: number, productId: number, productName: string, image?: string) => {
+    setSelectedProduct({
+      orderId,
+      productId,
+      productName,
+      image,
+    });
+    setFeedbackForm({
+      orderId,
+      productId,
+      rating: 5,
+      review: '',
+    });
+    setShowFeedbackDialog(true);
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!feedbackForm.review.trim()) {
+      toast.error('Please write your review');
+      return;
+    }
+
+    if (feedbackForm.review.trim().length < 10) {
+      toast.error('Review must be at least 10 characters');
+      return;
+    }
+
+    try {
+      setSubmittingFeedback(true);
+      const response = await submitFeedback(feedbackForm);
+
+      if (response.success) {
+        toast.success('Thank you for your feedback!');
+        
+        // Update the order item to mark feedback as submitted
+        setOrders(prevOrders =>
+          prevOrders.map(order => {
+            if (order.orderId === feedbackForm.orderId) {
+              return {
+                ...order,
+                items: order.items.map(item =>
+                  item.productId === feedbackForm.productId
+                    ? { ...item, hasFeedback: true }
+                    : item
+                ),
+              };
+            }
+            return order;
+          })
+        );
+        
+        setShowFeedbackDialog(false);
+        setSelectedProduct(null);
+        setFeedbackForm({
+          orderId: 0,
+          productId: 0,
+          rating: 5,
+          review: '',
+        });
+      } else {
+        toast.error(response.message || 'Failed to submit feedback');
+      }
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      toast.error('Failed to submit feedback. Please try again.');
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
+
+  const isFeedbackEligible = (orderStatus: string) => {
+    const normalizedStatus = orderStatus.toUpperCase();
+    // Only allow feedback for delivered orders
+    return normalizedStatus === 'DELIVERED';
   };
 
   const formatDate = (dateString: string) => {
@@ -220,6 +343,30 @@ export default function MyOrdersPage() {
     }
   };
 
+  // Star rating component
+  const renderStarRating = () => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <button
+          key={i}
+          type="button"
+          onClick={() => setFeedbackForm(prev => ({ ...prev, rating: i }))}
+          className="focus:outline-none"
+        >
+          <Star
+            className={`h-8 w-8 ${
+              i <= feedbackForm.rating
+                ? 'fill-yellow-400 text-yellow-400'
+                : 'text-gray-300'
+            } hover:text-yellow-400 transition-colors`}
+          />
+        </button>
+      );
+    }
+    return stars;
+  };
+
   if (loading) {
     return (
       <UserLayout>
@@ -301,10 +448,6 @@ export default function MyOrdersPage() {
                         </p>
                         <div className="flex items-center gap-3 mt-2">
                           <OrderStatusAnimation status={order.orderStatus} />
-
-                          {/* <span className="text-xs text-muted-foreground">
-                            {getOrderStatusMessage(order.orderStatus)}
-                          </span> */}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -370,9 +513,36 @@ export default function MyOrdersPage() {
                                 </p>
                               </div>
                             </div>
-                            <p className="font-semibold text-sm">
-                              ₹{item.totalPrice.toFixed(2)}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-sm">
+                                ₹{item.totalPrice.toFixed(2)}
+                              </p>
+                              {isFeedbackEligible(order.orderStatus) && !item.hasFeedback && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openFeedbackDialog(
+                                    order.orderId,
+                                    item.productId,
+                                    item.productName,
+                                    item.images?.[0]
+                                  )}
+                                  className="gap-1"
+                                >
+                                  <MessageSquare className="h-3 w-3" />
+                                  Feedback
+                                </Button>
+                              )}
+                              {item.hasFeedback && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-green-50 text-green-700 border-green-200"
+                                >
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Reviewed
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -414,7 +584,7 @@ export default function MyOrdersPage() {
               onClick={() => router.push('/shop')}
             >
               Continue Shopping
-            </Button>
+          </Button>
           </div>
         )}
 
@@ -449,6 +619,95 @@ export default function MyOrdersPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Feedback Dialog */}
+        <Dialog open={showFeedbackDialog} onOpenChange={setShowFeedbackDialog}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Leave Feedback</DialogTitle>
+              <DialogDescription>
+                Share your experience with this product from order #{selectedProduct?.orderId}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedProduct && (
+              <div className="space-y-6 py-4">
+                {/* Product Info */}
+                <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
+                  <div className="w-16 h-16 bg-muted rounded-md overflow-hidden flex-shrink-0">
+                    <img
+                      src={
+                        selectedProduct.image
+                          ? `http://gaushalaecommerce.runasp.net${selectedProduct.image}`
+                          : '/placeholder-product.jpg'
+                      }
+                      alt={selectedProduct.productName}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">{selectedProduct.productName}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Order #{selectedProduct.orderId}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Star Rating */}
+                <div className="space-y-3">
+                  <Label>Rating</Label>
+                  <div className="flex items-center gap-2">
+                    {renderStarRating()}
+                    <span className="ml-2 text-sm font-medium">
+                      {feedbackForm.rating} out of 5
+                    </span>
+                  </div>
+                </div>
+
+                {/* Review Text */}
+                <div className="space-y-3">
+                  <Label htmlFor="review">Your Review</Label>
+                  <Textarea
+                    id="review"
+                    placeholder="Share your thoughts about this product..."
+                    value={feedbackForm.review}
+                    onChange={(e) => setFeedbackForm(prev => ({
+                      ...prev,
+                      review: e.target.value
+                    }))}
+                    className="min-h-[120px]"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Minimum 10 characters required
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowFeedbackDialog(false)}
+                disabled={submittingFeedback}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitFeedback}
+                disabled={submittingFeedback || feedbackForm.review.trim().length < 10}
+              >
+                {submittingFeedback ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit Feedback'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </UserLayout>
   );
