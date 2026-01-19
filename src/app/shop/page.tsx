@@ -90,6 +90,7 @@ const handleAddToCart = async (product: Product) => {
       userId,
       productId: product.id,
       quantity: 1,
+      selectedSize: product.sizes?.[0] || "",
     });
 
     toast({

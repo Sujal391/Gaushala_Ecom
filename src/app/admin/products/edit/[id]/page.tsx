@@ -29,10 +29,10 @@ export default function EditProductPage() {
     price: '',
     stockQty: '',
     description: '',
-    images: [],
   });
-  const [imageFiles, setImageFiles] = useState([]);
-  const [imagePreviews, setImagePreviews] = useState([]);
+  const [existingImages, setExistingImages] = useState([]); // URLs from server
+  const [newImageFiles, setNewImageFiles] = useState([]); // New files to upload
+  const [imagePreviews, setImagePreviews] = useState([]); // All previews for display
 
   // Fetch product data from API on component mount
   useEffect(() => {
@@ -51,14 +51,18 @@ export default function EditProductPage() {
           
           setFormData({
             name: product.name || '',
-            sizes: product.sizes || '',
+            sizes: Array.isArray(product.sizes) 
+              ? product.sizes.join(', ') 
+              : product.sizes || '',
             price: product.price?.toString() || '',
             stockQty: product.stockQty?.toString() || '',
             description: product.description || '',
-            images: product.images || [],
           });
+          
+          const imageUrls = product.images || [];
+          setExistingImages(imageUrls);
           setImagePreviews(
-            product.images?.map(img => `https://gaushalaecommerce.runasp.net${img}`) || []
+            imageUrls.map(img => `https://gaushalaecommerce.runasp.net${img}`)
           );
         } else {
           console.error('Invalid response format:', response);
@@ -99,8 +103,8 @@ export default function EditProductPage() {
         return;
       }
 
-      // Append new files to existing ones
-      setImageFiles(prev => [...prev, ...files]);
+      // Append new files
+      setNewImageFiles(prev => [...prev, ...files]);
       
       // Create previews for new images
       const previews = files.map(file => {
@@ -118,7 +122,17 @@ export default function EditProductPage() {
   };
 
   const removeImage = (index) => {
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
+    const totalExistingImages = existingImages.length;
+    
+    if (index < totalExistingImages) {
+      // Removing an existing image
+      setExistingImages(prev => prev.filter((_, i) => i !== index));
+    } else {
+      // Removing a new image
+      const newImageIndex = index - totalExistingImages;
+      setNewImageFiles(prev => prev.filter((_, i) => i !== newImageIndex));
+    }
+    
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -147,6 +161,21 @@ export default function EditProductPage() {
     setSubmitting(true);
 
     try {
+      // Convert new image files to base64
+      const newImageBase64 = await Promise.all(
+        newImageFiles.map(file => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        })
+      );
+
+      // Combine existing image URLs with new base64 images
+      const allImages = [...existingImages, ...newImageBase64];
+
       const payload = {
         name: formData.name.trim(),
         sizes: formData.sizes
@@ -156,7 +185,7 @@ export default function EditProductPage() {
         price: parseFloat(formData.price),
         stockQty: parseInt(formData.stockQty),
         description: formData.description.trim(),
-        images: imagePreviews,
+        images: allImages, // Send both existing URLs and new base64
       };
 
       console.log('Updating product with payload:', payload);
@@ -269,8 +298,8 @@ export default function EditProductPage() {
                           className="flex-1"
                           onClick={() => {
                             setImagePreviews([]);
-                            setImageFiles([]);
-                            setFormData({ ...formData, images: [] });
+                            setNewImageFiles([]);
+                            setExistingImages([]);
                           }}
                           disabled={submitting}
                         >
@@ -327,7 +356,7 @@ export default function EditProductPage() {
                     type="text"
                     value={formData.sizes}
                     onChange={(e) => setFormData({ ...formData, sizes: e.target.value })}
-                    placeholder="Enter sizes (e.g., S, M, L, XL)"
+                    placeholder="S, M, L, XL"
                     disabled={submitting}
                     className="text-sm sm:text-base"
                   />

@@ -59,6 +59,12 @@ export const API_ENDPOINTS = {
     SUBMIT: '/api/feedback/submit',
     GET: '/api/feedback/product/{productId}',
   },
+  SAMPLE_REQUESTS: {
+  REQUEST_SAMPLE: '/api/sample-requests',
+  GET_ALL: '/api/sample-requests',
+  GET_BY_USER: (userId: number) => `/api/sample-requests/user/${userId}`,
+  CHANGE_STATUS: (id: number) => `/api/sample-requests/${id}/status`,
+},
 } as const;
 
 /* -------------------------------------------------------------------------- */

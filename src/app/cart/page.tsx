@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Loader2 } from 'lucide-react';
+import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import UserLayout from '../../components/layout/UserLayout';
 import { getUserCart, removeFromCart, clearCart, addToCart } from '../../lib/api/auth';
 import { isAuthenticated, getUserId } from '../../lib/api/config';
@@ -23,22 +24,30 @@ interface CartItemApi {
   cartItemId: number;
   productId: number;
   productName: string;
+  description: string;
   productPrice: number;
-  price: number;
   quantity: number;
   totalPrice: number;
+  sizes: string;
+  selectedSize: string;
   images: string[];
 }
 
+interface ExtendedCartItem extends CartItem {
+  originalQuantity: number;
+}
+
+
+
 export default function CartPage() {
   const router = useRouter();
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<ExtendedCartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
-    // Check if user is authenticated
     if (!isAuthenticated()) {
       toast.error('Please login to view your cart');
       router.push('/shop');
@@ -48,7 +57,6 @@ export default function CartPage() {
     loadCart();
   }, []);
 
-  // Load cached updates from localStorage
   const loadCachedUpdates = (): Map<number, number> => {
     try {
       const cached = localStorage.getItem(CART_CACHE_KEY);
@@ -62,7 +70,6 @@ export default function CartPage() {
     return new Map();
   };
 
-  // Save updates to localStorage
   const saveCachedUpdates = (updates: Map<number, number>) => {
     try {
       const updateArray: CartUpdate[] = Array.from(updates.entries()).map(([productId, quantity]) => ({
@@ -75,7 +82,6 @@ export default function CartPage() {
     }
   };
 
-  // Clear cached updates
   const clearCachedUpdates = () => {
     try {
       localStorage.removeItem(CART_CACHE_KEY);
@@ -101,7 +107,6 @@ export default function CartPage() {
 
       let cartItems = [];
       
-      // Handle different response structures
       if (response && response.data) {
         cartItems = response.data.items || response.data || [];
       } else if (response && response.items) {
@@ -112,24 +117,47 @@ export default function CartPage() {
         cartItems = [];
       }
 
-      // Map API response to match CartItem interface
-      let mappedCart = cartItems.map((item: CartItemApi) => ({
-        cartItemId: item.cartItemId,
-        productId: item.productId,
-        productName: item.productName,
-        price: item.productPrice || item.price,
-        quantity: item.quantity,
-        totalPrice: item.totalPrice,
-        images: item.images
-      }));
+      console.log('Cart items:', cartItems);
 
-      // Apply cached updates to the cart
+      let mappedCart: ExtendedCartItem[] = cartItems.map((item: CartItemApi) => {
+        let displaySize = item.selectedSize;
+        
+        if (!displaySize || displaySize.trim() === '') {
+          try {
+            const sizesArray = JSON.parse(item.sizes);
+            if (Array.isArray(sizesArray) && sizesArray.length > 0) {
+              displaySize = sizesArray[0];
+            } else {
+              displaySize = 'No size';
+            }
+          } catch (error) {
+            displaySize = 'No size';
+          }
+        }
+        
+        return {
+          cartItemId: item.cartItemId,
+          productId: item.productId,
+          productName: item.productName,
+          description: item.description,
+          price: item.productPrice,
+          quantity: item.quantity,
+          originalQuantity: item.quantity,
+          totalPrice: item.totalPrice,
+          images: item.images,
+          selectedSize: item.selectedSize
+        };
+      });
+
       const cachedUpdates = loadCachedUpdates();
       if (cachedUpdates.size > 0) {
-        setHasUnsavedChanges(true);
-        mappedCart = mappedCart.map((item: CartItem) => {
+        let hasChanges = false;
+        mappedCart = mappedCart.map((item) => {
           if (cachedUpdates.has(item.productId)) {
             const newQuantity = cachedUpdates.get(item.productId)!;
+            if (newQuantity !== item.originalQuantity) {
+              hasChanges = true;
+            }
             return {
               ...item,
               quantity: newQuantity,
@@ -138,6 +166,7 @@ export default function CartPage() {
           }
           return item;
         });
+        setHasUnsavedChanges(hasChanges);
       }
 
       console.log('Mapped cart items:', mappedCart);
@@ -167,13 +196,14 @@ export default function CartPage() {
         return item;
       });
 
-      // Save to cache
       const cachedUpdates = loadCachedUpdates();
       const updatedItem = updatedCart.find(item => item.productId === productId);
       if (updatedItem) {
         cachedUpdates.set(productId, updatedItem.quantity);
         saveCachedUpdates(cachedUpdates);
-        setHasUnsavedChanges(true);
+        
+        const hasChanges = updatedCart.some(item => item.quantity !== item.originalQuantity);
+        setHasUnsavedChanges(hasChanges);
       }
 
       return updatedCart;
@@ -188,7 +218,6 @@ export default function CartPage() {
       if (response && (response.success || !response.error)) {
         toast.success('Item removed from cart');
         
-        // Remove from cache as well
         const cachedUpdates = loadCachedUpdates();
         cachedUpdates.delete(productId);
         saveCachedUpdates(cachedUpdates);
@@ -234,7 +263,7 @@ export default function CartPage() {
 
   const syncCartWithBackend = async () => {
     try {
-      setUpdating(true);
+      setSyncing(true);
       const userId = getUserId();
 
       if (!userId) {
@@ -242,49 +271,75 @@ export default function CartPage() {
         return false;
       }
 
-      const cachedUpdates = loadCachedUpdates();
-      
-      if (cachedUpdates.size === 0) {
-        return true; // No updates to sync
+      const itemsToUpdate = cart.filter(item => item.quantity !== item.originalQuantity);
+
+      if (itemsToUpdate.length === 0) {
+        clearCachedUpdates();
+        return true;
       }
 
-      // Update each item with the backend
-      const updatePromises = Array.from(cachedUpdates.entries()).map(([productId, quantity]) => {
-        // Get original quantity from backend
-        const originalItem = cart.find(item => item.productId === productId);
-        if (!originalItem) return Promise.resolve();
+      console.log('Syncing items:', itemsToUpdate.map(item => ({
+        cartItemId: item.cartItemId,
+        productId: item.productId,
+        originalQuantity: item.originalQuantity,
+        newQuantity: item.quantity
+      })));
 
-        // Calculate the difference to send to backend
-        const quantityChange = quantity - originalItem.quantity;
+      // Update each item using remove + add approach
+      const updatePromises = itemsToUpdate.map(async (item) => {
+        console.log(`Updating cart item ${item.cartItemId} to quantity ${item.quantity}`);
         
-        return addToCart({
+        // Remove the old cart item
+        const removeResult = await removeFromCart(item.cartItemId);
+        
+        if (!removeResult || removeResult.error) {
+          console.error('Failed to remove item during sync');
+          return { success: false, error: 'Failed to remove item' };
+        }
+
+        // Add the item back with new quantity
+        const addResult = await addToCart({
           userId: userId,
-          productId: productId,
-          quantity: quantityChange,
+          productId: item.productId,
+          quantity: item.quantity,
         });
+
+        return addResult;
       });
 
       const results = await Promise.all(updatePromises);
       
-      // Check if all updates were successful
       const allSuccessful = results.every(result => 
         result && (result.success || !result.error)
       );
 
       if (allSuccessful) {
+        // Reload cart from backend to get fresh data
+        await loadCart();
+        
+        // Update original quantities to match current quantities
+        setCart(prevCart => 
+          prevCart.map(item => ({
+            ...item,
+            originalQuantity: item.quantity
+          }))
+        );
+        
         clearCachedUpdates();
         toast.success('Cart updated successfully');
         return true;
       } else {
         toast.error('Some items failed to update');
+        await loadCart(); // Reload to get actual state
         return false;
       }
     } catch (error) {
       console.error('Error syncing cart:', error);
       toast.error('Failed to sync cart');
+      await loadCart(); // Reload cart on error
       return false;
     } finally {
-      setUpdating(false);
+      setSyncing(false);
     }
   };
 
@@ -303,12 +358,8 @@ export default function CartPage() {
     return cart.reduce((total, item) => total + item.totalPrice, 0);
   };
 
-  const getTax = () => {
-    return getSubtotal() * 0.1; // 10% tax
-  };
-
   const getTotal = () => {
-    return getSubtotal() + getTax();
+    return getSubtotal();
   };
 
   if (loading) {
@@ -352,13 +403,16 @@ export default function CartPage() {
 
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold">Shopping Cart</h1>
-          {/* {hasUnsavedChanges && (
-            <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1.5 rounded-md">
-              <div className="h-2 w-2 bg-amber-600 rounded-full animate-pulse"></div>
-              Unsaved changes
-            </div>
-          )} */}
         </div>
+
+        {hasUnsavedChanges && (
+          <Alert className="mb-6 border-orange-200 bg-orange-50">
+            <AlertCircle className="h-4 w-4 text-orange-600" />
+            <AlertDescription className="text-orange-800">
+              You have unsaved changes. Your cart will be synced when you proceed to checkout.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {cart.length === 0 ? (
           <div className="text-center py-16">
@@ -373,7 +427,6 @@ export default function CartPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
               {cart.map((item) => (
                 <Card key={item.cartItemId}>
@@ -384,8 +437,8 @@ export default function CartPage() {
                           src={
                             item.images?.[0]
                             ? `https://gaushalaecommerce.runasp.net${item.images[0]}`
-                            : 'placeholder-product.jpg'
-                        }
+                            : '/placeholder-product.jpg'
+                          }
                           alt={item.productName}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -397,7 +450,11 @@ export default function CartPage() {
                         <div className="flex justify-between mb-2">
                           <div>
                             <h3 className="font-semibold text-base sm:text-lg">{item.productName}</h3>
-                            <p className="text-sm text-muted-foreground">{item.size}</p>
+                            {item.selectedSize && item.selectedSize !== 'No size' && (
+                              <p className="text-sm text-muted-foreground">
+                                Size: {item.selectedSize}
+                              </p>
+                            )}
                             <p className="text-sm text-muted-foreground">₹ {item.price.toFixed(2)}</p>
                           </div>
                           <Button
@@ -442,7 +499,6 @@ export default function CartPage() {
               ))}
             </div>
 
-            {/* Order Summary */}
             <div className="lg:col-span-1">
               <Card className="sticky top-24">
                 <CardContent className="p-6">
@@ -451,10 +507,6 @@ export default function CartPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Subtotal</span>
                       <span className="font-medium">₹{getSubtotal().toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Tax (10%)</span>
-                      <span className="font-medium">₹{getTax().toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Shipping</span>
@@ -467,18 +519,18 @@ export default function CartPage() {
                       </div>
                     </div>
                   </div>
-                  {/* {hasUnsavedChanges && (
-                    <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-800">
-                      Cart will be updated when you checkout
-                    </div>
-                  )} */}
                   <Button
                     className="w-full mb-3"
                     size="lg"
                     onClick={handleCheckout}
-                    disabled={updating || cart.length === 0}
+                    disabled={updating || syncing || cart.length === 0}
                   >
-                    {updating ? (
+                    {syncing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Syncing Cart...
+                      </>
+                    ) : updating ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         Updating...

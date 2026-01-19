@@ -148,7 +148,7 @@ export default function ProductDetailPage() {
         userId: userId,
         productId: product.id,
         quantity: quantity,
-        ...(selectedSize && { size: selectedSize }) // Include size if selected
+        ...(selectedSize && { selectedSize: selectedSize }) // Include size if selected
       };
 
       const response = await addToCart(cartData);

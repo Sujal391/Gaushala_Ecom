@@ -58,6 +58,13 @@ export default function UserLayout({ children }: LayoutProps) {
       icon: Package,
       show: !!user,
     },
+    {
+      id: "samples",
+      label: "My Samples",
+      path: "/user/sample",
+      icon: Package,
+      show: !!user,
+    },
   ];
 
   // Load user once

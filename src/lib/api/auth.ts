@@ -31,6 +31,14 @@ import type {
   FeedbackApiResponse,
   IncompleteUser,
   ReferralSummaryResponse,
+  CreateSampleRequestPayload,
+  CreateSampleRequestResponse,
+  SampleRequestStatus,
+  SampleRequest,
+  GetAllSampleRequestsResponse,
+  GetUserSampleRequestsResponse,
+  UpdateSampleRequestStatusPayload,
+  UpdateSampleRequestStatusResponse,
 } from '../../types/index';
 
 // ==================== HELPER FUNCTIONS ====================
@@ -996,6 +1004,94 @@ export async function applyOffer(userId: number, offerCode: string): Promise<Api
   }
 }
 
+// ==================== SAMPLE PRODUCTS API =====================
+
+export async function requestSample(payload: CreateSampleRequestPayload): Promise<ApiResponse<CreateSampleRequestResponse>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.SAMPLE_REQUESTS.REQUEST_SAMPLE}`,
+      {
+        method: 'POST',
+        headers: getHeaders(true),
+        body: JSON.stringify(payload),
+      }
+    );
+
+    return handleResponse<CreateSampleRequestResponse>(response);
+  } catch (error) {
+    console.error('Request sample error:', error);
+    return {
+      success: false,
+      message: 'Failed to request sample',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function getAllSampleRequests(): Promise<ApiResponse<GetAllSampleRequestsResponse>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.SAMPLE_REQUESTS.GET_ALL}`,
+      {
+        method: 'GET',
+        headers: getHeaders(true),
+      }
+    );
+
+    return handleResponse<GetAllSampleRequestsResponse>(response);
+  } catch (error) {
+    console.error('Get all sample requests error:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch all sample requests',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function getUserSampleRequests(userId: number): Promise<ApiResponse<GetUserSampleRequestsResponse>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.SAMPLE_REQUESTS.GET_BY_USER(userId)}`,
+      {
+        method: 'GET',
+        headers: getHeaders(true),
+      }
+    );
+
+    return handleResponse<GetUserSampleRequestsResponse>(response);
+  } catch (error) {
+    console.error('Get user sample requests error:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch user sample requests',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function updateSampleRequestStatus(id: number, payload: UpdateSampleRequestStatusPayload): Promise<ApiResponse<UpdateSampleRequestStatusResponse>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.SAMPLE_REQUESTS.CHANGE_STATUS(id)}`,
+      {
+        method: 'PUT',
+        headers: getHeaders(true),
+        body: JSON.stringify(payload),
+      }
+    );
+
+    return handleResponse<UpdateSampleRequestStatusResponse>(response);
+  } catch (error) {
+    console.error('Update sample request status error:', error);
+    return {
+      success: false,
+      message: 'Failed to update sample request status',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
 // ==================== EXPORTS ====================
 
 export default {
@@ -1031,4 +1127,10 @@ export default {
   initiatePayment,
   paymentSuccess,
   paymentFailure,
+
+  // Sample Products
+  requestSample,
+  getAllSampleRequests,
+  getUserSampleRequests,
+  updateSampleRequestStatus,
 };
