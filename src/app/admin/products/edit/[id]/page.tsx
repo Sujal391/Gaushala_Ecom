@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Upload,
@@ -20,16 +20,19 @@ import AdminLayout from '../../../../../components/layout/AdminLayout';
 export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
+  const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
+    sizes: '',
     price: '',
     stockQty: '',
     description: '',
-    image: '',
+    images: [],
   });
-  const [imagePreview, setImagePreview] = useState('');
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
 
   // Fetch product data from API on component mount
   useEffect(() => {
@@ -48,15 +51,14 @@ export default function EditProductPage() {
           
           setFormData({
             name: product.name || '',
+            sizes: product.sizes || '',
             price: product.price?.toString() || '',
             stockQty: product.stockQty?.toString() || '',
             description: product.description || '',
-            image: product.images?.[0] || '',
+            images: product.images || [],
           });
-          setImagePreview(
-            product.images?.[0]
-              ? `https://gaushalaecommerce.runasp.net${product.images[0]}`
-              : ''
+          setImagePreviews(
+            product.images?.map(img => `https://gaushalaecommerce.runasp.net${img}`) || []
           );
         } else {
           console.error('Invalid response format:', response);
@@ -81,25 +83,47 @@ export default function EditProductPage() {
   }, [params.id, router]);
 
   const handleImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size should be less than 5MB');
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      // Validate file sizes
+      const invalidFiles = files.filter(file => file.size > 5 * 1024 * 1024);
+      if (invalidFiles.length > 0) {
+        toast.error('Some images are larger than 5MB');
         return;
       }
 
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please upload a valid image file');
+      // Validate file types
+      const nonImageFiles = files.filter(file => !file.type.startsWith('image/'));
+      if (nonImageFiles.length > 0) {
+        toast.error('Please upload only image files');
         return;
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-        setFormData({ ...formData, image: reader.result });
-      };
-      reader.readAsDataURL(file);
+      // Append new files to existing ones
+      setImageFiles(prev => [...prev, ...files]);
+      
+      // Create previews for new images
+      const previews = files.map(file => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+      });
+
+      Promise.all(previews).then(results => {
+        setImagePreviews(prev => [...prev, ...results]);
+      });
     }
+  };
+
+  const removeImage = (index) => {
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
   };
 
   const handleSubmit = async (e) => {
@@ -125,10 +149,14 @@ export default function EditProductPage() {
     try {
       const payload = {
         name: formData.name.trim(),
+        sizes: formData.sizes
+          .split(',')
+          .map(size => size.trim())
+          .filter(Boolean),
         price: parseFloat(formData.price),
         stockQty: parseInt(formData.stockQty),
         description: formData.description.trim(),
-        image: formData.image,
+        images: imagePreviews,
       };
 
       console.log('Updating product with payload:', payload);
@@ -186,48 +214,68 @@ export default function EditProductPage() {
           </CardHeader>
           <CardContent className="px-4 sm:px-6 pb-6">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Hidden File Input */}
+              <Input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageUpload}
+                className="hidden"
+                disabled={submitting}
+              />
+
               {/* Image Upload */}
               <div>
-                <label className="block text-sm font-medium mb-2">Product Image</label>
+                <label className="block text-sm font-medium mb-2">Product Images</label>
                 <div className="border-2 border-dashed rounded-lg p-4 sm:p-6 text-center">
-                  {imagePreview ? (
-                    <div className="relative max-w-md mx-auto">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-full h-48 sm:h-64 mx-auto rounded-lg object-contain"
-                      />
-                      <div className="flex flex-col sm:flex-row gap-2 mt-4">
-                        <label className="cursor-pointer flex-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full"
-                            disabled={submitting}
-                          >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Change Image
-                          </Button>
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                            className="hidden"
-                            disabled={submitting}
-                          />
-                        </label>
+                  {imagePreviews.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                        {imagePreviews.map((preview, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-32 sm:h-48 object-contain rounded-lg border"
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="absolute top-2 right-2 h-8 w-8"
+                              onClick={() => removeImage(index)}
+                              disabled={submitting}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={triggerFileInput}
+                          disabled={submitting}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Add More Images
+                        </Button>
                         <Button
                           type="button"
                           variant="destructive"
                           className="flex-1"
                           onClick={() => {
-                            setImagePreview('');
-                            setFormData({ ...formData, image: '' });
+                            setImagePreviews([]);
+                            setImageFiles([]);
+                            setFormData({ ...formData, images: [] });
                           }}
                           disabled={submitting}
                         >
                           <X className="h-4 w-4 mr-2" />
-                          Remove
+                          Remove All
                         </Button>
                       </div>
                     </div>
@@ -237,23 +285,15 @@ export default function EditProductPage() {
                       <p className="text-sm text-muted-foreground mb-3 sm:mb-4">
                         Click to upload or drag and drop
                       </p>
-                      <label className="cursor-pointer">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full sm:w-auto"
-                          disabled={submitting}
-                        >
-                          Select Image
-                        </Button>
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                          disabled={submitting}
-                        />
-                      </label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        onClick={triggerFileInput}
+                        disabled={submitting}
+                      >
+                        Select Images
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -277,7 +317,21 @@ export default function EditProductPage() {
               </div>
 
               {/* Price and Stock */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="size" className="block text-sm font-medium mb-2">
+                    Sizes
+                  </label>
+                  <Input
+                    id="size"
+                    type="text"
+                    value={formData.sizes}
+                    onChange={(e) => setFormData({ ...formData, sizes: e.target.value })}
+                    placeholder="Enter sizes (e.g., S, M, L, XL)"
+                    disabled={submitting}
+                    className="text-sm sm:text-base"
+                  />
+                </div>
                 <div>
                   <label htmlFor="price" className="block text-sm font-medium mb-2">
                     Price (₹) *

@@ -193,6 +193,11 @@ const handleAddToCart = async (product: Product) => {
                   <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
                     {product.description}
                   </p>
+                  <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                    {Array.isArray(product.sizes) && product.sizes.length > 0
+                      ? product.sizes.join(", ")
+                      : "No sizes available"}
+                  </p>
                   <p className="text-xl sm:text-2xl font-bold text-primary">
                     ₹ {Number(product.price).toFixed(2)}
                   </p>

@@ -33,34 +33,19 @@ import {
 } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-
+import { Offer, CreateOfferPayload } from "@/src/types";
 import { toast } from "sonner";
 import AdminGuard from "../../../components/guards/AdminGuard";
-import AdminLayout from "../../../components/layout//AdminLayout";
-import { getAllOffers, createOffer, getAllProducts } from "../../../lib/api/auth";
+import AdminLayout from "../../../components/layout/AdminLayout";
+import {
+  getAllOffers,
+  createOffer,
+  getAllProducts,
+} from "../../../lib/api/auth";
 
 interface Product {
   productId: number;
   productName: string;
-}
-
-interface Offer {
-  offerId: number;
-  offerCode: string;
-  discountPercent: number;
-  minQuantity: number;
-  validFrom: string;
-  validTo: string;
-  products: Product[];
-}
-
-interface CreateOfferPayload {
-  offerCode: string;
-  discountPercent: number;
-  minQuantity: number;
-  validFrom: string;
-  validTo: string;
-  productIds: number[];
 }
 
 interface ProductOption {
@@ -80,11 +65,14 @@ export default function AdminOffersPage() {
 
   const [formData, setFormData] = useState<CreateOfferPayload>({
     offerCode: "",
+    offerType: "PERCENTAGE", // default, backend-safe
     discountPercent: 0,
     minQuantity: 1,
+    productIds: [],
+    maxDiscountPercent: 0,
+    slabs: [],
     validFrom: "",
     validTo: "",
-    productIds: [],
   });
 
   useEffect(() => {
@@ -155,11 +143,19 @@ export default function AdminOffersPage() {
     }
   };
 
+  const toISOStringUTC = (localDateTime: string) => {
+    if (!localDateTime) return "";
+    return new Date(localDateTime).toISOString();
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({
       ...prev,
-      [name]: ["discountPercent", "minQuantity"].includes(name)
+      [name]: ["discountPercent", "minQuantity", "maxDiscountPercent"].includes(
+        name
+      )
         ? Number(value)
         : value,
     }));
@@ -177,11 +173,14 @@ export default function AdminOffersPage() {
   const resetForm = () => {
     setFormData({
       offerCode: "",
+      offerType: "PERCENTAGE",
       discountPercent: 0,
       minQuantity: 1,
+      productIds: [],
+      maxDiscountPercent: 0,
+      slabs: [],
       validFrom: "",
       validTo: "",
-      productIds: [],
     });
   };
 
@@ -201,6 +200,21 @@ export default function AdminOffersPage() {
       return;
     }
 
+    if (formData.maxDiscountPercent < 0) {
+      toast.error("Max discount cannot be negative");
+      return;
+    }
+
+    if (formData.offerType === "SLAB" && formData.slabs.length === 0) {
+      toast.error("At least one slab is required");
+      return;
+    }
+
+    if (formData.offerType === "PERCENTAGE" && formData.discountPercent <= 0) {
+      toast.error("Discount percent is required");
+      return;
+    }
+
     if (formData.productIds.length === 0) {
       toast.error("Please select at least one product");
       return;
@@ -213,6 +227,12 @@ export default function AdminOffersPage() {
 
     setIsSubmitting(true);
     try {
+      const payload: CreateOfferPayload = {
+        ...formData,
+        validFrom: toISOStringUTC(formData.validFrom),
+        validTo: toISOStringUTC(formData.validTo),
+      };
+
       const response = await createOffer(formData);
 
       if (response.success) {
@@ -256,9 +276,9 @@ export default function AdminOffersPage() {
 
   const headerAction = (
     <div className="flex items-center gap-2">
-      <Button 
-        onClick={fetchOffers} 
-        variant="outline" 
+      <Button
+        onClick={fetchOffers}
+        variant="outline"
         size="sm"
         className="gap-2"
       >
@@ -280,7 +300,7 @@ export default function AdminOffersPage() {
 
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-1">
                 <Label htmlFor="offerCode">Offer Code *</Label>
                 <Input
                   id="offerCode"
@@ -292,22 +312,57 @@ export default function AdminOffersPage() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="discountPercent">Discount (%) *</Label>
-                <Input
-                  id="discountPercent"
-                  name="discountPercent"
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={formData.discountPercent || ""}
-                  onChange={handleInputChange}
-                  placeholder="10"
-                />
+              <div className="space-y-1">
+                <Label htmlFor="offerType">Offer Type *</Label>
+                <select
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                  value={formData.offerType}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      offerType: e.target.value,
+                      discountPercent:
+                        e.target.value === "SLAB" ? 0 : prev.discountPercent,
+                      maxDiscountPercent:
+                        e.target.value === "SLAB" ? 0 : prev.maxDiscountPercent,
+                      slabs: e.target.value === "PERCENTAGE" ? [] : prev.slabs,
+                    }))
+                  }
+                >
+                  <option value="PERCENTAGE">Percentage</option>
+                  <option value="SLAB">Slab Based</option>
+                </select>
               </div>
             </div>
 
-            <div>
+            {formData.offerType === "PERCENTAGE" && (
+              <div className="space-y-1">
+                <Label>Discount (%) *</Label>
+                <Input
+                  name="discountPercent"
+                  type="number"
+                  placeholder="0"
+                  value={formData.discountPercent || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <Label htmlFor="maxDiscountPercent">Max Discount (%)</Label>
+              <Input
+                id="maxDiscountPercent"
+                name="maxDiscountPercent"
+                type="number"
+                min="0"
+                max="100"
+                value={formData.maxDiscountPercent || ""}
+                onChange={handleInputChange}
+                placeholder="Optional cap"
+              />
+            </div>
+
+            <div className="space-y-1">
               <Label htmlFor="minQuantity">Minimum Quantity *</Label>
               <Input
                 id="minQuantity"
@@ -321,7 +376,7 @@ export default function AdminOffersPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-1">
                 <Label htmlFor="validFrom">Valid From *</Label>
                 <Input
                   id="validFrom"
@@ -332,7 +387,7 @@ export default function AdminOffersPage() {
                 />
               </div>
 
-              <div>
+              <div className="space-y-1">
                 <Label htmlFor="validTo">Valid To *</Label>
                 <Input
                   id="validTo"
@@ -344,40 +399,44 @@ export default function AdminOffersPage() {
               </div>
             </div>
 
-            <div>
+            <div className="space-y-1">
               <Label>Select Products *</Label>
+
               {isLoadingProducts ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               ) : (
-                <div className="border rounded-md p-4 max-h-60 overflow-y-auto space-y-2">
+                <div className="border rounded-md p-4 max-h-60 overflow-y-auto">
                   {products.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
                       No products available
                     </p>
                   ) : (
-                    products.map((product) => (
-                      <div
-                        key={product.id}
-                        className="flex items-center space-x-2"
-                      >
-                        <Checkbox
-                          id={`product-${product.id}`}
-                          checked={formData.productIds.includes(product.id)}
-                          onCheckedChange={() => handleProductToggle(product.id)}
-                        />
-                        <label
-                          htmlFor={`product-${product.id}`}
-                          className="text-sm cursor-pointer flex-1"
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {products.map((product) => (
+                        <div
+                          key={product.id}
+                          className="flex items-center gap-2"
                         >
-                          {product.name}
-                        </label>
-                      </div>
-                    ))
+                          <Checkbox
+                            id={`product-${product.id}`}
+                            checked={formData.productIds.includes(product.id)}
+                            onCheckedChange={() => handleProductToggle(product.id)}
+                          />
+                          <label
+                            htmlFor={`product-${product.id}`}
+                            className="text-sm cursor-pointer leading-tight"
+                          >
+                            {product.name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
+
               {formData.productIds.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-2">
                   {formData.productIds.length} product(s) selected
@@ -435,8 +494,12 @@ export default function AdminOffersPage() {
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs sm:text-sm text-muted-foreground">Total Offers</p>
-                      <p className="text-xl sm:text-2xl font-bold">{offers.length}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        Total Offers
+                      </p>
+                      <p className="text-xl sm:text-2xl font-bold">
+                        {offers.length}
+                      </p>
                     </div>
                     <Tag className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
                   </div>
@@ -447,7 +510,9 @@ export default function AdminOffersPage() {
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs sm:text-sm text-muted-foreground">Active Now</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        Active Now
+                      </p>
                       <p className="text-xl sm:text-2xl font-bold">
                         {offers.filter((o) => isOfferActive(o)).length}
                       </p>
@@ -463,7 +528,9 @@ export default function AdminOffersPage() {
               <Card>
                 <CardContent className="py-8 sm:py-12 text-center">
                   <Tag className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                  <h3 className="text-lg font-semibold mb-2">No offers found</h3>
+                  <h3 className="text-lg font-semibold mb-2">
+                    No offers found
+                  </h3>
                   <p className="text-muted-foreground">
                     Create your first offer to get started
                   </p>
@@ -477,21 +544,41 @@ export default function AdminOffersPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="text-xs sm:text-sm">Offer Code</TableHead>
-                            <TableHead className="text-xs sm:text-sm">Discount</TableHead>
-                            <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Min Qty</TableHead>
-                            <TableHead className="text-xs sm:text-sm hidden md:table-cell">Valid From</TableHead>
-                            <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Valid To</TableHead>
-                            <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Products</TableHead>
-                            <TableHead className="text-right text-xs sm:text-sm">Status</TableHead>
+                            <TableHead className="text-xs sm:text-sm">
+                              Offer Code
+                            </TableHead>
+                            <TableHead className="text-xs sm:text-sm">
+                              Discount
+                            </TableHead>
+                            <TableHead className="text-xs sm:text-sm hidden sm:table-cell">
+                              Min Qty
+                            </TableHead>
+                            <TableHead className="text-xs sm:text-sm hidden md:table-cell">
+                              Valid From
+                            </TableHead>
+                            <TableHead className="text-xs sm:text-sm hidden lg:table-cell">
+                              Valid To
+                            </TableHead>
+                            <TableHead className="text-xs sm:text-sm hidden lg:table-cell">
+                              Products
+                            </TableHead>
+                            <TableHead className="text-right text-xs sm:text-sm">
+                              Status
+                            </TableHead>
                           </TableRow>
                         </TableHeader>
 
                         <TableBody>
                           {offers.map((offer) => (
-                            <TableRow key={offer.offerId} className="hover:bg-muted/30">
+                            <TableRow
+                              key={offer.offerId}
+                              className="hover:bg-muted/30"
+                            >
                               <TableCell className="font-medium">
-                                <Badge variant="outline" className="font-mono text-xs">
+                                <Badge
+                                  variant="outline"
+                                  className="font-mono text-xs"
+                                >
                                   {offer.offerCode}
                                 </Badge>
                               </TableCell>
@@ -515,12 +602,19 @@ export default function AdminOffersPage() {
                               <TableCell className="hidden lg:table-cell">
                                 <div className="flex flex-wrap gap-1">
                                   {offer.products.slice(0, 2).map((p) => (
-                                    <Badge key={p.productId} variant="outline" className="text-xs">
+                                    <Badge
+                                      key={p.productId}
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
                                       {p.productName}
                                     </Badge>
                                   ))}
                                   {offer.products.length > 2 && (
-                                    <Badge variant="outline" className="text-xs">
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
                                       +{offer.products.length - 2}
                                     </Badge>
                                   )}
@@ -528,14 +622,24 @@ export default function AdminOffersPage() {
                               </TableCell>
                               <TableCell className="text-right">
                                 {isOfferActive(offer) ? (
-                                  <Badge className="bg-green-500 text-xs">Active</Badge>
+                                  <Badge className="bg-green-500 text-xs">
+                                    Active
+                                  </Badge>
                                 ) : new Date() < new Date(offer.validFrom) ? (
-                                  <Badge variant="outline" className="text-xs">Upcoming</Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    Upcoming
+                                  </Badge>
                                 ) : (
-                                  <Badge variant="secondary" className="text-xs">Expired</Badge>
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    Expired
+                                  </Badge>
                                 )}
                                 <div className="text-xs text-muted-foreground mt-1 md:hidden">
-                                  {formatDate(offer.validFrom)} - {formatDate(offer.validTo)}
+                                  {formatDate(offer.validFrom)} -{" "}
+                                  {formatDate(offer.validTo)}
                                 </div>
                                 {offer.products.length > 0 && (
                                   <div className="text-xs text-muted-foreground mt-1 lg:hidden">

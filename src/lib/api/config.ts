@@ -1,9 +1,12 @@
 // src/lib/api/config.ts
 
-// Base API URL - Update this with your actual backend URL
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/';
+/* -------------------------------------------------------------------------- */
+/*                                API CONFIG                                  */
+/* -------------------------------------------------------------------------- */
 
-// API endpoints
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/';
+
 export const API_ENDPOINTS = {
   AUTH: {
     REGISTER_P1: '/api/auth/register/phase1',
@@ -37,11 +40,13 @@ export const API_ENDPOINTS = {
     MY_ORDERS: (userId: number) => `/api/orders/my/${userId}`,
     ALL_ORDERS: '/api/orders/all',
     UPDATE_STATUS: (orderId: number) => `/api/orders/status/${orderId}`,
-    CANCEL_MY_ORDER: (orderId: number, userId: number) => `/api/orders/cancel/${orderId}/customer/${userId}`,
+    CANCEL_MY_ORDER: (orderId: number, userId: number) =>
+      `/api/orders/cancel/${orderId}/customer/${userId}`,
     PENDING_ORDERS: '/api/orders/pending',
   },
   PAYMENT: {
-    INITIATE: (orderId: number) => `/api/payment/initiate?orderId=${orderId}`,
+    INITIATE: (orderId: number) =>
+      `/api/payment/initiate?orderId=${orderId}`,
     SUCCESS: '/api/payment/success',
     FAILURE: '/api/payment/failure',
   },
@@ -53,69 +58,100 @@ export const API_ENDPOINTS = {
   FEEDBACK: {
     SUBMIT: '/api/feedback/submit',
     GET: '/api/feedback/product/{productId}',
-  }
+  },
 } as const;
 
-// Get auth token from localStorage
+/* -------------------------------------------------------------------------- */
+/*                                COOKIE UTILS                                 */
+/* -------------------------------------------------------------------------- */
+
+const COOKIE_OPTIONS = 'path=/; SameSite=Lax';
+
+function setCookie(name: string, value: string, days = 7): void {
+  if (typeof window === 'undefined') return;
+
+  const expires = new Date();
+  expires.setDate(expires.getDate() + days);
+
+  document.cookie = `${name}=${encodeURIComponent(
+    value
+  )}; expires=${expires.toUTCString()}; ${COOKIE_OPTIONS}`;
+}
+
+function getCookie(name: string): string | null {
+  if (typeof window === 'undefined') return null;
+
+  const match = document.cookie
+    .split('; ')
+    .find(row => row.startsWith(`${name}=`));
+
+  return match ? decodeURIComponent(match.split('=')[1]) : null;
+}
+
+function removeCookie(name: string): void {
+  if (typeof window === 'undefined') return;
+
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; ${COOKIE_OPTIONS}`;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               AUTH HELPERS                                  */
+/* -------------------------------------------------------------------------- */
+
+// Token
 export function getAuthToken(): string | null {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('authToken');
-  }
-  return null;
+  return getCookie('authToken');
 }
 
-// Set auth token in localStorage
 export function setAuthToken(token: string): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('authToken', token);
-  }
+  setCookie('authToken', token);
 }
 
-// Remove auth token from localStorage
 export function removeAuthToken(): void {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-  }
+  removeCookie('authToken');
+  removeCookie('user');
+  removeCookie('userRole');
 }
 
-// Get user data from localStorage
+// User
 export function getUser(): any {
-  if (typeof window !== 'undefined') {
-    const user = localStorage.getItem('user');
+  const user = getCookie('user');
+  try {
     return user ? JSON.parse(user) : null;
+  } catch {
+    return null;
   }
-  return null;
 }
 
-// Set user data in localStorage
 export function setUser(user: any): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('user', JSON.stringify(user));
+  setCookie('user', JSON.stringify(user));
+  if (user?.role) {
+    setCookie('userRole', user.role);
   }
 }
 
-// Get user ID from stored user data
 export function getUserId(): number | null {
   const user = getUser();
   return user?.id || user?.userId || null;
 }
 
-// Check if user is authenticated
 export function isAuthenticated(): boolean {
   return !!getAuthToken();
 }
 
-// Check if user is admin
 export function isAdmin(): boolean {
-  const user = getUser();
-  // Check multiple conditions for admin
-  // 1. role field is 'admin'
-  // 2. email is admin@example.com (demo admin)
-  // 3. isAdmin field is true
-  return user?.role === 'Admin' || 
-        //  user?.email === 'admin@example.com' || 
-         user?.isAdmin === true;
+  const role = getCookie('userRole');
+  return role === 'Admin';
+}
+
+export function setAuthCookie(token: string, role: string) {
+  document.cookie = `authToken=${token}; path=/`;
+  document.cookie = `userRole=${role}; path=/`;
+}
+
+export function clearAuthCookie() {
+  document.cookie = "authToken=; path=/; max-age=0";
+  document.cookie = "userRole=; path=/; max-age=0";
 }
 
 export default {
@@ -129,4 +165,6 @@ export default {
   getUserId,
   isAuthenticated,
   isAdmin,
+  setAuthCookie,
+  clearAuthCookie,
 };

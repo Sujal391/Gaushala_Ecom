@@ -397,7 +397,8 @@ export default function CartPage() {
                         <div className="flex justify-between mb-2">
                           <div>
                             <h3 className="font-semibold text-base sm:text-lg">{item.productName}</h3>
-                            <p className="text-sm text-muted-foreground">₹ {item.price.toFixed(2)} each</p>
+                            <p className="text-sm text-muted-foreground">{item.size}</p>
+                            <p className="text-sm text-muted-foreground">₹ {item.price.toFixed(2)}</p>
                           </div>
                           <Button
                             variant="ghost"

@@ -255,20 +255,33 @@ export interface OfferProduct {
 export interface Offer {
   offerId: number;
   offerCode: string;
+  offerType: string;
   discountPercent: number;
   minQuantity: number;
-  validFrom: string; // ISO date string
-  validTo: string;   // ISO date string
-  products: OfferProduct[];
+  maxDiscountPercent: number;
+  validFrom: string;
+  validTo: string;
+  products: {
+    productId: number;
+    productName: string;
+  }[];
+}
+export interface CreateOfferPayload {
+  offerCode: string;
+  offerType: string;
+  discountPercent: number;
+  minQuantity: number;
+  productIds: number[];
+  maxDiscountPercent: number;
+  slabs: OfferSlab[];
+  validFrom: string;
+  validTo: string;
 }
 
-export interface CreateOfferRequest {
-  offerCode: string;
+export interface OfferSlab {
+  minAmount: number;
+  maxAmount: number;
   discountPercent: number;
-  minQuantity: number;
-  validFrom: string; // ISO date string
-  validTo: string;   // ISO date string
-  productIds: number[];
 }
 
 export interface ApplyOfferRequest {

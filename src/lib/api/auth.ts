@@ -26,7 +26,7 @@ import type {
   Customer,
   Offer,
   ApplyOfferRequest,
-  CreateOfferRequest,
+  CreateOfferPayload,
   MyProfileResponse,
   FeedbackApiResponse,
   IncompleteUser,
@@ -952,7 +952,7 @@ export async function getAllOffers(): Promise<ApiResponse<Offer[]>> {
   }
 }
 
-export async function createOffer(payload: CreateOfferRequest): Promise<ApiResponse> {
+export async function createOffer(payload: CreateOfferPayload): Promise<ApiResponse> {
   try {
     const response = await fetch(
       `${API_BASE_URL}${API_ENDPOINTS.OFFER.CREATE}`,

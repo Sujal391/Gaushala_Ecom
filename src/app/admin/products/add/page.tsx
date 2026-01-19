@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Upload,
@@ -13,17 +13,20 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { createProduct } from '../../../../lib/api/auth';
+import { toast } from 'sonner';
 import AdminGuard from '../../../../components/guards/AdminGuard';
 import AdminLayout from '../../../../components/layout/AdminLayout';
 
 export default function AddProductPage() {
   const router = useRouter();
+  const fileInputRef = useRef(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     price: '',
     stock: '',
     description: '',
+    sizes: '',
   });
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
@@ -31,9 +34,24 @@ export default function AddProductPage() {
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
-      setImageFiles(files);
+      // Validate file sizes
+      const invalidFiles = files.filter(file => file.size > 5 * 1024 * 1024);
+      if (invalidFiles.length > 0) {
+        toast.error('Some images are larger than 5MB');
+        return;
+      }
+
+      // Validate file types
+      const nonImageFiles = files.filter(file => !file.type.startsWith('image/'));
+      if (nonImageFiles.length > 0) {
+        toast.error('Please upload only image files');
+        return;
+      }
+
+      // Append new files to existing ones
+      setImageFiles(prev => [...prev, ...files]);  // Changed this line
       
-      // Create previews for all selected images
+      // Create previews for new images
       const previews = files.map(file => {
         return new Promise((resolve) => {
           const reader = new FileReader();
@@ -43,7 +61,7 @@ export default function AddProductPage() {
       });
 
       Promise.all(previews).then(results => {
-        setImagePreviews(results);
+        setImagePreviews(prev => [...prev, ...results]);  // Changed this line
       });
     }
   };
@@ -53,11 +71,25 @@ export default function AddProductPage() {
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.price || !formData.stock) {
-      alert('Please fill in all required fields');
+    if (!formData.name.trim()) {
+      toast.error('Product name is required');
+      return;
+    }
+
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
+    if (!formData.stock || parseInt(formData.stock) < 0) {
+      toast.error('Please enter a valid stock quantity');
       return;
     }
 
@@ -66,10 +98,11 @@ export default function AddProductPage() {
     try {
       const formDataToSend = new FormData();
 
-      formDataToSend.append('name', formData.name);
+      formDataToSend.append('name', formData.name.trim());
       formDataToSend.append('price', String(formData.price));
-      formDataToSend.append('Description', formData.description);
+      formDataToSend.append('Description', formData.description.trim());
       formDataToSend.append('stockQty', String(formData.stock));
+      formDataToSend.append('sizes', String(formData.sizes));
 
       imageFiles.forEach((file) => {
         formDataToSend.append('images', file);
@@ -78,14 +111,14 @@ export default function AddProductPage() {
       const response = await createProduct(formDataToSend);
 
       if (response.success) {
-        alert('Product created successfully!');
+        toast.success('Product created successfully!');
         router.push('/admin/products');
       } else {
-        alert(response.message || 'Failed to create product');
+        toast.error(response.message || 'Failed to create product');
       }
     } catch (error) {
       console.error('Error creating product:', error);
-      alert('Failed to create product. Please try again.');
+      toast.error(`Failed to create product: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -113,6 +146,17 @@ export default function AddProductPage() {
           </CardHeader>
           <CardContent className="px-4 sm:px-6 pb-6">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Hidden File Input */}
+              <Input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageUpload}
+                className="hidden"
+                disabled={isSubmitting}
+              />
+
               {/* Image Upload */}
               <div>
                 <label className="block text-sm font-medium mb-2">Product Images</label>
@@ -125,41 +169,45 @@ export default function AddProductPage() {
                             <img
                               src={preview}
                               alt={`Preview ${index + 1}`}
-                              className="w-full h-24 sm:h-32 object-cover rounded-lg"
+                              className="w-full h-32 sm:h-48 object-contain rounded-lg border"
                             />
                             <Button
                               type="button"
                               variant="destructive"
                               size="icon"
-                              className="absolute top-1 right-1 h-6 w-6"
+                              className="absolute top-2 right-2 h-8 w-8"
                               onClick={() => removeImage(index)}
+                              disabled={isSubmitting}
                             >
-                              <X className="h-3 w-3" />
+                              <X className="h-4 w-4" />
                             </Button>
                           </div>
                         ))}
                       </div>
-                      <div className="flex flex-col sm:flex-row items-center gap-3">
-                        <label className="cursor-pointer">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full sm:w-auto"
-                          >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Add More Images
-                          </Button>
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handleImageUpload}
-                            className="hidden"
-                          />
-                        </label>
-                        <p className="text-xs text-muted-foreground">
-                          {imagePreviews.length} image(s) selected
-                        </p>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={triggerFileInput}
+                          disabled={isSubmitting}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Add more Images
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          className="flex-1"
+                          onClick={() => {
+                            setImagePreviews([]);
+                            setImageFiles([]);
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Remove All
+                        </Button>
                       </div>
                     </div>
                   ) : (
@@ -168,25 +216,15 @@ export default function AddProductPage() {
                       <p className="text-sm text-muted-foreground mb-3 sm:mb-4">
                         Click to upload or drag and drop
                       </p>
-                      <p className="text-xs text-muted-foreground mb-4">
-                        Multiple images supported
-                      </p>
-                      <label className="cursor-pointer">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full sm:w-auto"
-                        >
-                          Select Images
-                        </Button>
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
-                      </label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        onClick={triggerFileInput}
+                        disabled={isSubmitting}
+                      >
+                        Select Images
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -204,12 +242,27 @@ export default function AddProductPage() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Enter product name"
                   required
+                  disabled={isSubmitting}
                   className="text-sm sm:text-base"
                 />
               </div>
 
               {/* Price and Stock */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="size" className="block text-sm font-medium mb-2">
+                    Sizes
+                  </label>
+                  <Input
+                    id="size"
+                    type="text"
+                    value={formData.sizes}
+                    onChange={(e) => setFormData({ ...formData, sizes: e.target.value })}
+                    placeholder="Enter sizes (e.g., S, M, L, XL)"
+                    disabled={isSubmitting}
+                    className="text-sm sm:text-base"
+                  />
+                </div>
                 <div>
                   <label htmlFor="price" className="block text-sm font-medium mb-2">
                     Price (₹) *
@@ -223,6 +276,7 @@ export default function AddProductPage() {
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     placeholder="0.00"
                     required
+                    disabled={isSubmitting}
                     className="text-sm sm:text-base"
                   />
                 </div>
@@ -238,6 +292,7 @@ export default function AddProductPage() {
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                     placeholder="0"
                     required
+                    disabled={isSubmitting}
                     className="text-sm sm:text-base"
                   />
                 </div>
@@ -254,6 +309,7 @@ export default function AddProductPage() {
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Enter product description"
                   rows={4}
+                  disabled={isSubmitting}
                   className="text-sm sm:text-base resize-none"
                 />
               </div>
