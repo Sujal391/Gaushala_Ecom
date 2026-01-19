@@ -90,6 +90,7 @@ export interface Product {
   price: number;
   description: string;
   stockQty: number;
+  sizes: string[];
   images: string[];
   createdAt: string;
 }
@@ -115,12 +116,15 @@ export interface AddToCartPayload {
   userId: number;
   productId: number;
   quantity: number;
+  selectedSize?: string;
 }
 
 export interface CartItem {
   cartItemId: number;
   productId: number;
   productName: string;
+  sizes: string;
+  selectedSize: string;
   price: number;
   quantity: number;
   totalPrice: number;
@@ -130,7 +134,67 @@ export interface CartItem {
 export interface CartResponse {
   items: CartItem[];
   cartTotal: number;
+  
 }
+
+// ==================== SAMPLE REQUEST TYPES ====================
+
+export interface CreateSampleRequestPayload {
+  userId: number;
+  productId: number;
+  productName: string; // optional if backend requires it
+  houseNo: string;
+  street: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+export interface CreateSampleRequestResponse {
+  id: number;
+  message: string;
+}
+
+export type SampleRequestStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'shipped';
+
+export interface SampleRequest {
+  sampleRequestId: number;
+  userId: number;
+  productId: number;
+  productName: string;
+  houseNo: string;
+  street: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  status: SampleRequestStatus;
+  adminRemark?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type GetAllSampleRequestsResponse = SampleRequest[];
+
+export type GetUserSampleRequestsResponse = SampleRequest[];
+
+export interface UpdateSampleRequestStatusPayload {
+  status: SampleRequestStatus;
+  adminRemark?: string;
+}
+
+export interface UpdateSampleRequestStatusResponse {
+  id: number;
+  status: SampleRequestStatus;
+  adminRemark?: string;
+  message: string;
+}
+
 
 // ==================== FEEDBACK TYPES ====================
 
@@ -160,6 +224,7 @@ export interface CheckoutPayload {
   city: string;
   state: string;
   pincode: string;
+  offerCode: string;
 }
 
 export interface OrderItem {
@@ -173,6 +238,9 @@ export interface Order {
   orderId: number;
   userId?: number;
   totalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+  isReferralDiscountApplied: boolean;
   orderStatus: string;
   createdAt?: string;
   orderDate?: string;
@@ -183,6 +251,9 @@ export interface PendingOrder {
   orderId: number;
   userId: number;
   totalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+  isReferralDiscountApplied: boolean;
   orderStatus: string;
   createdAt: string;
 }
@@ -255,20 +326,33 @@ export interface OfferProduct {
 export interface Offer {
   offerId: number;
   offerCode: string;
+  offerType: string;
   discountPercent: number;
   minQuantity: number;
-  validFrom: string; // ISO date string
-  validTo: string;   // ISO date string
-  products: OfferProduct[];
+  maxDiscountPercent: number;
+  validFrom: string;
+  validTo: string;
+  products: {
+    productId: number;
+    productName: string;
+  }[];
+}
+export interface CreateOfferPayload {
+  offerCode: string;
+  offerType: string;
+  discountPercent: number;
+  minQuantity: number;
+  productIds: number[];
+  maxDiscountPercent: number;
+  slabs: OfferSlab[];
+  validFrom: string;
+  validTo: string;
 }
 
-export interface CreateOfferRequest {
-  offerCode: string;
+export interface OfferSlab {
+  minAmount: number;
+  maxAmount: number;
   discountPercent: number;
-  minQuantity: number;
-  validFrom: string; // ISO date string
-  validTo: string;   // ISO date string
-  productIds: number[];
 }
 
 export interface ApplyOfferRequest {

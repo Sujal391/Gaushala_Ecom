@@ -502,7 +502,7 @@ export default function MyOrdersPage() {
                                 />
                               </div>
                               <div className="flex-1">
-                                <p className="font-medium text-sm">{item.productName}</p>
+                                <p className="font-medium text-sm">{item.productName} - {item.size}</p>
                                 {item.description && (
                                   <p className="text-xs text-muted-foreground line-clamp-1">
                                     {item.description}
@@ -554,10 +554,12 @@ export default function MyOrdersPage() {
                             ₹{order.items.reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)}
                           </span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Tax (Included)</span>
-                          <span className="font-medium">Included</span>
-                        </div>
+                        {/* <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Tax</span>
+                          <span className="font-medium">
+                            ₹{order.taxAmount.toFixed(2)}
+                          </span>
+                        </div> */}
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Shipping</span>
                           <span className="font-medium text-green-600">Free</span>

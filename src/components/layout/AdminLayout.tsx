@@ -30,6 +30,7 @@ interface AdminLayoutProps {
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
   { icon: Package, label: 'Products', href: '/admin/products' },
+  { icon: Users, label: 'Sample Requests', href: '/admin/sample' },
   { icon: ShoppingCart, label: 'Orders', href: '/admin/orders' },
   { icon: Clock, label: 'Pending Orders', href: '/admin/pending' },
   { icon: TagIcon, label: 'Offers', href: '/admin/offer' },

@@ -23,6 +23,7 @@ import {
   getUser,
   removeAuthToken,
   isAuthenticated,
+  clearAuthCookie,
 } from "../../lib/api/config";
 
 import { LayoutProps, User } from "../../types";
@@ -57,6 +58,13 @@ export default function UserLayout({ children }: LayoutProps) {
       icon: Package,
       show: !!user,
     },
+    {
+      id: "samples",
+      label: "My Samples",
+      path: "/user/sample",
+      icon: Package,
+      show: !!user,
+    },
   ];
 
   // Load user once
@@ -74,6 +82,7 @@ export default function UserLayout({ children }: LayoutProps) {
 
   const handleLogout = () => {
     removeAuthToken();
+    clearAuthCookie();
     clearCart(); // 🔥 reset global cart
     setUser(null);
     router.push("/shop");

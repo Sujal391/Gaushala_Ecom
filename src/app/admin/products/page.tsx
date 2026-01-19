@@ -156,7 +156,7 @@ export default function AdminProductsPage() {
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Total Categories</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Avg Price</p>
                   <p className="text-xl sm:text-2xl font-bold">₹ {getAveragePrice()}</p>
                 </div>
                 <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
@@ -220,7 +220,7 @@ export default function AdminProductsPage() {
                     <img
                       src={
                         product.images?.[0]
-                          ? `http://gaushalaecommerce.runasp.net${product.images[0]}`
+                          ? `https://gaushalaecommerce.runasp.net${product.images[0]}`
                           : 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400'
                       }
                       alt={product.name}
@@ -238,6 +238,11 @@ export default function AdminProductsPage() {
                     <h3 className="font-semibold text-base sm:text-lg mb-1 truncate">{product.name}</h3>
                     <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2 min-h-[40px]">
                       {product.description || 'No description available'}
+                    </p>
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-2 min-h-[40px]">
+                      {Array.isArray(product.sizes) && product.sizes.length > 0
+                        ? product.sizes.join(', ')
+                        : 'No sizes available'}
                     </p>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-lg sm:text-xl font-bold text-primary">₹ {product.price || 0}</span>

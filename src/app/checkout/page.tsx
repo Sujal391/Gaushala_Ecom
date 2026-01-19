@@ -124,7 +124,8 @@ export default function CheckoutPage() {
         price: item.productPrice || item.price,
         quantity: item.quantity,
         totalPrice: item.totalPrice,
-        images: item.images
+        images: item.images,
+        selectedSize: item.selectedSize
       }));
 
       // Apply cached updates
@@ -260,6 +261,7 @@ export default function CheckoutPage() {
 
       const response = await checkout({
         userId: userId,
+        offerCode: appliedOffer?.offerCode || '',
         ...address
       });
 
@@ -298,19 +300,14 @@ export default function CheckoutPage() {
     return cart.reduce((total, item) => total + item.totalPrice, 0);
   };
 
-  const getTax = () => {
-    return getSubtotal() * 0.1;
-  };
-
   const getDiscount = () => {
     return appliedOffer ? appliedOffer.discount : 0;
   };
 
   const getTotal = () => {
     const subtotal = getSubtotal();
-    const tax = getTax();
     const discount = getDiscount();
-    return subtotal + tax - discount;
+    return subtotal - discount;
   };
 
   if (loading) {
@@ -491,6 +488,7 @@ export default function CheckoutPage() {
                         </div>
                         <div>
                           <p className="font-medium">{item.productName}</p>
+                          <p className="text-sm text-muted-foreground">{item.selectedSize}</p>
                           <p className="text-sm text-muted-foreground">
                             ₹{item.price.toFixed(2)} × {item.quantity}
                           </p>
@@ -575,10 +573,6 @@ export default function CheckoutPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Subtotal</span>
                       <span className="font-medium">₹{getSubtotal().toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Tax (10%)</span>
-                      <span className="font-medium">₹{getTax().toFixed(2)}</span>
                     </div>
                     {appliedOffer && (
                       <div className="flex justify-between text-sm">
