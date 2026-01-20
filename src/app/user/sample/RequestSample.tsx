@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Loader2, Package } from 'lucide-react';
+import { Loader2, Package, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { requestSample, getAllProducts } from '../../../lib/api/auth';
 import { getUserId } from '../../../lib/api/config';
@@ -209,133 +210,162 @@ export default function CreateSampleRequest({ onSuccess }: CreateSampleRequestPr
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 py-4">
-      {/* Product Selection */}
-      <div className="space-y-2">
-        <Label htmlFor="product">
-          Product <span className="text-red-500">*</span>
-        </Label>
-        <Select
-          value={formData.productId ? formData.productId.toString() : ""}
-          onValueChange={handleProductChange}
-        >
-          <SelectTrigger id="product">
-            <SelectValue placeholder="Select a product" />
-          </SelectTrigger>
-          <SelectContent>
-            {products.map((product) => (
-              <SelectItem
-                key={product.productId}
-                value={product.productId.toString()}
+    <form onSubmit={handleSubmit} className="space-y-6 py-4">
+      {/* Product Selection Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Product Selection
+          </CardTitle>
+          <CardDescription>
+            Choose the product you'd like to request a sample for
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="product">
+                Product <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.productId ? formData.productId.toString() : ""}
+                onValueChange={handleProductChange}
               >
-                <div className="flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  <span>{product.productName}</span>
-                  {product.price && (
-                    <span className="text-xs text-muted-foreground">
-                      (₹{product.price})
-                    </span>
-                  )}
-                  {product.categoryName && (
-                    <span className="text-xs text-muted-foreground">
-                      ({product.categoryName})
-                    </span>
-                  )}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+                <SelectTrigger id="product">
+                  <SelectValue placeholder="Select a product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((product) => (
+                    <SelectItem
+                      key={product.productId}
+                      value={product.productId.toString()}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Package className="h-4 w-4" />
+                        <span>{product.productName}</span>
+                        {product.price && (
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            ₹{product.price}
+                          </span>
+                        )}
+                      </div>
+                      {product.categoryName && (
+                        <div className="text-xs text-muted-foreground ml-6">
+                          {product.categoryName}
+                        </div>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Address Fields */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="houseNo">
-            House No <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="houseNo"
-            value={formData.houseNo}
-            onChange={(e) => handleInputChange('houseNo', e.target.value)}
-            placeholder="Enter house number"
-            disabled={loading}
-          />
-        </div>
+      {/* Delivery Address Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5" />
+            Delivery Address
+          </CardTitle>
+          <CardDescription>
+            Enter the address where you'd like to receive the sample
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="houseNo">
+                House No <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="houseNo"
+                value={formData.houseNo}
+                onChange={(e) => handleInputChange('houseNo', e.target.value)}
+                placeholder="Enter house number"
+                disabled={loading}
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="street">
-            Street <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="street"
-            value={formData.street}
-            onChange={(e) => handleInputChange('street', e.target.value)}
-            placeholder="Enter street name"
-            disabled={loading}
-          />
-        </div>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="street">
+                Street <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="street"
+                value={formData.street}
+                onChange={(e) => handleInputChange('street', e.target.value)}
+                placeholder="Enter street name"
+                disabled={loading}
+              />
+            </div>
+          </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="landmark">Landmark (Optional)</Label>
-        <Input
-          id="landmark"
-          value={formData.landmark}
-          onChange={(e) => handleInputChange('landmark', e.target.value)}
-          placeholder="Enter nearby landmark"
-          disabled={loading}
-        />
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="landmark">Landmark (Optional)</Label>
+            <Input
+              id="landmark"
+              value={formData.landmark}
+              onChange={(e) => handleInputChange('landmark', e.target.value)}
+              placeholder="Enter nearby landmark"
+              disabled={loading}
+            />
+          </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="city">
-            City <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="city"
-            value={formData.city}
-            onChange={(e) => handleInputChange('city', e.target.value)}
-            placeholder="Enter city"
-            disabled={loading}
-          />
-        </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">
+                City <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => handleInputChange('city', e.target.value)}
+                placeholder="Enter city"
+                disabled={loading}
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="state">
-            State <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="state"
-            value={formData.state}
-            onChange={(e) => handleInputChange('state', e.target.value)}
-            placeholder="Enter state"
-            disabled={loading}
-          />
-        </div>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="state">
+                State <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="state"
+                value={formData.state}
+                onChange={(e) => handleInputChange('state', e.target.value)}
+                placeholder="Enter state"
+                disabled={loading}
+              />
+            </div>
+          </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="pincode">
-          Pincode <span className="text-red-500">*</span>
-        </Label>
-        <Input
-          id="pincode"
-          value={formData.pincode}
-          onChange={(e) => handleInputChange('pincode', e.target.value)}
-          placeholder="Enter 6-digit pincode"
-          maxLength={6}
-          disabled={loading}
-        />
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="pincode">
+              Pincode <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="pincode"
+              value={formData.pincode}
+              onChange={(e) => handleInputChange('pincode', e.target.value)}
+              placeholder="Enter 6-digit pincode"
+              maxLength={6}
+              disabled={loading}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Submit Button */}
-      <div className="flex items-center justify-end gap-3 pt-4">
+      <div className="flex items-center justify-end gap-3 pt-2">
         <Button
           type="submit"
           disabled={loading}
           className="w-full sm:w-auto"
+          size="lg"
         >
           {loading ? (
             <>
@@ -343,7 +373,7 @@ export default function CreateSampleRequest({ onSuccess }: CreateSampleRequestPr
               Submitting...
             </>
           ) : (
-            'Submit Request'
+            'Submit Sample Request'
           )}
         </Button>
       </div>

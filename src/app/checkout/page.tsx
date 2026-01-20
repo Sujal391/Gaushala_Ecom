@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, Loader2, MapPin, ArrowLeft, Tag, X } from 'lucide-react';
+import { ShoppingCart, Loader2, MapPin, ArrowLeft, Tag, X, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import UserLayout from '../../components/layout/UserLayout';
 import { getUserCart, checkout, applyOffer } from '../../lib/api/auth';
 import { isAuthenticated, getUserId } from '../../lib/api/config';
@@ -30,6 +31,7 @@ interface AddressForm {
   city: string;
   state: string;
   pincode: string;
+  customerRemark: string;
 }
 
 interface AppliedOffer {
@@ -53,7 +55,8 @@ export default function CheckoutPage() {
     landmark: '',
     city: '',
     state: '',
-    pincode: ''
+    pincode: '',
+    customerRemark: ''
   });
   const [errors, setErrors] = useState<Partial<AddressForm>>({});
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
@@ -262,7 +265,13 @@ export default function CheckoutPage() {
       const response = await checkout({
         userId: userId,
         offerCode: appliedOffer?.offerCode || '',
-        ...address
+        houseNo: address.houseNo,
+        street: address.street,
+        landmark: address.landmark,
+        city: address.city,
+        state: address.state,
+        pincode: address.pincode,
+        customerRemark: address.customerRemark
       });
 
       console.log('Checkout response:', response);
@@ -274,12 +283,6 @@ export default function CheckoutPage() {
         toast.success('Order Placed Successfully!');
 
         setShowSuccessAnimation(true);
-
-        // requestAnimationFrame(() => {
-        //   setTimeout(() => {
-        //     router.push('/my-orders');
-        //   }, 2800);
-        // });
       } else {
         toast.error('Order Failed', {
           description: response?.message || 'Failed to place order. Please try again.',
@@ -451,6 +454,24 @@ export default function CheckoutPage() {
                   {errors.pincode && (
                     <p className="text-sm text-red-500 mt-1">{errors.pincode}</p>
                   )}
+                </div>
+
+                <div>
+                  <Label htmlFor="customerRemark" className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Additional Notes (Optional)
+                  </Label>
+                  <Textarea
+                    id="customerRemark"
+                    value={address.customerRemark}
+                    onChange={(e) => handleInputChange('customerRemark', e.target.value)}
+                    placeholder="Any special instructions or remarks for your order..."
+                    rows={3}
+                    className="resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Add any special delivery instructions or notes for the admin
+                  </p>
                 </div>
               </CardContent>
             </Card>

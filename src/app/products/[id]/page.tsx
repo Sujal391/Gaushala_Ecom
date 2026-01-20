@@ -2,14 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Plus, Minus, Loader2, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, Loader2, ShoppingCart, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '../../../hooks/useToast';
 import UserLayout from '../../../components/layout/UserLayout';
-import { getProductById, addToCart, extractData, extractMessage } from '../../../lib/api/auth';
+import { getProductById, addToCart, extractData, extractMessage, getFeedbackByProduct } from '../../../lib/api/auth';
 import { isAuthenticated, getUserId } from '../../../lib/api/config';
 import type { Product } from '../../../types/index';
+
+interface Feedback {
+  id: number;
+  userId: number;
+  userName?: string;
+  customerName?: string;
+  productId: number;
+  rating: number;
+  comment: string;
+  review?: string;
+  createdAt: string;
+}
+
+interface FeedbackData {
+  averageRating: number;
+  totalReviews: number;
+  feedbacks: Feedback[];
+}
 
 export default function ProductDetailPage() {
   const router = useRouter();
@@ -22,6 +40,12 @@ export default function ProductDetailPage() {
   const [addingToCart, setAddingToCart] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [feedbackData, setFeedbackData] = useState<FeedbackData>({
+    averageRating: 0,
+    totalReviews: 0,
+    feedbacks: []
+  });
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
 
   useEffect(() => {
     fetchProduct();
@@ -66,6 +90,8 @@ export default function ProductDetailPage() {
         if (productData.sizes && productData.sizes.length > 0) {
           setSelectedSize(productData.sizes[0]);
         }
+        // Fetch feedback after product is loaded
+        fetchFeedback(productId);
       } else {
         const errorMessage = extractMessage(response) || "Failed to load product";
         toast({
@@ -85,6 +111,94 @@ export default function ProductDetailPage() {
       setProduct(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFeedback = async (productId: string | number) => {
+    try {
+      setLoadingFeedback(true);
+      
+      const response = await getFeedbackByProduct(productId);
+      
+      // Initialize with default empty data
+      let processedData: FeedbackData = {
+        averageRating: 0,
+        totalReviews: 0,
+        feedbacks: []
+      };
+
+      // Handle different response structures
+      if (response && response.success && response.data && Array.isArray(response.data)) {
+        const feedbackItems = response.data;
+        
+        // Map the API response to our Feedback interface
+        const feedbacks: Feedback[] = feedbackItems.map((item: any, index: number) => ({
+          id: item.id || index + 1,
+          userId: item.userId || 0,
+          userName: item.customerName || item.userName || `Customer ${index + 1}`,
+          customerName: item.customerName,
+          productId: item.productId || Number(productId),
+          rating: item.rating || 0,
+          comment: item.review || item.comment || '',
+          review: item.review,
+          createdAt: item.createdAt || new Date().toISOString()
+        }));
+
+        // Calculate average rating
+        const totalRating = feedbacks.reduce((sum, feedback) => sum + feedback.rating, 0);
+        const averageRating = feedbacks.length > 0 ? totalRating / feedbacks.length : 0;
+
+        processedData = {
+          averageRating,
+          totalReviews: feedbacks.length,
+          feedbacks
+        };
+      }
+      
+      setFeedbackData(processedData);
+    } catch (error) {
+      console.error('Error fetching feedback:', error);
+      // Keep default empty data on error
+      setFeedbackData({
+        averageRating: 0,
+        totalReviews: 0,
+        feedbacks: []
+      });
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  const renderStars = (rating: number, size: 'sm' | 'lg' = 'sm') => {
+    const sizeClass = size === 'lg' ? 'h-5 w-5' : 'h-4 w-4';
+    const roundedRating = Math.round(rating);
+    
+    return (
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`${sizeClass} ${
+              star <= roundedRating
+                ? 'fill-yellow-400 text-yellow-400'
+                : 'fill-gray-200 text-gray-200'
+            }`}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch (error) {
+      return dateString;
     }
   };
 
@@ -148,12 +262,10 @@ export default function ProductDetailPage() {
         userId: userId,
         productId: product.id,
         quantity: quantity,
-        ...(selectedSize && { selectedSize: selectedSize }) // Include size if selected
+        ...(selectedSize && { selectedSize: selectedSize })
       };
 
       const response = await addToCart(cartData);
-
-      console.log('Add to cart response:', response);
 
       if (response && (response.success || !response.error)) {
         toast({
@@ -245,6 +357,7 @@ export default function ProductDetailPage() {
 
   const images = product.images || [];
   const sizes = product.sizes || [];
+  const hasReviews = feedbackData.totalReviews > 0;
 
   return (
     <UserLayout>
@@ -360,6 +473,19 @@ export default function ProductDetailPage() {
                   </>
                 )}
               </div>
+
+              {/* Rating and Reviews */}
+              {hasReviews && (
+                <div className="flex items-center gap-3 pt-1">
+                  {renderStars(feedbackData.averageRating, 'lg')}
+                  <span className="text-lg font-semibold">
+                    {feedbackData.averageRating.toFixed(1)}
+                  </span>
+                  <span className="text-muted-foreground">
+                    ({feedbackData.totalReviews} {feedbackData.totalReviews === 1 ? 'review' : 'reviews'})
+                  </span>
+                </div>
+              )}
               
               {/* Stock Status - Only show when stock is 0 or <= 10 */}
               {(product.stockQty === 0 || product.stockQty <= 10) && (
@@ -379,16 +505,6 @@ export default function ProductDetailPage() {
                 </div>
               )}
             </div>
-
-            {/* Description */}
-            {product.description && (
-              <div className="space-y-2">
-                <h3 className="font-semibold text-lg">Description</h3>
-                <p className="text-muted-foreground whitespace-pre-line">
-                  {product.description}
-                </p>
-              </div>
-            )}
 
             {/* Product Details */}
             <div className="space-y-3">
@@ -497,6 +613,16 @@ export default function ProductDetailPage() {
                 Buy Now
               </Button>
             </div>
+            
+            {/* Description */}
+            {product.description && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg">Description</h3>
+                <p className="text-muted-foreground whitespace-pre-line">
+                  {product.description}
+                </p>
+              </div>
+            )}
 
             {!isAuthenticated() && (
               <p className="text-sm text-muted-foreground text-center">
@@ -513,6 +639,87 @@ export default function ProductDetailPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* IMPROVED Customer Reviews Section */}
+        <div className="mt-12 border-t pt-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+            <h2 className="text-2xl font-bold">Customer Reviews</h2>
+            
+            {hasReviews && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-full">
+                <span className="font-semibold text-foreground">{feedbackData.totalReviews}</span>
+                <span>{feedbackData.totalReviews === 1 ? 'Review' : 'Reviews'}</span>
+              </div>
+            )}
+          </div>
+          
+          {loadingFeedback ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+              <span className="text-muted-foreground">Loading reviews...</span>
+            </div>
+          ) : hasReviews ? (
+            <div className="space-y-6">
+              {feedbackData.feedbacks.map((feedback) => (
+                <div key={feedback.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-sm transition-shadow">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          {renderStars(feedback.rating, 'sm')}
+                          <span className="font-semibold text-lg ml-1">{feedback.rating.toFixed(1)}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-foreground">
+                          {feedback.userName || feedback.customerName || `Customer ${feedback.id}`}
+                        </span>
+                        <span className="text-sm text-muted-foreground ml-3">
+                          {formatDate(feedback.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <p className="text-foreground leading-relaxed">
+                      {feedback.comment || feedback.review || 'No comment provided'}
+                    </p>
+                  </div>
+                  
+                  {/* Verified Purchase Badge */}
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-green-50 text-green-700 px-3 py-1 rounded-full">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      Verified Purchase
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-muted/30 rounded-lg">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+                <Star className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">No Reviews Yet</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Be the first to share your thoughts about this product! Your review will help other customers.
+              </p>
+            </div>
+          )}
+          
+          {/* Show helpful message when there are reviews */}
+          {hasReviews && feedbackData.totalReviews >= 3 && (
+            <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+              <p className="text-sm text-muted-foreground">
+                Showing all {feedbackData.totalReviews} reviews
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </UserLayout>

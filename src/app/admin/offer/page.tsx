@@ -43,11 +43,6 @@ import {
   getAllProducts,
 } from "../../../lib/api/auth";
 
-interface Product {
-  productId: number;
-  productName: string;
-}
-
 interface ProductOption {
   id: number;
   name: string;
@@ -76,6 +71,7 @@ export default function AdminOffersPage() {
     minQuantity: 1,
     productIds: [],
     maxDiscountPercent: 0,
+    maxDiscountAmount: 0, // Add this field
     slabs: [],
     validFrom: "",
     validTo: "",
@@ -159,9 +155,12 @@ export default function AdminOffersPage() {
 
     setFormData((prev) => ({
       ...prev,
-      [name]: ["discountPercent", "minQuantity", "maxDiscountPercent"].includes(
-        name
-      )
+      [name]: [
+        "discountPercent", 
+        "minQuantity", 
+        "maxDiscountPercent",
+        "maxDiscountAmount" // Add this
+      ].includes(name)
         ? Number(value)
         : value,
     }));
@@ -183,6 +182,7 @@ export default function AdminOffersPage() {
       discountPercent: newType === "FLAT" ? 0 : prev.discountPercent,
       minQuantity: newType === "FLAT" ? 1 : 0,
       maxDiscountPercent: newType === "UPTO" ? 0 : prev.maxDiscountPercent,
+      maxDiscountAmount: newType === "MAX_LIMIT" ? 0 : prev.maxDiscountAmount,
       slabs: newType === "UPTO" ? [] : prev.slabs,
     }));
   };
@@ -221,6 +221,7 @@ export default function AdminOffersPage() {
       minQuantity: 1,
       productIds: [],
       maxDiscountPercent: 0,
+      maxDiscountAmount: 0, // Add this field
       slabs: [],
       validFrom: "",
       validTo: "",
@@ -266,6 +267,21 @@ export default function AdminOffersPage() {
       }
     }
 
+    if (formData.offerType === "MAX_LIMIT") {
+      if (formData.discountPercent <= 0 || formData.discountPercent > 100) {
+        toast.error("Discount percentage must be between 1 and 100");
+        return;
+      }
+      if (formData.maxDiscountAmount <= 0) {
+        toast.error("Max discount amount must be greater than 0");
+        return;
+      }
+      if (formData.minQuantity < 1) {
+        toast.error("Minimum quantity must be at least 1");
+        return;
+      }
+    }
+
     if (formData.productIds.length === 0) {
       toast.error("Please select at least one product");
       return;
@@ -290,7 +306,7 @@ export default function AdminOffersPage() {
           validTo: `${formData.validTo}T23:59:59`,
           productIds: formData.productIds,
         };
-      } else {
+      } else if (formData.offerType === "UPTO") {
         payload = {
           offerCode: formData.offerCode,
           offerType: formData.offerType,
@@ -299,6 +315,17 @@ export default function AdminOffersPage() {
           validFrom: toISOStringUTC(formData.validFrom),
           validTo: `${formData.validTo}T23:59:59`,
           slabs: formData.slabs,
+          productIds: formData.productIds,
+        };
+      } else if (formData.offerType === "MAX_LIMIT") { // Add this case
+        payload = {
+          offerCode: formData.offerCode,
+          offerType: formData.offerType,
+          discountPercent: formData.discountPercent,
+          maxDiscountAmount: formData.maxDiscountAmount,
+          minQuantity: formData.minQuantity,
+          validFrom: toISOStringUTC(formData.validFrom),
+          validTo: `${formData.validTo}T23:59:59`,
           productIds: formData.productIds,
         };
       }
@@ -401,6 +428,7 @@ export default function AdminOffersPage() {
                 >
                   <option value="FLAT">Quantity Based</option>
                   <option value="UPTO">Price Based (Slabs)</option>
+                  <option value="MAX_LIMIT">Max Limit</option>
                 </select>
               </div>
             </div>
@@ -552,6 +580,50 @@ export default function AdminOffersPage() {
                       ))}
                     </div>
                   )}
+                </div>
+              </>
+            )}
+
+            {formData.offerType === "MAX_LIMIT" && (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="minQuantity">Minimum Quantity *</Label>
+                  <Input
+                    id="minQuantity"
+                    name="minQuantity"
+                    type="number"
+                    min="1"
+                    value={formData.minQuantity || ""}
+                    onChange={handleInputChange}
+                    placeholder="1"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="discountPercent">Discount (%) *</Label>
+                  <Input
+                    id="discountPercent"
+                    name="discountPercent"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.discountPercent || ""}
+                    onChange={handleInputChange}
+                    placeholder="10"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="maxDiscountAmount">Max Discount Amount *</Label>
+                  <Input
+                    id="maxDiscountAmount"
+                    name="maxDiscountAmount"
+                    type="number"
+                    min="0"
+                    value={formData.maxDiscountAmount || ""}
+                    onChange={handleInputChange}
+                    placeholder="50"
+                  />
                 </div>
               </>
             )}

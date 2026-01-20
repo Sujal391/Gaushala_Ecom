@@ -108,6 +108,7 @@ export interface UpdateProductPayload {
   price: number;
   description: string;
   stockQty: number;
+  images: string[];
 }
 
 // ==================== CART TYPES ====================
@@ -330,6 +331,7 @@ export interface Offer {
   discountPercent: number;
   minQuantity: number;
   maxDiscountPercent: number;
+  maxDiscountAmount: number; // Add this field
   validFrom: string;
   validTo: string;
   products: {
@@ -344,6 +346,7 @@ export interface CreateOfferPayload {
   minQuantity: number;
   productIds: number[];
   maxDiscountPercent: number;
+  maxDiscountAmount: number; // Add this field
   slabs: OfferSlab[];
   validFrom: string;
   validTo: string;

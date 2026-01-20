@@ -30,13 +30,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import UserLayout from '../../components/layout/UserLayout';
 import { getMyOrders, cancelMyOrder } from '../../lib/api/auth';
 import { submitFeedback } from '../../lib/api/auth'; // You'll need to create this
