@@ -19,13 +19,13 @@ import UpdateSampleStatusModal from "./UpdateSampleStatus";
 
 interface SampleRequest {
   sampleRequestId: number;
-  userId: number;
+  customerName: string;
   productId: number;
   productName: string;
   city: string;
   status: "pending" | "approved" | "rejected" | "shipped";
   adminRemark?: string;
-  createdAt: string;
+  requestedAt: string;
   updatedAt: string;
 }
 
@@ -55,7 +55,7 @@ export default function AllSampleRequests() {
 
       const sorted = data.sort(
         (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime()
       );
 
       setRequests(sorted);
@@ -208,8 +208,7 @@ export default function AllSampleRequests() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-xs sm:text-sm">Request ID</TableHead>
-                      <TableHead className="text-xs sm:text-sm">User ID</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Customer Name</TableHead>
                       <TableHead className="text-xs sm:text-sm">Product Name</TableHead>
                       <TableHead className="text-xs sm:text-sm hidden md:table-cell">
                         City
@@ -234,12 +233,7 @@ export default function AllSampleRequests() {
                         className="hover:bg-muted/30"
                       >
                         <TableCell className="font-medium">
-                          #{request.sampleRequestId}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            User #{request.userId}
-                          </Badge>
+                            {request.customerName}
                         </TableCell>
                         <TableCell className="font-medium">
                           {request.productName}
@@ -258,11 +252,11 @@ export default function AllSampleRequests() {
                             {request.status}
                           </Badge>
                           <div className="text-xs text-muted-foreground lg:hidden mt-1">
-                            {formatDateTime(request.createdAt)}
+                            {formatDateTime(request.requestedAt)}
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs hidden lg:table-cell">
-                          {formatDateTime(request.createdAt)}
+                          {formatDateTime(request.requestedAt)}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground hidden xl:table-cell max-w-[200px] truncate">
                           {request.adminRemark || "-"}

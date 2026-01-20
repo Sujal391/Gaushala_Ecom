@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { updateProduct, getProductById } from '../../../../../lib/api/auth';
+import { getProductById } from '../../../../../lib/api/auth';
 import { toast } from 'sonner';
 import AdminGuard from '../../../../../components/guards/AdminGuard';
 import AdminLayout from '../../../../../components/layout/AdminLayout';
@@ -161,45 +161,103 @@ export default function EditProductPage() {
     setSubmitting(true);
 
     try {
-      // Convert new image files to base64
-      const newImageBase64 = await Promise.all(
-        newImageFiles.map(file => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
+      // Parse sizes
+      const sizesArray = formData.sizes
+        .split(',')
+        .map(size => size.trim())
+        .filter(Boolean);
+
+      // Create FormData object
+      const formDataObj = new FormData();
+
+      // Fetch existing images and convert to blobs
+      const existingImageBlobs = await Promise.all(
+        existingImages.map(async (imageUrl) => {
+          try {
+            const fullUrl = `https://gaushalaecommerce.runasp.net${imageUrl}`;
+            const response = await fetch(fullUrl);
+            const blob = await response.blob();
+            const filename = imageUrl.split('/').pop() || 'existing-image.jpg';
+            return new File([blob], filename, { type: blob.type });
+          } catch (error) {
+            console.error('Error fetching existing image:', imageUrl, error);
+            return null;
+          }
         })
       );
 
-      // Combine existing image URLs with new base64 images
-      const allImages = [...existingImages, ...newImageBase64];
+      // Filter out any failed image fetches
+      const validExistingImages = existingImageBlobs.filter(img => img !== null);
 
-      const payload = {
-        name: formData.name.trim(),
-        sizes: formData.sizes
-          .split(',')
-          .map(size => size.trim())
-          .filter(Boolean),
-        price: parseFloat(formData.price),
-        stockQty: parseInt(formData.stockQty),
-        description: formData.description.trim(),
-        images: allImages, // Send both existing URLs and new base64
-      };
+      // Add all images (existing + new) to FormData
+      validExistingImages.forEach((file) => {
+        formDataObj.append('Images', file);
+      });
 
-      console.log('Updating product with payload:', payload);
+      newImageFiles.forEach((file) => {
+        formDataObj.append('Images', file);
+      });
+
+      // Build query parameters
+      const queryParams = new URLSearchParams({
+        Name: formData.name.trim(),
+        Price: parseFloat(formData.price).toString(),
+        StockQty: parseInt(formData.stockQty).toString(),
+        Description: formData.description.trim(),
+      });
+
+      // Add sizes as array parameters
+      sizesArray.forEach(size => {
+        queryParams.append('Sizes', size);
+      });
+
+      // Build the URL with query parameters
+      const url = `https://gaushalaecommerce.runasp.net/api/products/${params.id}?${queryParams.toString()}`;
+
+      console.log('Updating product with URL:', url);
+      console.log('Total images:', validExistingImages.length + newImageFiles.length);
+
+      // Get auth token
+      const token = localStorage.getItem('authToken');
       
-      const response = await updateProduct(params.id, payload);
-
-      console.log('Update response:', response);
-      
-      if (response && (response.success || response.data || !response.error)) {
-        toast.success('Product updated successfully!');
-        router.push('/admin/products');
-      } else {
-        toast.error(response?.message || response?.error || 'Failed to update product');
+      if (!token) {
+        toast.error('Authentication token not found. Please log in again.');
+        router.push('/login');
+        return;
       }
+
+      // Make the API call directly
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type - let browser set it with boundary for multipart/form-data
+        },
+        body: formDataObj,
+      });
+
+      console.log('Update response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      // Try to parse response
+      const contentType = response.headers.get('content-type');
+      let result;
+      
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        result = { success: true };
+      }
+
+      console.log('Update result:', result);
+      
+      toast.success('Product updated successfully!');
+      router.push('/admin/products');
+      
     } catch (error) {
       console.error('Error updating product:', error);
       toast.error(`An error occurred while updating the product: ${error.message}`);

@@ -10,6 +10,8 @@ import {
   Package,
   DollarSign,
   User,
+  X,
+  Filter,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,7 +37,7 @@ import { toast } from "sonner";
 import AdminGuard from "../../../components/guards/AdminGuard";
 import AdminLayout from "../../../components/layout/AdminLayout";
 import { getPendingOrders } from "../../../lib/api/auth";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, subDays } from "date-fns";
 
 /* ===================== TYPES ===================== */
 
@@ -64,6 +66,11 @@ interface PendingOrder {
   items: OrderItem[];
 }
 
+interface DateRange {
+  from: Date | undefined;
+  to: Date | undefined;
+}
+
 /* ===================== PAGE ===================== */
 
 export default function AdminPendingOrdersPage() {
@@ -73,13 +80,44 @@ export default function AdminPendingOrdersPage() {
   const [filteredOrders, setFilteredOrders] = useState<PendingOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  
+  // Separate state for applied filters and temporary filters
+  const [appliedDateRange, setAppliedDateRange] = useState<DateRange>({
+    from: undefined,
+    to: undefined,
+  });
+  
+  const [tempDateRange, setTempDateRange] = useState<DateRange>({
+    from: undefined,
+    to: undefined,
+  });
+  
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
+  // Load last 7 days data by default on initial load
   useEffect(() => {
-    fetchPendingOrders();
-  }, [selectedDate]);
+    const sevenDaysAgo = subDays(new Date(), 7);
+    const today = new Date();
+    
+    setAppliedDateRange({
+      from: sevenDaysAgo,
+      to: today,
+    });
+    
+    setTempDateRange({
+      from: sevenDaysAgo,
+      to: today,
+    });
+  }, []);
 
+  // Fetch data when appliedDateRange changes
+  useEffect(() => {
+    if (appliedDateRange.from && appliedDateRange.to) {
+      fetchPendingOrders();
+    }
+  }, [appliedDateRange]);
+
+  // Filter orders based on search query
   useEffect(() => {
     filterOrders();
   }, [searchQuery, orders]);
@@ -87,11 +125,18 @@ export default function AdminPendingOrdersPage() {
   /* ===================== API ===================== */
 
   const fetchPendingOrders = async () => {
+    if (!appliedDateRange.from || !appliedDateRange.to) {
+      toast.error("Please select a date range");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const params = {
-        date: format(selectedDate, "yyyy-MM-dd"),
-      };
+      const params: any = {};
+      
+      // Format dates to yyyy-MM-dd format as required by the API
+      params.startDate = format(appliedDateRange.from, "yyyy-MM-dd");
+      params.endDate = format(appliedDateRange.to, "yyyy-MM-dd");
 
       const response = await getPendingOrders(params);
 
@@ -131,13 +176,51 @@ export default function AdminPendingOrdersPage() {
         (o) =>
           o.orderId.toString().includes(query) ||
           o.customer.name.toLowerCase().includes(query) ||
-          o.customer.email.toLowerCase().includes(query)
+          o.customer.email.toLowerCase().includes(query) ||
+          o.customer.mobileNo.includes(query)
       )
     );
   };
 
+  const handleTempDateRangeSelect = (range: DateRange | undefined) => {
+    if (range?.from && range?.to) {
+      setTempDateRange(range);
+    }
+  };
+
+  const applyDateFilter = () => {
+    if (!tempDateRange.from || !tempDateRange.to) {
+      toast.error("Please select both start and end dates");
+      return;
+    }
+    
+    setAppliedDateRange(tempDateRange);
+    setIsDatePickerOpen(false);
+  };
+
+  const applyQuickFilter = (days: number) => {
+    const end = new Date();
+    const start = subDays(end, days);
+    
+    setTempDateRange({ from: start, to: end });
+    setAppliedDateRange({ from: start, to: end });
+  };
+
   const clearDateFilter = () => {
-    setSelectedDate(new Date());
+    const sevenDaysAgo = subDays(new Date(), 7);
+    const today = new Date();
+    
+    setTempDateRange({ from: sevenDaysAgo, to: today });
+    setAppliedDateRange({ from: sevenDaysAgo, to: today });
+  };
+
+  const clearAllFilters = () => {
+    setSearchQuery("");
+    const sevenDaysAgo = subDays(new Date(), 7);
+    const today = new Date();
+    
+    setTempDateRange({ from: sevenDaysAgo, to: today });
+    setAppliedDateRange({ from: sevenDaysAgo, to: today });
   };
 
   const formatCurrency = (amount: number) =>
@@ -154,6 +237,18 @@ export default function AdminPendingOrdersPage() {
     }
   };
 
+  const formatDateRangeDisplay = (range: DateRange) => {
+    if (!range.from || !range.to) {
+      return "Select date range";
+    }
+    
+    if (format(range.from, "yyyy-MM-dd") === format(range.to, "yyyy-MM-dd")) {
+      return format(range.from, "MMM dd, yyyy");
+    }
+    
+    return `${format(range.from, "MMM dd")} - ${format(range.to, "MMM dd, yyyy")}`;
+  };
+
   const getTotalPendingAmount = () => {
     return orders.reduce((sum, order) => sum + order.finalAmount, 0);
   };
@@ -168,16 +263,34 @@ export default function AdminPendingOrdersPage() {
     return new Set(customerIds).size;
   };
 
+  const hasActiveFilters = searchQuery || 
+    (appliedDateRange.from && appliedDateRange.to && 
+     (format(appliedDateRange.from, "yyyy-MM-dd") !== format(subDays(new Date(), 7), "yyyy-MM-dd") || 
+      format(appliedDateRange.to, "yyyy-MM-dd") !== format(new Date(), "yyyy-MM-dd")));
+
   const headerAction = (
-    <Button 
-      onClick={fetchPendingOrders} 
-      variant="outline" 
-      size="sm"
-      className="gap-2"
-    >
-      <Loader2 className="h-4 w-4" />
-      <span className="hidden sm:inline">Refresh</span>
-    </Button>
+    <div className="flex gap-2">
+      {hasActiveFilters && (
+        <Button 
+          onClick={clearAllFilters} 
+          variant="ghost" 
+          size="sm"
+          className="gap-2"
+        >
+          <X className="h-4 w-4" />
+          <span className="hidden sm:inline">Clear Filters</span>
+        </Button>
+      )}
+      <Button 
+        onClick={fetchPendingOrders} 
+        variant="outline" 
+        size="sm"
+        className="gap-2"
+      >
+        <Loader2 className="h-4 w-4" />
+        <span className="hidden sm:inline">Refresh</span>
+      </Button>
+    </div>
   );
 
   /* ===================== RENDER ===================== */
@@ -262,64 +375,129 @@ export default function AdminPendingOrdersPage() {
             {/* Filters */}
             <Card className="mb-6">
               <CardContent className="p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search by order ID, name or email"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                      />
+                <div className="flex flex-col gap-6">
+                  {/* Quick Date Filters */}
+                  <div>
+                    <p className="text-sm font-medium mb-2 text-muted-foreground">
+                      Quick Filters
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyQuickFilter(0)}
+                        className={appliedDateRange.from && appliedDateRange.to && 
+                          format(appliedDateRange.from, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") ? 
+                          "bg-primary/10 border-primary" : ""
+                        }
+                      >
+                        Today
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyQuickFilter(7)}
+                        className={appliedDateRange.from && appliedDateRange.to && 
+                          format(appliedDateRange.from, "yyyy-MM-dd") === format(subDays(new Date(), 7), "yyyy-MM-dd") ? 
+                          "bg-primary/10 border-primary" : ""
+                        }
+                      >
+                        Last 7 days
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyQuickFilter(30)}
+                        className={appliedDateRange.from && appliedDateRange.to && 
+                          format(appliedDateRange.from, "yyyy-MM-dd") === format(subDays(new Date(), 30), "yyyy-MM-dd") ? 
+                          "bg-primary/10 border-primary" : ""
+                        }
+                      >
+                        Last 30 days
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const start = startOfMonth(new Date());
+                          const end = endOfMonth(new Date());
+                          setTempDateRange({ from: start, to: end });
+                          setAppliedDateRange({ from: start, to: end });
+                        }}
+                      >
+                        This Month
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Popover
-                      open={isDatePickerOpen}
-                      onOpenChange={setIsDatePickerOpen}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="gap-2 w-full sm:w-auto">
-                          <Calendar className="h-4 w-4" />
-                          <span className="hidden sm:inline">
-                            {format(selectedDate, "MMM dd, yyyy")}
-                          </span>
-                          <span className="sm:hidden">
-                            {format(selectedDate, "MMM dd")}
-                          </span>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <CalendarComponent
-                          mode="single"
-                          selected={selectedDate}
-                          onSelect={(date) => {
-                            if (date) setSelectedDate(date);
-                            setIsDatePickerOpen(false);
-                          }}
-                          initialFocus
+                  {/* Search and Date Range */}
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search by order ID, name, email or phone"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10"
                         />
-                      </PopoverContent>
-                    </Popover>
+                        {searchQuery && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                            onClick={() => setSearchQuery("")}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
 
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={clearDateFilter}
-                      className="hidden sm:inline-flex"
-                    >
-                      Today
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={clearDateFilter}
-                      className="sm:hidden"
-                    >
-                      Reset
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Popover
+                        open={isDatePickerOpen}
+                        onOpenChange={setIsDatePickerOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                            <Calendar className="h-4 w-4" />
+                            <span>{formatDateRangeDisplay(tempDateRange)}</span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                          <div className="p-3 border-b">
+                            <div className="flex justify-between items-center">
+                              <p className="text-sm font-medium">Select Date Range</p>
+                              <Button
+                                size="sm"
+                                onClick={applyDateFilter}
+                                disabled={!tempDateRange.from || !tempDateRange.to}
+                              >
+                                <Filter className="h-4 w-4 mr-2" />
+                                Apply
+                              </Button>
+                            </div>
+                          </div>
+                          <CalendarComponent
+                            mode="range"
+                            selected={tempDateRange}
+                            onSelect={handleTempDateRangeSelect}
+                            numberOfMonths={2}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={clearDateFilter}
+                        className="hidden sm:inline-flex"
+                      >
+                        Reset
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -333,7 +511,7 @@ export default function AdminPendingOrdersPage() {
                   No pending orders found
                 </h3>
                 <p className="text-muted-foreground">
-                  {searchQuery || selectedDate 
+                  {searchQuery || (appliedDateRange.from && appliedDateRange.to) 
                     ? "Try adjusting your filters" 
                     : "All orders are processed"}
                 </p>
@@ -402,6 +580,11 @@ export default function AdminPendingOrdersPage() {
                 {/* Results Summary */}
                 <div className="mt-6 text-center text-sm text-muted-foreground">
                   Showing {filteredOrders.length} of {orders.length} pending orders
+                  {appliedDateRange.from && appliedDateRange.to && (
+                    <span className="block sm:inline sm:ml-2">
+                      from {format(appliedDateRange.from, "MMM dd, yyyy")} to {format(appliedDateRange.to, "MMM dd, yyyy")}
+                    </span>
+                  )}
                 </div>
               </>
             )}

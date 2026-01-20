@@ -20,9 +20,10 @@ interface SampleRequest {
   state: string;
   pincode: string;
   status: string;
-  requestDate: string;
+  requestedAt: string;
   approvedDate?: string;
   shippedDate?: string;
+  adminRemark?: string;
 }
 
 interface MySampleRequestsProps {
@@ -60,8 +61,8 @@ export default function MySampleRequests({ refreshTrigger }: MySampleRequestsPro
 
       // Sort by request date (latest first)
       const sortedRequests = requestsData.sort((a: SampleRequest, b: SampleRequest) => {
-        const dateA = new Date(a.requestDate).getTime();
-        const dateB = new Date(b.requestDate).getTime();
+        const dateA = new Date(a.requestedAt).getTime();
+        const dateB = new Date(b.requestedAt).getTime();
         return dateB - dateA;
       });
 
@@ -166,19 +167,16 @@ export default function MySampleRequests({ refreshTrigger }: MySampleRequestsPro
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left p-3 font-semibold text-sm">Request ID</th>
                     <th className="text-left p-3 font-semibold text-sm">Product</th>
                     <th className="text-left p-3 font-semibold text-sm">Delivery Address</th>
                     <th className="text-left p-3 font-semibold text-sm">Status</th>
+                    <th className="text-left p-3 font-semibold text-sm">Remark</th>
                     <th className="text-left p-3 font-semibold text-sm">Request Date</th>
                   </tr>
                 </thead>
                 <tbody>
                   {requests.map((request) => (
                     <tr key={request.sampleRequestId} className="border-b hover:bg-muted/50">
-                      <td className="p-3">
-                        <span className="font-mono text-sm">#{request.sampleRequestId}</span>
-                      </td>
                       <td className="p-3">
                         <div className="flex items-center gap-2">
                           <Package className="h-4 w-4 text-muted-foreground" />
@@ -202,9 +200,12 @@ export default function MySampleRequests({ refreshTrigger }: MySampleRequestsPro
                         </Badge>
                       </td>
                       <td className="p-3">
+                        <span className="font-mono text-sm">{request.adminRemark || '-'}</span>
+                      </td>
+                      <td className="p-3">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Calendar className="h-4 w-4" />
-                          {formatDate(request.requestDate)}
+                          {formatDate(request.requestedAt)}
                         </div>
                       </td>
                     </tr>
@@ -228,7 +229,7 @@ export default function MySampleRequests({ refreshTrigger }: MySampleRequestsPro
                     {request.productName}
                   </CardTitle>
                   <p className="text-xs text-muted-foreground font-mono">
-                    Request #{request.sampleRequestId}
+                    {request.adminRemark}
                   </p>
                 </div>
                 <Badge
@@ -249,7 +250,7 @@ export default function MySampleRequests({ refreshTrigger }: MySampleRequestsPro
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t">
                 <Calendar className="h-4 w-4" />
-                <span>Requested on {formatDate(request.requestDate)}</span>
+                <span>Requested on {formatDate(request.requestedAt)}</span>
               </div>
               {request.shippedDate && (
                 <div className="flex items-center gap-2 text-sm text-green-600">

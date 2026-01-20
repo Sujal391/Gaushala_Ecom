@@ -846,12 +846,21 @@ export async function cancelMyOrder(
 }
 
 export async function getPendingOrders(
-  params?: { date?: string }
+  params?: { startDate?: string; endDate?: string }
 ): Promise<ApiResponse<PendingOrder[]>> {
   try {
-    const queryString = params?.date
-      ? `?date=${encodeURIComponent(params.date)}`
-      : '';
+    // Build query string with startDate and endDate
+    const queryParams = new URLSearchParams();
+    
+    if (params?.startDate) {
+      queryParams.append('startDate', params.startDate);
+    }
+    
+    if (params?.endDate) {
+      queryParams.append('endDate', params.endDate);
+    }
+    
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
 
     const response = await fetch(
       `${API_BASE_URL}${API_ENDPOINTS.ORDERS.PENDING_ORDERS}${queryString}`,

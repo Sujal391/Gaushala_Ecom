@@ -23,6 +23,14 @@ import {
   X,
   TagIcon,
   Clock,
+  Mail,
+  Phone,
+  MapPin,
+  Home,
+  Navigation,
+  Building,
+  Map,
+  Hash,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +56,7 @@ interface OrderItem {
   quantity: number;
   productPrice: number;
   totalPrice: number;
+  size?: string;
   images?: string[];
 }
 
@@ -58,6 +67,16 @@ interface Customer {
   mobileNo: string;
 }
 
+interface Address {
+  houseNo: string;
+  street: string;
+  landmark: string;
+  city: string;
+  state: string;
+  pincode: string;
+  fullAddress: string;
+}
+
 interface Order {
   orderId: number;
   userId?: number;
@@ -65,9 +84,13 @@ interface Order {
   discountAmount: number;
   finalAmount: number;
   isReferralDiscountApplied: boolean;
+  discountSource?: string;
+  offerCode?: string;
+  paymentStatus: string;
   orderStatus: string;
   orderDate: string;
   customer: Customer;
+  address: Address;
   items: OrderItem[];
 }
 
@@ -131,11 +154,14 @@ export default function AdminOrdersPage() {
 
       const mappedOrders: Order[] = ordersData.map((order: any) => ({
         orderId: order.orderId || order.id,
-        userId: order.userId,
+        userId: order.userId || order.customer?.userId,
         totalAmount: order.totalAmount || 0,
         discountAmount: order.discountAmount || 0,
         finalAmount: order.finalAmount || 0,
         isReferralDiscountApplied: order.isReferralDiscountApplied || false,
+        discountSource: order.discountSource,
+        offerCode: order.offerCode,
+        paymentStatus: order.paymentStatus || 'Pending',
         orderStatus: order.orderStatus || 'PLACED',
         orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
         customer: order.customer || {
@@ -143,6 +169,15 @@ export default function AdminOrdersPage() {
           name: 'Unknown Customer',
           email: '',
           mobileNo: ''
+        },
+        address: order.address || {
+          houseNo: '',
+          street: '',
+          landmark: '',
+          city: '',
+          state: '',
+          pincode: '',
+          fullAddress: 'Address not available'
         },
         items: order.items || [],
       }));
@@ -174,7 +209,10 @@ export default function AdminOrdersPage() {
       filtered = filtered.filter(
         (order) =>
           order.orderId.toString().toLowerCase().includes(query) ||
-          (order.userId && order.userId.toString().toLowerCase().includes(query))
+          (order.userId && order.userId.toString().toLowerCase().includes(query)) ||
+          order.customer.name.toLowerCase().includes(query) ||
+          order.customer.email.toLowerCase().includes(query) ||
+          order.customer.mobileNo.toLowerCase().includes(query)
       );
     }
 
@@ -211,6 +249,21 @@ export default function AdminOrdersPage() {
       'SHIPPED': "bg-yellow-100 text-yellow-800 border-yellow-200",
       'DELIVERED': "bg-green-100 text-green-800 border-green-200",
       'CANCELLED': "bg-red-100 text-red-800 border-red-200",
+    };
+    
+    const statusUpper = status.toUpperCase();
+    return (
+      statusColors[statusUpper] ||
+      "bg-gray-100 text-gray-800 border-gray-200"
+    );
+  };
+
+  const getPaymentStatusColor = (status: string) => {
+    const statusColors: Record<string, string> = {
+      'PAID': "bg-green-100 text-green-800 border-green-200",
+      'PENDING': "bg-yellow-100 text-yellow-800 border-yellow-200",
+      'FAILED': "bg-red-100 text-red-800 border-red-200",
+      'REFUNDED': "bg-blue-100 text-blue-800 border-blue-200",
     };
     
     const statusUpper = status.toUpperCase();
@@ -310,7 +363,7 @@ export default function AdminOrdersPage() {
   };
 
   const getTotalRevenue = () => {
-    return orders.reduce((sum, order) => sum + order.totalAmount, 0);
+    return orders.reduce((sum, order) => sum + order.finalAmount, 0);
   };
 
   const getOrdersByStatus = (status: string) => {
@@ -320,7 +373,7 @@ export default function AdminOrdersPage() {
 
   const getUniqueCustomers = () => {
     const customers = orders
-      .map((order) => order.userId)
+      .map((order) => order.customer.userId)
       .filter((id) => id !== undefined);
     return new Set(customers).size;
   };
@@ -427,7 +480,7 @@ export default function AdminOrdersPage() {
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Search by Order ID or User ID..."
+                        placeholder="Search by Order ID, Customer Name, Email, or Phone..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-10"
@@ -480,7 +533,7 @@ export default function AdminOrdersPage() {
                       <CardHeader className="bg-muted/50 p-4 sm:p-6">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div className="space-y-1">
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                               <div className="flex items-center gap-3 flex-wrap">
                                 <CardTitle className="text-base sm:text-lg">
                                   Order #{order.orderId}
@@ -494,21 +547,27 @@ export default function AdminOrdersPage() {
                                       <User className="h-3 w-3 mr-1" />
                                       {order.customer.name}
                                     </Badge>
-                                    <div className="text-xs text-muted-foreground hidden sm:block">
-                                      {order.customer.email}
-                                    </div>
+                                    {/* <Badge
+                                      variant="outline"
+                                      className={getPaymentStatusColor(order.paymentStatus)}
+                                    >
+                                      {order.paymentStatus}
+                                    </Badge> */}
                                   </div>
                                 )}
                               </div>
                               <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
                                 <Calendar className="h-4 w-4" />
                                 {formatDate(order.orderDate)}
-                                {order.customer && (
-                                  <>
-                                    <span className="mx-1">•</span>
-                                    <span>{order.customer.mobileNo}</span>
-                                  </>
-                                )}
+                              </div>                              
+                              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">  
+                                <span>Payment Status: </span>
+                                <Badge
+                                  variant="outline"
+                                  className={getPaymentStatusColor(order.paymentStatus)}
+                                >
+                                  {order.paymentStatus}
+                                </Badge>
                               </div>
                             </div>
                           </div>
@@ -573,8 +632,15 @@ export default function AdminOrdersPage() {
                                 </Button>
                               </div>
                             )}
-                            <div className="flex items-center gap-1 font-bold text-lg text-primary">
-                              ₹ {order.totalAmount.toFixed(2)}
+                            <div className="flex flex-col items-end">
+                              {order.discountAmount > 0 && (
+                                <div className="text-xs text-muted-foreground line-through">
+                                  ₹ {order.totalAmount.toFixed(2)}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1 font-bold text-lg text-primary">
+                                ₹ {order.finalAmount.toFixed(2)}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -582,109 +648,212 @@ export default function AdminOrdersPage() {
 
                       <CardContent className="p-0">
                         <div className="p-4 border-b">
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs sm:text-sm text-muted-foreground">
-                              {order.items && order.items.length > 0
-                                ? `${order.items.length} item${
-                                    order.items.length !== 1 ? "s" : ""
-                                  } in this order`
-                                : "Order details not available"}
-                            </p>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="space-y-1">
+                              <h4 className="font-semibold text-sm">Customer Details</h4>
+                              <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                                <div className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  <span className="font-medium">{order.customer.name}</span>
+                                </div>
+                                <span className="text-muted-foreground">•</span>
+                                <div className="flex items-center gap-1">
+                                  <Mail className="h-3 w-3" />
+                                  <span>{order.customer.email}</span>
+                                </div>
+                                <span className="text-muted-foreground">•</span>
+                                <div className="flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  <span>{order.customer.mobileNo}</span>
+                                </div>
+                                {order.customer.userId && (
+                                  <>
+                                    <span className="text-muted-foreground">•</span>
+                                    <div className="flex items-center gap-1">
+                                      <Hash className="h-3 w-3" />
+                                      <span>ID: {order.customer.userId}</span>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            
                             {order.items && order.items.length > 0 && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  toggleOrderExpansion(order.orderId)
-                                }
-                              >
-                                {expandedOrder === order.orderId
-                                  ? "Hide"
-                                  : "View"}{" "}
-                                Details
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                  {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+                                </p>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    toggleOrderExpansion(order.orderId)
+                                  }
+                                >
+                                  {expandedOrder === order.orderId
+                                    ? "Hide"
+                                    : "View"}{" "}
+                                  Details
+                                </Button>
+                              </div>
                             )}
                           </div>
                         </div>
 
-                        {expandedOrder === order.orderId &&
-                          order.items &&
-                          order.items.length > 0 && (
-                            <div className="p-4 bg-muted/20">
-                              <h4 className="font-semibold mb-3 text-sm">
-                                Order Items
-                              </h4>
-                              <div className="space-y-3">
-                                {order.items.map((item, index) => (
-                                  <div
-                                    key={index}
-                                    className="flex items-center justify-between p-3 bg-white rounded-lg border"
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-12 h-12 bg-muted rounded-md overflow-hidden flex-shrink-0">
-                                        {item.images && item.images.length > 0 ? (
-                                          <img
-                                            src={imageErrors.has(item.productId) 
-                                              ? '/placeholder-product.jpg'
-                                              : (item.images?.[0] 
-                                                ? `http://gaushalaecommerce.runasp.net${item.images[0]}`
-                                                : '/placeholder-product.jpg')
-                                            }
-                                            alt={item.productName}
-                                            className="w-full h-full object-cover"
-                                            onError={() => {
-                                              setImageErrors(prev => new Set(prev).add(item.productId));
-                                            }}
-                                          />
-                                        ) : (
-                                          <div className="w-full h-full flex items-center justify-center bg-muted">
-                                            <Package className="h-6 w-6 text-muted-foreground" />
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="min-w-0">
-                                        <p className="font-medium text-sm truncate">
-                                          {item.productName}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                          ID: {item.productId}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                          ₹{item.productPrice.toFixed(2)} ×{" "}
-                                          {item.quantity}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <p className="font-semibold text-sm flex-shrink-0">
-                                      ₹{item.totalPrice.toFixed(2)}
-                                    </p>
-                                  </div>
-                                ))}
+                        {expandedOrder === order.orderId && (
+                          <div className="p-4 bg-muted/20">
+                            {/* Address Section */}
+                            <div className="mb-6 p-3 bg-white rounded-lg border">
+                              <div className="flex items-center gap-2 mb-2">
+                                <MapPin className="h-4 w-4 text-blue-500" />
+                                <h4 className="font-semibold text-sm">Shipping Address</h4>
                               </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <Home className="h-3 w-3 text-muted-foreground" />
+                                    <span className="text-sm">
+                                      {order.address.houseNo}, {order.address.street}
+                                    </span>
+                                  </div>
+                                  {order.address.landmark && (
+                                    <div className="flex items-center gap-2">
+                                      <Navigation className="h-3 w-3 text-muted-foreground" />
+                                      <span className="text-sm">
+                                        {order.address.landmark}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2">
+                                    <Building className="h-3 w-3 text-muted-foreground" />
+                                    <span className="text-sm">
+                                      {order.address.city}, {order.address.state} - {order.address.pincode}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="border-l pl-3">
+                                  <div className="flex items-start gap-2">
+                                    <Map className="h-3 w-3 text-muted-foreground mt-0.5" />
+                                    <div className="text-sm text-muted-foreground">
+                                      {order.address.fullAddress}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
 
-                              <div className="mt-4 pt-4 border-t space-y-2">
+                            {/* Order Items Section */}
+                            {order.items && order.items.length > 0 && (
+                              <>
+                                <h4 className="font-semibold mb-3 text-sm">
+                                  Order Items
+                                </h4>
+                                <div className="space-y-3">
+                                  {order.items.map((item, index) => (
+                                    <div
+                                      key={index}
+                                      className="flex items-center justify-between p-3 bg-white rounded-lg border"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-muted rounded-md overflow-hidden flex-shrink-0">
+                                          {item.images && item.images.length > 0 ? (
+                                            <img
+                                              src={imageErrors.has(item.productId) 
+                                                ? '/placeholder-product.jpg'
+                                                : (item.images?.[0] 
+                                                  ? `http://gaushalaecommerce.runasp.net${item.images[0]}`
+                                                  : '/placeholder-product.jpg')
+                                              }
+                                              alt={item.productName}
+                                              className="w-full h-full object-cover"
+                                              onError={() => {
+                                                setImageErrors(prev => new Set(prev).add(item.productId));
+                                              }}
+                                            />
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-muted">
+                                              <Package className="h-6 w-6 text-muted-foreground" />
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="min-w-0">
+                                          <p className="font-medium text-sm truncate">
+                                            {item.productName}
+                                          </p>
+                                          {item.description && (
+                                            <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                              {item.description}
+                                            </p>
+                                          )}
+                                          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                                            <span>ID: {item.productId}</span>
+                                            {item.size && (
+                                              <>
+                                                <span>•</span>
+                                                <span>Size: {item.size}</span>
+                                              </>
+                                            )}
+                                          </div>
+                                          <p className="text-xs text-muted-foreground mt-1">
+                                            ₹{item.productPrice.toFixed(2)} ×{" "}
+                                            {item.quantity}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <p className="font-semibold text-sm flex-shrink-0">
+                                        ₹{item.totalPrice.toFixed(2)}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+
+                            {/* Order Summary Section */}
+                            <div className="mt-6 p-4 bg-white rounded-lg border space-y-3">
+                              <h4 className="font-semibold text-sm mb-2">Order Summary</h4>
+                              
+                              {order.offerCode && (
+                                <div className="flex items-center gap-2 p-2 bg-yellow-50 rounded">
+                                  <TagIcon className="h-3 w-3 text-yellow-600" />
+                                  <span className="text-xs text-yellow-700">
+                                    Applied {order.discountSource || 'Offer'}: {order.offerCode}
+                                  </span>
+                                </div>
+                              )}
+
+                              <div className="space-y-2">
                                 <div className="flex justify-between text-sm">
                                   <span className="text-muted-foreground">
                                     Subtotal
                                   </span>
                                   <span className="font-medium">
-                                    ₹
-                                    {order.items
-                                      .reduce(
-                                        (sum, item) => sum + item.totalPrice,
-                                        0
-                                      )
-                                      .toFixed(2)}
+                                    ₹{order.totalAmount.toFixed(2)}
                                   </span>
                                 </div>
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-muted-foreground">
-                                    Tax
-                                  </span>
-                                  <span className="font-medium">
-                                    Included
-                                  </span>
-                                </div>
+
+                                {order.discountAmount > 0 && (
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                      Discount
+                                    </span>
+                                    <span className="font-medium text-green-600">
+                                      -₹{order.discountAmount.toFixed(2)}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {order.isReferralDiscountApplied && (
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                      Referral Discount
+                                    </span>
+                                    <span className="font-medium text-green-600">
+                                      Applied
+                                    </span>
+                                  </div>
+                                )}
+
                                 <div className="flex justify-between text-sm">
                                   <span className="text-muted-foreground">
                                     Shipping
@@ -693,17 +862,28 @@ export default function AdminOrdersPage() {
                                     Free
                                   </span>
                                 </div>
-                                <div className="flex justify-between pt-2 border-t">
-                                  <span className="font-semibold">
-                                    Total
-                                  </span>
-                                  <span className="text-lg font-bold text-primary">
-                                    ₹{order.totalAmount.toFixed(2)}
-                                  </span>
+
+                                <div className="pt-2 border-t">
+                                  <div className="flex justify-between pt-2">
+                                    <span className="font-semibold">
+                                      Total Amount
+                                    </span>
+                                    <div className="text-right">
+                                      {order.discountAmount > 0 && (
+                                        <div className="text-xs text-muted-foreground line-through">
+                                          ₹{order.totalAmount.toFixed(2)}
+                                        </div>
+                                      )}
+                                      <span className="text-lg font-bold text-primary">
+                                        ₹{order.finalAmount.toFixed(2)}
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          )}
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}

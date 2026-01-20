@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Package, User, MapPin, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,8 +24,9 @@ import { toast } from "sonner";
 import { updateSampleRequestStatus } from "../../../lib/api/auth";
 
 interface SampleRequest {
-  sampleRequestId: number;
+  id: number;
   userId: number;
+  customerName: string;
   productId: number;
   productName: string;
   city: string;
@@ -38,7 +39,7 @@ interface SampleRequest {
 interface UpdateSampleStatusModalProps {
   isOpen: boolean;
   onClose: () => void;
-  request: SampleRequest;
+  request: SampleRequest | null;
   onSuccess: () => void;
 }
 
@@ -48,11 +49,30 @@ export default function UpdateSampleStatusModal({
   request,
   onSuccess,
 }: UpdateSampleStatusModalProps) {
-  const [status, setStatus] = useState<string>(request.status);
-  const [adminRemark, setAdminRemark] = useState<string>(request.adminRemark || "");
+  const [status, setStatus] = useState<string>(request?.status || "pending");
+  const [adminRemark, setAdminRemark] = useState<string>(request?.adminRemark || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Reset form when request changes
+  useState(() => {
+    if (request) {
+      setStatus(request.status);
+      setAdminRemark(request.adminRemark || "");
+    }
+  });
+
   const handleSubmit = async () => {
+    if (!request) {
+      toast.error("No request selected");
+      return;
+    }
+
+    if (!request.id) {
+      toast.error("Invalid request ID");
+      console.error("Missing id:", request);
+      return;
+    }
+
     if (!status) {
       toast.error("Please select a status");
       return;
@@ -66,16 +86,17 @@ export default function UpdateSampleStatusModal({
     setIsSubmitting(true);
     try {
       const payload = {
-        status: status as "pending" | "approved" | "rejected" | "shipped",
+        status: status,
         adminRemark: adminRemark.trim() || undefined,
       };
 
-      console.log("=== UPDATE PAYLOAD ===");
-      console.log(JSON.stringify(payload, null, 2));
+      console.log("=== UPDATE REQUEST ===");
+      console.log("Request ID:", request.id);
+      console.log("Payload:", JSON.stringify(payload, null, 2));
       console.log("=====================");
 
       const response = await updateSampleRequestStatus(
-        request.sampleRequestId,
+        request.id,
         payload
       );
 
@@ -86,100 +107,172 @@ export default function UpdateSampleStatusModal({
       if (response.success) {
         toast.success("Sample request status updated successfully");
         onSuccess();
+        onClose();
       } else {
         toast.error(response.message || "Failed to update status");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("=== ERROR DETAILS ===");
-      console.error(error);
+      console.error("Error:", error);
+      console.error("Error Message:", error?.message);
+      console.error("Error Response:", error?.response?.data);
       console.error("====================");
-      toast.error("Failed to update sample request status");
+      
+      const errorMessage = error?.response?.data?.title || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          "Failed to update sample request status";
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const statusOptions = [
-    { value: "pending", label: "Pending" },
-    { value: "approved", label: "Approved" },
-    { value: "rejected", label: "Rejected" },
-    { value: "shipped", label: "Shipped" },
+    { value: "pending", label: "Pending", color: "bg-yellow-500" },
+    { value: "approved", label: "Approved", color: "bg-green-500" },
+    { value: "rejected", label: "Rejected", color: "bg-red-500" },
+    { value: "shipped", label: "Shipped", color: "bg-blue-500" },
   ];
+
+  const getStatusColor = (status: string) => {
+    const option = statusOptions.find(opt => opt.value === status);
+    return option?.color || "bg-gray-500";
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (!request) {
+    return null;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Update Sample Request Status</DialogTitle>
+          <DialogTitle className="text-xl">Update Sample Request Status</DialogTitle>
           <DialogDescription>
-            Update the status and add remarks for this sample request
+            Review and update the status of this sample request
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 mt-4">
-          <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium">Request ID</p>
-                <p className="text-sm text-muted-foreground">
-                  #{request.sampleRequestId}
+        <div className="space-y-6 mt-2">
+          {/* Request Details Card */}
+          <div className="border rounded-lg overflow-hidden">
+            <div className="bg-muted/50 px-4 py-3 border-b">
+              <h3 className="text-sm font-semibold text-muted-foreground">Request Details</h3>
+            </div>
+            
+            <div className="p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Customer Name</p>
+                  <p className="text-sm font-medium">{request.customerName}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Package className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Product</p>
+                  <p className="text-sm font-medium">{request.productName}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Location</p>
+                  <p className="text-sm font-medium">{request.city}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Requested On</p>
+                  <p className="text-sm font-medium">{formatDate(request.createdAt)}</p>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t">
+                <p className="text-xs text-muted-foreground mb-2">Current Status</p>
+                <Badge 
+                  className={`${getStatusColor(request.status)} text-white capitalize`}
+                  variant="secondary"
+                >
+                  {request.status}
+                </Badge>
+              </div>
+
+              {request.adminRemark && (
+                <div className="pt-2 border-t">
+                  <p className="text-xs text-muted-foreground mb-1">Previous Admin Remark</p>
+                  <p className="text-sm bg-muted/30 p-2 rounded border italic">
+                    "{request.adminRemark}"
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Update Form */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="status" className="text-sm font-semibold">
+                New Status <span className="text-red-500">*</span>
+              </Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger id="status" className="w-full">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full ${option.color}`} />
+                        {option.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="adminRemark" className="text-sm font-semibold">
+                Admin Remark
+              </Label>
+              <Textarea
+                id="adminRemark"
+                value={adminRemark}
+                onChange={(e) => setAdminRemark(e.target.value)}
+                placeholder="Add notes, comments, or reasons for this status update..."
+                className="min-h-[120px] resize-none"
+                maxLength={500}
+              />
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">
+                  Optional field for internal tracking
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {adminRemark.length}/500
                 </p>
               </div>
-              <Badge variant="outline" className="text-xs">
-                User #{request.userId}
-              </Badge>
             </div>
-
-            <div className="pt-2 border-t">
-              <p className="text-sm font-medium">{request.productName}</p>
-              <p className="text-xs text-muted-foreground">{request.city}</p>
-            </div>
-
-            <div className="pt-2 border-t">
-              <p className="text-xs text-muted-foreground">Current Status</p>
-              <Badge className="mt-1 capitalize">{request.status}</Badge>
-            </div>
-
-            {request.adminRemark && (
-              <div className="pt-2 border-t">
-                <p className="text-xs text-muted-foreground">Previous Remark</p>
-                <p className="text-sm mt-1">{request.adminRemark}</p>
-              </div>
-            )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="status">New Status *</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger id="status">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="adminRemark">Admin Remark</Label>
-            <Textarea
-              id="adminRemark"
-              value={adminRemark}
-              onChange={(e) => setAdminRemark(e.target.value)}
-              placeholder="Add any notes or comments about this request..."
-              className="min-h-[100px] resize-none"
-              maxLength={500}
-            />
-            <p className="text-xs text-muted-foreground text-right">
-              {adminRemark.length}/500 characters
-            </p>
-          </div>
-
-          <div className="flex gap-2 pt-4">
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
