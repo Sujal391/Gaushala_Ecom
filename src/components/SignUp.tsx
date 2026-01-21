@@ -168,7 +168,7 @@ export default function SignUp({
         handleClose();
 
         toast.success('Login Successful!', {
-          description: `Welcome back!`,
+          description: `Welcome back! ${response.data?.name}`,
           duration: 3000,
         });
 
@@ -398,7 +398,7 @@ export default function SignUp({
                   className="text-primary hover:underline font-medium"
                   disabled={loading}
                 >
-                  Register
+                  Sign Up
                 </button>
               </div>
             </>

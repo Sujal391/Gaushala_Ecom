@@ -55,7 +55,7 @@ export default function ProductDetailPage() {
     try {
       setLoading(true);
       
-      let productId: string | number | null = null;
+      let productId: string | null = null;
       
       if (!params.id) {
         toast({
@@ -81,7 +81,7 @@ export default function ProductDetailPage() {
         return;
       }
       
-      const response = await getProductById(productId);
+      const response = await getProductById(Number(productId));
       const productData = extractData<Product>(response);
       
       if (productData) {
@@ -91,7 +91,7 @@ export default function ProductDetailPage() {
           setSelectedSize(productData.sizes[0]);
         }
         // Fetch feedback after product is loaded
-        fetchFeedback(productId);
+        fetchFeedback(Number(productId));
       } else {
         const errorMessage = extractMessage(response) || "Failed to load product";
         toast({
@@ -114,7 +114,7 @@ export default function ProductDetailPage() {
     }
   };
 
-  const fetchFeedback = async (productId: string | number) => {
+  const fetchFeedback = async (productId: number) => {
     try {
       setLoadingFeedback(true);
       
@@ -137,7 +137,7 @@ export default function ProductDetailPage() {
           userId: item.userId || 0,
           userName: item.customerName || item.userName || `Customer ${index + 1}`,
           customerName: item.customerName,
-          productId: item.productId || Number(productId),
+          productId: item.productId || productId,
           rating: item.rating || 0,
           comment: item.review || item.comment || '',
           review: item.review,
@@ -507,7 +507,7 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Product Details */}
-            <div className="space-y-3">
+            {/* <div className="space-y-3">
               {product.category && (
                 <div className="flex items-center justify-between py-2 border-b">
                   <span className="text-muted-foreground">Category</span>
@@ -520,7 +520,7 @@ export default function ProductDetailPage() {
                   <span className="font-medium">{product.sku}</span>
                 </div>
               )}
-            </div>
+            </div> */}
 
             {/* Sizes Selector */}
             {sizes.length > 0 && (

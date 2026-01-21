@@ -485,7 +485,7 @@ export default function UserLayout({ children }: LayoutProps) {
                   className="hidden md:flex"
                 >
                   <UserIcon className="mr-2 h-4 w-4" />
-                  Login
+                  Sign Up
                 </Button>
               )}
             </div>
