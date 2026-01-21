@@ -5,28 +5,30 @@ import { useRouter } from 'next/navigation';
 import { isAuthenticated, isAdmin } from '../../lib/api/config';
 import { Loader2 } from 'lucide-react';
 
-export default function AdminGuard({ children }: { children: React.ReactNode }) {
+export default function UserGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
-  const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
-    // Check authentication and admin status
     const checkAuth = () => {
-      if (!isAuthenticated()) {
-        // Not logged in, redirect to shop
+      const authenticated = isAuthenticated();
+      const admin = isAdmin();
+      
+      console.log('Auth check:', { authenticated, admin }); // Debug log
+
+      if (!authenticated) {
+        console.log('Redirecting to /shop - not authenticated');
         router.replace('/shop');
         return;
       }
 
-      if (!isAdmin()) {
-        // Logged in but not admin, redirect to shop
-        router.replace('/shop');
+      if (admin) {
+        console.log('Redirecting to /admin - is admin');
+        router.replace('/admin');
         return;
       }
 
-      // User is authenticated and is admin
-      setIsAuthorized(true);
+      console.log('User authorized - showing content');
       setIsChecking(false);
     };
 
@@ -44,11 +46,5 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     );
   }
 
-  // Only render children if authorized
-  if (!isAuthorized) {
-    return null;
-  }
-
   return <>{children}</>;
 }
-

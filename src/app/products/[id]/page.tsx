@@ -9,7 +9,9 @@ import { useToast } from '../../../hooks/useToast';
 import UserLayout from '../../../components/layout/UserLayout';
 import { getProductById, addToCart, extractData, extractMessage, getFeedbackByProduct } from '../../../lib/api/auth';
 import { isAuthenticated, getUserId } from '../../../lib/api/config';
+import { useCart } from '../../../context/CartContext';
 import type { Product } from '../../../types/index';
+import UserGuard from '../../../components/guards/UserGuard'
 
 interface Feedback {
   id: number;
@@ -33,7 +35,8 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { toast } = useToast();
-  
+  const { incrementCartCount } = useCart();
+
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
@@ -268,6 +271,9 @@ export default function ProductDetailPage() {
       const response = await addToCart(cartData);
 
       if (response && (response.success || !response.error)) {
+        // Update cart count in global state
+        incrementCartCount(quantity);
+
         toast({
           title: "Added to cart",
           description: `${quantity} x ${product.name}${selectedSize ? ` (Size: ${selectedSize})` : ''} has been added to your cart`,
@@ -275,9 +281,6 @@ export default function ProductDetailPage() {
 
         // Reset quantity after successful add
         setQuantity(1);
-
-        // Trigger a storage event to update cart count in header
-        window.dispatchEvent(new Event('storage'));
       } else {
         toast({
           title: "Error",
@@ -326,6 +329,7 @@ export default function ProductDetailPage() {
 
   if (loading) {
     return (
+      <UserGuard>
       <UserLayout>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col items-center justify-center py-12">
@@ -334,11 +338,13 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </UserLayout>
+      </UserGuard>
     );
   }
 
   if (!product) {
     return (
+      <UserGuard>
       <UserLayout>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
@@ -352,6 +358,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </UserLayout>
+      </UserGuard>
     );
   }
 
@@ -360,6 +367,7 @@ export default function ProductDetailPage() {
   const hasReviews = feedbackData.totalReviews > 0;
 
   return (
+    <UserGuard>
     <UserLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Button
@@ -723,5 +731,6 @@ export default function ProductDetailPage() {
         </div>
       </div>
     </UserLayout>
+    </UserGuard>
   );
 }
