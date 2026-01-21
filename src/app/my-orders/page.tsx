@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Package, Loader2, ShoppingBag, ArrowLeft, Calendar, 
-  DollarSign, XCircle, CheckCircle, MessageSquare, Star 
+import {
+  Package, Loader2, ShoppingBag, ArrowLeft, Calendar,
+  DollarSign, XCircle, CheckCircle, MessageSquare, Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import UserLayout from '../../components/layout/UserLayout';
+import UserGuard from '../../components/guards/UserGuard';
 import { getMyOrders, cancelMyOrder } from '../../lib/api/auth';
 import { submitFeedback } from '../../lib/api/auth'; // You'll need to create this
 import { isAuthenticated, getUserId } from '../../lib/api/config';
@@ -362,19 +363,22 @@ export default function MyOrdersPage() {
 
   if (loading) {
     return (
-      <UserLayout>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Loading your orders...</p>
+      <UserGuard>
+        <UserLayout>
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Loading your orders...</p>
+            </div>
           </div>
-        </div>
-      </UserLayout>
+        </UserLayout>
+      </UserGuard>
     );
   }
 
   return (
-    <UserLayout>
+    <UserGuard>
+      <UserLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6">
           <Button
@@ -705,5 +709,6 @@ export default function MyOrdersPage() {
         </Dialog>
       </div>
     </UserLayout>
+    </UserGuard>
   );
 }

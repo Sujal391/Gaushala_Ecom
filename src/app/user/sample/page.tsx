@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import UserLayout from '../../../components/layout/UserLayout';
+import UserGuard from '../../../components/guards/UserGuard';
 import CreateSampleRequest from './RequestSample';
 import MySampleRequests from './MySamples';
 
@@ -24,7 +25,8 @@ export default function SamplePage() {
   };
 
   return (
-    <UserLayout>
+    <UserGuard>
+      <UserLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -57,5 +59,6 @@ export default function SamplePage() {
         </Dialog>
       </div>
     </UserLayout>
+    </UserGuard>
   );
 }

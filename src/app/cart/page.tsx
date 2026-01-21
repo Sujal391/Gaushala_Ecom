@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import UserLayout from '../../components/layout/UserLayout';
+import UserGuard from '../../components/guards/UserGuard';
 import { getUserCart, removeFromCart, clearCart, addToCart } from '../../lib/api/auth';
 import { isAuthenticated, getUserId } from '../../lib/api/config';
+import { useCart } from '../../context/CartContext';
 import { toast } from 'sonner';
 import type { CartItem } from '../../types/index';
 
@@ -41,6 +43,7 @@ interface ExtendedCartItem extends CartItem {
 
 export default function CartPage() {
   const router = useRouter();
+  const { fetchCart: refreshGlobalCart } = useCart();
   const [cart, setCart] = useState<ExtendedCartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -217,12 +220,14 @@ export default function CartPage() {
 
       if (response && (response.success || !response.error)) {
         toast.success('Item removed from cart');
-        
+
         const cachedUpdates = loadCachedUpdates();
         cachedUpdates.delete(productId);
         saveCachedUpdates(cachedUpdates);
-        
+
         await loadCart();
+        // Sync global cart state
+        await refreshGlobalCart();
       } else {
         toast.error(response?.message || 'Failed to remove item');
       }
@@ -250,6 +255,8 @@ export default function CartPage() {
         toast.success('Cart cleared');
         setCart([]);
         clearCachedUpdates();
+        // Sync global cart state
+        await refreshGlobalCart();
       } else {
         toast.error(response?.message || 'Failed to clear cart');
       }
@@ -316,27 +323,31 @@ export default function CartPage() {
       if (allSuccessful) {
         // Reload cart from backend to get fresh data
         await loadCart();
-        
+
         // Update original quantities to match current quantities
-        setCart(prevCart => 
+        setCart(prevCart =>
           prevCart.map(item => ({
             ...item,
             originalQuantity: item.quantity
           }))
         );
-        
+
         clearCachedUpdates();
+        // Sync global cart state
+        await refreshGlobalCart();
         toast.success('Cart updated successfully');
         return true;
       } else {
         toast.error('Some items failed to update');
         await loadCart(); // Reload to get actual state
+        await refreshGlobalCart();
         return false;
       }
     } catch (error) {
       console.error('Error syncing cart:', error);
       toast.error('Failed to sync cart');
       await loadCart(); // Reload cart on error
+      await refreshGlobalCart();
       return false;
     } finally {
       setSyncing(false);
@@ -364,19 +375,22 @@ export default function CartPage() {
 
   if (loading) {
     return (
-      <UserLayout>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Loading cart...</p>
+      <UserGuard>
+        <UserLayout>
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Loading cart...</p>
+            </div>
           </div>
-        </div>
-      </UserLayout>
+        </UserLayout>
+      </UserGuard>
     );
   }
 
   return (
-    <UserLayout>
+    <UserGuard>
+      <UserLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6">
           <Button
@@ -553,5 +567,6 @@ export default function CartPage() {
         )}
       </div>
     </UserLayout>
+    </UserGuard>
   );
 }

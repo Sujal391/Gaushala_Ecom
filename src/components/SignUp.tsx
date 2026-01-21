@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Loader2, Eye, EyeOff, ArrowLeft, Phone, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -168,7 +168,7 @@ export default function SignUp({
         handleClose();
 
         toast.success('Login Successful!', {
-          description: `Welcome back!`,
+          description: `Welcome back! ${response.data?.name}`,
           duration: 3000,
         });
 
@@ -398,7 +398,7 @@ export default function SignUp({
                   className="text-primary hover:underline font-medium"
                   disabled={loading}
                 >
-                  Register
+                  Sign Up
                 </button>
               </div>
             </>
@@ -474,6 +474,31 @@ export default function SignUp({
                       'Next'
                     )}
                   </Button>
+
+                  {/* Need Help Ordering Section */}
+                  <div className="pt-4 pb-2 border-t border-border/50">
+                    <p className="text-sm font-medium text-center text-muted-foreground mb-3">
+                      Need help ordering?
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href="tel:+919824097037"
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+                      >
+                        <Phone className="h-4 w-4" />
+                        Call Now
+                      </a>
+                      <a
+                        href="https://wa.me/919824097037"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        WhatsApp
+                      </a>
+                    </div>
+                  </div>
 
                   <div className="text-center text-sm">
                     <span className="text-muted-foreground">Already have an account? </span>

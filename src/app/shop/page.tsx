@@ -10,11 +10,13 @@ import { useToast } from "../../hooks/useToast";
 import UserLayout from "../../components/layout/UserLayout";
 import { getAllProducts, addToCart } from "../../lib/api/auth";
 import { getUserId, isAuthenticated } from "../../lib/api/config";
+import { useCart } from "../../context/CartContext";
 import type { Product } from "../../types/index";
 
 export default function ShopPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { incrementCartCount } = useCart();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +94,9 @@ const handleAddToCart = async (product: Product) => {
       quantity: 1,
       selectedSize: product.sizes?.[0] || "",
     });
+
+    // Update cart count in global state
+    incrementCartCount(1);
 
     toast({
       title: "Added to cart",

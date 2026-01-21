@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import UserLayout from '../../components/layout/UserLayout';
+import UserGuard from '../../components/guards/UserGuard';
 import { getUserCart, checkout, applyOffer } from '../../lib/api/auth';
 import { isAuthenticated, getUserId } from '../../lib/api/config';
+import { useCart } from '../../context/CartContext';
 import { toast } from 'sonner';
 import type { CartItem } from '../../types/index';
 import Lottie from "lottie-react";
@@ -42,6 +44,7 @@ interface AppliedOffer {
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { fetchCart: refreshGlobalCart } = useCart();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
@@ -280,6 +283,9 @@ export default function CheckoutPage() {
         localStorage.removeItem(CART_CACHE_KEY);
         setAppliedOffer(null);
 
+        // Clear global cart state
+        await refreshGlobalCart();
+
         toast.success('Order Placed Successfully!');
 
         setShowSuccessAnimation(true);
@@ -315,39 +321,44 @@ export default function CheckoutPage() {
 
   if (loading) {
     return (
-      <UserLayout>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Loading checkout...</p>
+      <UserGuard>
+        <UserLayout>
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Loading checkout...</p>
+            </div>
           </div>
-        </div>
-      </UserLayout>
+        </UserLayout>
+      </UserGuard>
     );
   }
 
   if (showSuccessAnimation) {
     return (
-      <UserLayout>
-        <div className="flex flex-col items-center justify-center min-h-[70vh]">
-          <div className="w-64 h-64">
-            <Lottie animationData={placedAnimation} loop={false} />
+      <UserGuard>
+        <UserLayout>
+          <div className="flex flex-col items-center justify-center min-h-[70vh]">
+            <div className="w-64 h-64">
+              <Lottie animationData={placedAnimation} loop={false} />
+            </div>
+
+            <h2 className="text-xl font-semibold mt-4">
+              Order Placed Successfully 🎉
+            </h2>
+
+            <p className="text-muted-foreground mt-2">
+              Redirecting to your orders...
+            </p>
           </div>
-
-          <h2 className="text-xl font-semibold mt-4">
-            Order Placed Successfully 🎉
-          </h2>
-
-          <p className="text-muted-foreground mt-2">
-            Redirecting to your orders...
-          </p>
-        </div>
-      </UserLayout>
+        </UserLayout>
+      </UserGuard>
     );
   }
 
   return (
-    <UserLayout>
+    <UserGuard>
+      <UserLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Button
           variant="ghost"
@@ -648,5 +659,6 @@ export default function CheckoutPage() {
         </div>
       </div>
     </UserLayout>
+    </UserGuard>
   );
 }

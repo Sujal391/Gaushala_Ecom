@@ -1,4 +1,5 @@
 import { CartProvider } from "../context/CartContext";
+import AuthCheck from "../components/AuthCheck";
 import "./globals.css";
 import { Toaster } from "sonner";
 
@@ -12,7 +13,9 @@ export default function RootLayout({ children }) {
     <html>
       <body>
         <CartProvider>
-          {children}
+          <AuthCheck>
+            {children}
+          </AuthCheck>
           <Toaster position="top-right" richColors closeButton />
         </CartProvider>
       </body>
