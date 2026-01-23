@@ -323,7 +323,7 @@ export default function ProductDetailPage() {
     handleAddToCart();
     // Small delay to ensure cart is updated
     setTimeout(() => {
-      router.push('/user/cart');
+      router.push('/cart');
     }, 300);
   };
 
@@ -352,7 +352,7 @@ export default function ProductDetailPage() {
             <p className="text-muted-foreground mb-4">
               The product you're looking for doesn't exist or has been removed.
             </p>
-            <Button onClick={() => router.push('/user/shop')}>
+            <Button onClick={() => router.push('/shop')}>
               Back to Shop
             </Button>
           </div>
@@ -372,7 +372,7 @@ export default function ProductDetailPage() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Button
           variant="ghost"
-          onClick={() => router.push('/user/shop')}
+          onClick={() => router.push('/shop')}
           className="mb-6 gap-2"
         >
           <ArrowLeft className="h-4 w-4" />

@@ -446,12 +446,13 @@ export default function CartPage() {
                 <Card key={item.cartItemId}>
                   <CardContent className="p-4">
                     <div className="flex gap-4">
+                      {/* Product image */}
                       <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
                         <img
                           src={
                             item.images?.[0]
-                            ? `https://gaushalaecommerce.runasp.net${item.images[0]}`
-                            : '/placeholder-product.jpg'
+                              ? `https://gaushalaecommerce.runasp.net${item.images[0]}`
+                              : '/placeholder-product.jpg'
                           }
                           alt={item.productName}
                           className="w-full h-full object-cover"
@@ -460,10 +461,13 @@ export default function CartPage() {
                           }}
                         />
                       </div>
-                      <div className="flex-1">
+                      
+                      {/* Product details */}
+                      <div className="flex-1 min-w-0">
                         <div className="flex justify-between mb-2">
-                          <div>
-                            <h3 className="font-semibold text-base sm:text-lg">{item.productName}</h3>
+                          {/* Product info */}
+                          <div className="flex-1 min-w-0 pr-2">
+                            <h3 className="font-semibold text-base sm:text-lg truncate">{item.productName}</h3>
                             {item.selectedSize && item.selectedSize !== 'No size' && (
                               <p className="text-sm text-muted-foreground">
                                 Size: {item.selectedSize}
@@ -471,17 +475,27 @@ export default function CartPage() {
                             )}
                             <p className="text-sm text-muted-foreground">₹ {item.price.toFixed(2)}</p>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeItem(item.cartItemId, item.productId)}
-                            disabled={updating}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          
+                          {/* Delete button with total price below it */}
+                          <div className="flex flex-col items-end justify-start">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeItem(item.cartItemId, item.productId)}
+                              disabled={updating}
+                              className="text-destructive hover:text-destructive mb-1"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            {/* Total price - visible on mobile, hidden on desktop */}
+                            <p className="text-lg font-bold text-primary block sm:hidden">
+                              ₹ {item.totalPrice.toFixed(2)}
+                            </p>
+                          </div>
                         </div>
+                        
                         <div className="flex items-center justify-between">
+                          {/* Quantity controls */}
                           <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
@@ -502,7 +516,9 @@ export default function CartPage() {
                               <Plus className="h-3 w-3" />
                             </Button>
                           </div>
-                          <p className="text-lg font-bold text-primary">
+                          
+                          {/* Total price - hidden on mobile, visible on desktop */}
+                          <p className="text-lg font-bold text-primary hidden sm:block">
                             ₹ {item.totalPrice.toFixed(2)}
                           </p>
                         </div>
