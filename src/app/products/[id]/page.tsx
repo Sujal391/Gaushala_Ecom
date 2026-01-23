@@ -329,7 +329,7 @@ export default function ProductDetailPage() {
 
   if (loading) {
     return (
-      <UserGuard>
+      // <UserGuard>
       <UserLayout>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col items-center justify-center py-12">
@@ -338,13 +338,13 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </UserLayout>
-      </UserGuard>
+      // </UserGuard>
     );
   }
 
   if (!product) {
     return (
-      <UserGuard>
+      // <UserGuard>
       <UserLayout>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
@@ -358,7 +358,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </UserLayout>
-      </UserGuard>
+      // </UserGuard>
     );
   }
 
@@ -367,7 +367,7 @@ export default function ProductDetailPage() {
   const hasReviews = feedbackData.totalReviews > 0;
 
   return (
-    <UserGuard>
+    // <UserGuard>
     <UserLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Button
@@ -715,6 +715,6 @@ export default function ProductDetailPage() {
         </div>
       </div>
     </UserLayout>
-    </UserGuard>
+    // </UserGuard>
   );
 }
