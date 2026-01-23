@@ -329,7 +329,7 @@ export default function ProductDetailPage() {
 
   if (loading) {
     return (
-      <UserGuard>
+      // <UserGuard>
       <UserLayout>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col items-center justify-center py-12">
@@ -338,13 +338,13 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </UserLayout>
-      </UserGuard>
+      // </UserGuard>
     );
   }
 
   if (!product) {
     return (
-      <UserGuard>
+      // <UserGuard>
       <UserLayout>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
@@ -358,7 +358,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </UserLayout>
-      </UserGuard>
+      // </UserGuard>
     );
   }
 
@@ -367,7 +367,7 @@ export default function ProductDetailPage() {
   const hasReviews = feedbackData.totalReviews > 0;
 
   return (
-    <UserGuard>
+    // <UserGuard>
     <UserLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Button
@@ -379,11 +379,11 @@ export default function ProductDetailPage() {
           Back to Shop
         </Button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
           {/* Product Images Section */}
           <div className="space-y-4">
             {/* Main Image */}
-            <div className="relative w-full max-w-md mx-auto aspect-square overflow-hidden rounded-lg bg-muted border">
+            <div className="relative w-full max-w-full sm:max-w-md mx-auto aspect-square overflow-hidden rounded-lg bg-muted border">
               <img
                 src={
                   images[selectedImageIndex]
@@ -460,13 +460,13 @@ export default function ProductDetailPage() {
 
           {/* Product Info */}
           <div className="flex flex-col space-y-6">
-            <div className="space-y-3">
-              <h1 className="text-3xl sm:text-4xl font-bold">
+            <div className="space-y-2">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold leading-tight">
                 {product.name}
               </h1>
               
               {/* Price */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <p className="text-3xl sm:text-4xl font-bold text-primary">
                   ₹ {Number(product.price).toFixed(2)}
                 </p>
@@ -514,22 +514,6 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {/* Product Details */}
-            {/* <div className="space-y-3">
-              {product.category && (
-                <div className="flex items-center justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Category</span>
-                  <span className="font-medium">{product.category}</span>
-                </div>
-              )}
-              {product.sku && (
-                <div className="flex items-center justify-between py-2 border-b">
-                  <span className="text-muted-foreground">SKU</span>
-                  <span className="font-medium">{product.sku}</span>
-                </div>
-              )}
-            </div> */}
-
             {/* Sizes Selector */}
             {sizes.length > 0 && (
               <div className="space-y-3">
@@ -541,13 +525,13 @@ export default function ProductDetailPage() {
                     </span>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {sizes.map((size) => (
                     <Button
                       key={size}
                       variant={selectedSize === size ? "default" : "outline"}
                       size="sm"
-                      className={`h-10 px-4 ${
+                      className={`h-11 px-5 rounded-lg ${
                         selectedSize === size 
                           ? 'bg-primary text-primary-foreground' 
                           : 'hover:bg-gray-100'
@@ -565,13 +549,13 @@ export default function ProductDetailPage() {
             {product.stockQty > 0 && (
               <div className="space-y-3">
                 <label className="block text-sm font-medium">Quantity</label>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4 mt-1">
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     disabled={quantity <= 1}
-                    className="h-10 w-10"
+                    className="h-11 w-11 rounded-md"
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
@@ -583,7 +567,7 @@ export default function ProductDetailPage() {
                     size="icon"
                     onClick={() => setQuantity(Math.min(product.stockQty, quantity + 1))}
                     disabled={quantity >= product.stockQty}
-                    className="h-10 w-10"
+                    className="h-11 w-11 rounded-md"
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -592,10 +576,10 @@ export default function ProductDetailPage() {
             )}
 
             {/* Add to Cart Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+            <div className="flex flex-row gap-3 pt-4">
               <Button
                 size="lg"
-                className="flex-1"
+                className="flex-1 rounded-full"
                 disabled={product.stockQty === 0 || addingToCart}
                 onClick={handleAddToCart}
               >
@@ -614,7 +598,7 @@ export default function ProductDetailPage() {
               <Button
                 size="lg"
                 variant="outline"
-                className="flex-1"
+                className="flex-1 rounded-full"
                 disabled={product.stockQty === 0 || addingToCart}
                 onClick={handleBuyNow}
               >
@@ -624,9 +608,9 @@ export default function ProductDetailPage() {
             
             {/* Description */}
             {product.description && (
-              <div className="space-y-2">
+              <div className="space-y-2 pt-4 border-t">
                 <h3 className="font-semibold text-lg">Description</h3>
-                <p className="text-muted-foreground whitespace-pre-line">
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
                   {product.description}
                 </p>
               </div>
@@ -731,6 +715,6 @@ export default function ProductDetailPage() {
         </div>
       </div>
     </UserLayout>
-    </UserGuard>
+    // </UserGuard>
   );
 }
