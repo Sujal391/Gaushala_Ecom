@@ -51,11 +51,17 @@ export default function AdminLayout({ children, title, headerAction }: AdminLayo
   const Sidebar = ({ isMobile = false }) => (
     <div className={`${isMobile ? 'w-full' : 'w-64'} bg-card border-r flex flex-col h-full`}>
       <div className="p-4 sm:p-6 border-b">
-        <div className="flex items-center gap-2">
-          <ShoppingBag className="h-8 w-8 text-primary" />
-          <span className="text-xl sm:text-2xl font-bold">StyleHub Admin</span>
-        </div>
-      </div>
+  <div className="flex items-center gap-1">
+    <div className="relative h-10 w-10 sm:h-25 sm:w-25">
+      <img
+        src="/logo.png"
+        alt="Untapped Nature Logo"
+        className="h-full w-full object-contain"
+      />
+    </div>
+    <span className="text-xl sm:text-2xl font-bold">Admin</span>
+  </div>
+</div>
 
       <nav className="flex-1 p-3 sm:p-4 space-y-1 sm:space-y-2">
         {menuItems.map((item) => (
