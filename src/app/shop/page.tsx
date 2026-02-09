@@ -65,7 +65,7 @@ const handleAddToCart = async (product: Product) => {
   // Check if user is authenticated
   if (!isAuthenticated()) {
     toast({
-      title: "Authentication Required",
+      // title: "Please Login",
       description: "Please login to add items to cart",
       variant: "destructive",
     });

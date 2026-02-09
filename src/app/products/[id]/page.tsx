@@ -228,7 +228,7 @@ export default function ProductDetailPage() {
   const handleAddToCart = async () => {
     if (!isAuthenticated()) {
       toast({
-        title: "Authentication Required",
+        // title: "Please Login",
         description: "Please login to add items to cart",
         variant: "destructive",
       });
@@ -303,7 +303,7 @@ export default function ProductDetailPage() {
   const handleBuyNow = () => {
     if (!isAuthenticated()) {
       toast({
-        title: "Authentication Required",
+        // title: "Please Login",
         description: "Please login to continue",
         variant: "destructive",
       });
