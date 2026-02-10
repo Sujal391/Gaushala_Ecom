@@ -391,14 +391,14 @@ export default function SignUp({
               </Button>
 
               <div className="text-center text-sm">
-                <span className="text-muted-foreground">Don't have an account? </span>
+                <div className="text-muted-foreground">Don't have an account? </div>
                 <button
                   type="button"
                   onClick={() => setAuthMode('register')}
-                  className="text-primary hover:underline font-medium"
+                  className="text-primary text-lg hover:underline font-medium cursor-pointer"
                   disabled={loading}
                 >
-                  Sign Up
+                  Click Here and Please Enter Details.
                 </button>
               </div>
             </>
@@ -501,7 +501,7 @@ export default function SignUp({
                   </div>
 
                   <div className="text-center text-sm">
-                    <span className="text-muted-foreground">Already have an account? </span>
+                    <div className="text-muted-foreground">Already have an account? </div>
                     <button
                       type="button"
                       onClick={() => setAuthMode('login')}

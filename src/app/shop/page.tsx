@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ShoppingBag, Search, Filter, Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation"; // Added useSearchParams
+import { ShoppingBag, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "../../hooks/useToast";
 import UserLayout from "../../components/layout/UserLayout";
@@ -17,15 +16,34 @@ export default function ShopPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { incrementCartCount } = useCart();
+  const searchParams = useSearchParams(); // Add this
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]); // Add this
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
   const [addingToCart, setAddingToCart] = useState<number | null>(null);
 
   useEffect(() => {
     loadProducts();
   }, []);
+
+  // Add useEffect to filter products when search params change
+  useEffect(() => {
+    const searchQuery = searchParams.get("search");
+    if (searchQuery) {
+      const filtered = products.filter((product) => {
+        const searchLower = searchQuery.toLowerCase();
+        return (
+          product.name?.toLowerCase().includes(searchLower) ||
+          product.description?.toLowerCase().includes(searchLower)
+        );
+      });
+      setFilteredProducts(filtered);
+    } else {
+      // If no search query, show all products
+      setFilteredProducts(products);
+    }
+  }, [searchParams, products]);
 
   const loadProducts = async () => {
     try {
@@ -34,14 +52,14 @@ export default function ShopPage() {
 
       // Handle different response formats
       if (Array.isArray(response)) {
-        // Direct array response
         setProducts(response);
+        setFilteredProducts(response); // Initialize filtered products
       } else if (response.success && response.data) {
-        // Response with success and data properties
         setProducts(response.data);
+        setFilteredProducts(response.data); // Initialize filtered products
       } else if (response.data && Array.isArray(response.data)) {
-        // Response with just data property
         setProducts(response.data);
+        setFilteredProducts(response.data); // Initialize filtered products
       } else {
         toast({
           title: "Error",
@@ -61,96 +79,87 @@ export default function ShopPage() {
     }
   };
 
-const handleAddToCart = async (product: Product) => {
-  // Check if user is authenticated
-  if (!isAuthenticated()) {
-    toast({
-      // title: "Please Login",
-      description: "Please login to add items to cart",
-      variant: "destructive",
-    });
-    router.push("/shop");
-    return;
-  }
+  const handleAddToCart = async (product: Product) => {
+    // Check if user is authenticated
+    if (!isAuthenticated()) {
+      toast({
+        description: "Please login to add items to cart",
+        variant: "destructive",
+      });
+      router.push("/shop");
+      return;
+    }
 
-  const userId = getUserId();
-  if (!userId) {
-    toast({
-      title: "Error",
-      description: "User ID not found. Please login again.",
-      variant: "destructive",
-    });
-    router.push("/shop");
-    return;
-  }
+    const userId = getUserId();
+    if (!userId) {
+      toast({
+        title: "Error",
+        description: "User ID not found. Please login again.",
+        variant: "destructive",
+      });
+      router.push("/shop");
+      return;
+    }
 
-  try {
-    setAddingToCart(product.id);
+    try {
+      setAddingToCart(product.id);
 
-    // ✅ If this does not throw, it's a success
-    await addToCart({
-      userId,
-      productId: product.id,
-      quantity: 1,
-      selectedSize: product.sizes?.[0] || "",
-    });
+      await addToCart({
+        userId,
+        productId: product.id,
+        quantity: 1,
+        selectedSize: product.sizes?.[0] || "",
+      });
 
-    // Update cart count in global state
-    incrementCartCount(1);
+      // Update cart count in global state
+      incrementCartCount(1);
 
-    toast({
-      title: "Added to cart",
-      description: `${product.name} has been added to your cart`,
-    });
+      toast({
+        title: "Added to cart",
+        description: `${product.name} has been added to your cart`,
+      });
 
-  } catch (error: any) {
-    console.error("Error adding to cart:", error);
+    } catch (error: any) {
+      console.error("Error adding to cart:", error);
 
-    toast({
-      title: "Error",
-      description:
-        error?.response?.data?.message ||
-        "Failed to add item to cart. Please try again.",
-      variant: "destructive",
-    });
-  } finally {
-    setAddingToCart(null);
-  }
-};
+      toast({
+        title: "Error",
+        description:
+          error?.response?.data?.message ||
+          "Failed to add item to cart. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingToCart(null);
+    }
+  };
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesSearch;
-  });
+  // Get search query for display
+  const searchQuery = searchParams.get("search");
 
   return (
     <UserLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Header */}
+        {/* Page Header with Search Results Info */}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold mb-2">
-            Shop All Products
+            {searchQuery ? `Search Results for "${searchQuery}"` : "Shop All Products"}
           </h1>
           <p className="text-muted-foreground">
-            Discover our latest collection
+            {searchQuery 
+              ? `Found ${filteredProducts.length} product${filteredProducts.length !== 1 ? 's' : ''}`
+              : "Discover our latest collection"}
           </p>
-        </div>
-
-        {/* Filters */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+          {/* {searchQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2"
+              onClick={() => router.push("/shop")}
+            >
+              Clear Search
+            </Button>
+          )} */}
         </div>
 
         {/* Loading State */}
@@ -235,16 +244,27 @@ const handleAddToCart = async (product: Product) => {
             ))}
           </div>
         ) : (
-          /* Empty State */
+          /* Empty State - Different message for search vs no products */
           <div className="text-center py-12">
             <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold mb-2">No products found</h3>
-            <p className="text-muted-foreground">
+            <h3 className="text-xl font-semibold mb-2">
+              {searchQuery ? "No products found" : "No products available yet"}
+            </h3>
+            <p className="text-muted-foreground mb-4">
               {searchQuery
-                ? "Try adjusting your search or filters"
-                : "No products available yet"}
+                ? `No products found for "${searchQuery}". Try different keywords.`
+                : "Check back soon for new arrivals!"}
             </p>
-            <Button variant="outline" className="mt-4" onClick={loadProducts}>
+            {searchQuery && (
+              <Button
+                variant="outline"
+                className="mt-2"
+                onClick={() => router.push("/shop")}
+              >
+                View All Products
+              </Button>
+            )}
+            <Button variant="outline" className="mt-4 ml-2" onClick={loadProducts}>
               Refresh Products
             </Button>
           </div>
