@@ -38,8 +38,9 @@ export const API_ENDPOINTS = {
     CLEAR: (userId: number) => `/api/cart/clear/${userId}`,
   },
   ORDERS: {
-    CHECKOUT: '/api/orders/checkout',
-    MY_ORDERS: (userId: number) => `/api/orders/my/${userId}`,
+    CREATE_TEMP: '/api/orders/create-temp',
+    CONFIRM_PAYMENT: '/api/orders/confirm-payment',
+    MY_ORDERS: (userId: number) => `/api/orders/my`,
     ALL_ORDERS: '/api/orders/all',
     UPDATE_STATUS: (orderId: number) => `/api/orders/status/${orderId}`,
     CANCEL_MY_ORDER: (orderId: number, userId: number) =>
@@ -47,10 +48,11 @@ export const API_ENDPOINTS = {
     PENDING_ORDERS: '/api/orders/pending',
   },
   PAYMENT: {
-    INITIATE: (orderId: number) =>
-      `/api/payment/initiate?orderId=${orderId}`,
-    SUCCESS: '/api/payment/success',
-    FAILURE: '/api/payment/failure',
+    INITIATE: (orderId: number) => `/api/payment/create-order/${orderId}`,
+    VERIFY: '/api/payment/verify',
+    STATUS: (orderId: number) => `/api/payment/status/${orderId}`,
+    WEBHOOK: '/api/payment/webhook',
+    CONFIG: '/api/payment/config',
   },
   OFFER: {
     LIST: '/api/offers/active',

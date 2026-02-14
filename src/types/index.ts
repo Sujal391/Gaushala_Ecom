@@ -272,6 +272,7 @@ export interface CheckoutPayload {
   city: string;
   state: string;
   pincode: string;
+  customerRemark: string;
   offerCode: string;
 }
 
@@ -338,6 +339,46 @@ export interface IncompleteUser {
 }
 
 // ==================== PAYMENT TYPES ====================
+
+export interface CreateTempOrderPayload {
+  userId: number;
+  houseNo: string;
+  street: string;
+  landmark: string;
+  city: string;
+  state: string;
+  pincode: string;
+  offerCode?: string;
+  customerRemark?: string;
+}
+
+export interface CreateTempOrderResponse {
+  success: boolean;
+  data: {
+    orderId: number;
+    amount: number;
+    currency: string;
+    status: 'DRAFT' | 'PENDING_PAYMENT';
+  };
+  message?: string;
+}
+
+export interface ConfirmPaymentPayload {
+  orderId: number;
+  razorpayPaymentId: string;
+  razorpayOrderId: string;
+  razorpaySignature: string;
+}
+
+export interface ConfirmPaymentResponse {
+  success: boolean;
+  data: {
+    orderId: number;
+    status: 'CONFIRMED' | 'FAILED';
+    message?: string;
+  };
+  message?: string;
+}
 
 export interface PaymentInitiateResponse {
   orderId: number;
@@ -410,6 +451,13 @@ export interface OfferSlab {
 export interface ApplyOfferRequest {
   userId: number;
   offerCode: string;
+  totalAmount: number;
+  discount: number;
+  discountPercentage: number;
+  items: {
+    productId: number;
+    quantity: number;
+  }[];
 }
 
 export interface LayoutProps {

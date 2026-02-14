@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ShoppingBag, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,8 @@ function isApiResponse(response: unknown): response is ApiResponse<Product[]> {
     'data' in response;
 }
 
-export default function ShopPage() {
+// Separate component that uses useSearchParams
+function ShopContent() {
   const router = useRouter();
   const { toast } = useToast();
   const { incrementCartCount } = useCart();
@@ -56,7 +57,7 @@ export default function ShopPage() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingToCart, setAddingToCart] = useState<number | null>(null);
-  const [showBanner, setShowBanner] = useState(true); // Always true on mount
+  const [showBanner, setShowBanner] = useState(true);
 
   useEffect(() => {
     loadProducts();
@@ -362,7 +363,7 @@ export default function ShopPage() {
   const searchQuery = searchParams.get("search");
 
   return (
-    <UserLayout>
+    <>
       {/* Banner Popup - Always shows on mount until closed */}
       {showBanner && <BannerSlider onClose={handleCloseBanner} />}
 
@@ -563,6 +564,28 @@ export default function ShopPage() {
           </div>
         )}
       </div>
+    </>
+  );
+}
+
+// Loading fallback component
+function ShopLoadingFallback() {
+  return (
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    </div>
+  );
+}
+
+// Main page component with Suspense
+export default function ShopPage() {
+  return (
+    <UserLayout>
+      <Suspense fallback={<ShopLoadingFallback />}>
+        <ShopContent />
+      </Suspense>
     </UserLayout>
   );
 }

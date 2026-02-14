@@ -832,24 +832,95 @@ export async function updateCustomerStatus(
 
 // ==================== ORDER APIs ====================
 
-export async function checkout(payload: CheckoutPayload): Promise<ApiResponse<Order>> {
+// auth.ts - Updated createTempOrder function
+
+export const createTempOrder = async (
+  payload: {
+    userId: number;           // camelCase number (as per Swagger)
+    houseNo: string;
+    street: string;
+    landmark: string;
+    city: string;
+    state: string;
+    pincode: string;
+    offerCode?: string;
+    customerRemark?: string;
+  },
+  token: string
+) => {
+  console.log('=== createTempOrder API Call ===');
+  console.log('URL:', `${API_BASE_URL}/api/orders/create-temp`);
+  console.log('Payload:', JSON.stringify(payload, null, 2));
+  console.log('Payload userId type:', typeof payload.userId);
+  
   try {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.ORDERS.CHECKOUT}`, {
+    const response = await fetch(`${API_BASE_URL}/api/orders/create-temp`, {
       method: 'POST',
-      headers: getHeaders(true),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
       body: JSON.stringify(payload),
     });
 
-    return handleResponse<Order>(response);
+    const responseText = await response.text();
+    console.log('Raw response text:', responseText);
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Failed to parse response as JSON:', responseText);
+      throw new Error('Invalid JSON response from server');
+    }
+
+    if (!response.ok) {
+      console.error('HTTP error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: data
+      });
+      throw new Error(data?.message || `HTTP error ${response.status}`);
+    }
+
+    return data;
   } catch (error) {
-    console.error('Checkout error:', error);
-    return {
-      success: false,
-      message: 'Failed to place order',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+    console.error('Network or fetch error:', error);
+    throw error;
   }
-}
+};
+
+export const confirmPayment = async (
+  payload: {
+    orderId: number;
+    razorpayPaymentId: string;
+    razorpayOrderId: string;
+    razorpaySignature: string;
+  },
+  token: string
+) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/orders/confirm-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.message || 'Failed to confirm payment');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error confirming payment:', error);
+    throw error;
+  }
+};
 
 export async function getMyOrders(userId?: number): Promise<ApiResponse<Order[]>> {
   try {
@@ -992,69 +1063,107 @@ export async function getPendingOrders(
 
 // ==================== PAYMENT APIs ====================
 
-export async function initiatePayment(
-  orderId: number
-): Promise<ApiResponse<PaymentInitiateResponse>> {
-  try {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.PAYMENT.INITIATE(orderId)}`, {
-      method: 'POST',
+export const createPaymentOrder = async (
+  orderId: number,
+  token: string
+) => {
+  const response = await fetch(
+    `${API_BASE_URL}${API_ENDPOINTS.PAYMENT.INITIATE(orderId)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to create payment order");
+  }
+
+  return response.json();
+};
+
+export const verifyPayment = async (
+  payload: {
+    orderId: number;
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  },
+  token: string
+) => {
+  const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.PAYMENT.VERIFY}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error("Payment verification failed");
+  }
+
+  return response.json();
+};
+
+export const getPaymentStatus = async (
+  orderId: number,
+  token: string
+) => {
+  const response = await fetch(
+    `${API_BASE_URL}${API_ENDPOINTS.PAYMENT.STATUS(orderId)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch payment status");
+  }
+
+  return response.json();
+};
+
+export const paymentWebhook = async (payload: any) => {
+  const response = await fetch(
+    `${API_BASE_URL}${API_ENDPOINTS.PAYMENT.WEBHOOK}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error("Webhook failed");
+  }
+
+  return response.json();
+};
+
+export const getPaymentConfig = async () => {
+  const response = await fetch(
+    `${API_BASE_URL}${API_ENDPOINTS.PAYMENT.CONFIG}`,
+    {
+      method: 'GET',
       headers: getHeaders(true),
-    });
+    }
+  );
 
-    return handleResponse<PaymentInitiateResponse>(response);
-  } catch (error) {
-    console.error('Initiate payment error:', error);
-    return {
-      success: false,
-      message: 'Failed to initiate payment',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+  if (!response.ok) {
+    throw new Error("Failed to fetch payment config");
   }
-}
 
-export async function paymentSuccess(gatewayResponse: any): Promise<ApiResponse> {
-  try {
-    const formData = new FormData();
-    formData.append('response', JSON.stringify(gatewayResponse));
+  return response.json();
+};
 
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.PAYMENT.SUCCESS}`, {
-      method: 'POST',
-      headers: getFormDataHeaders(true),
-      body: formData,
-    });
-
-    return handleResponse(response);
-  } catch (error) {
-    console.error('Payment success callback error:', error);
-    return {
-      success: false,
-      message: 'Failed to process payment success',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}
-
-export async function paymentFailure(gatewayResponse: any): Promise<ApiResponse> {
-  try {
-    const formData = new FormData();
-    formData.append('response', JSON.stringify(gatewayResponse));
-
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.PAYMENT.FAILURE}`, {
-      method: 'POST',
-      headers: getFormDataHeaders(true),
-      body: formData,
-    });
-
-    return handleResponse(response);
-  } catch (error) {
-    console.error('Payment failure callback error:', error);
-    return {
-      success: false,
-      message: 'Failed to process payment failure',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}
 // ==================== OFFERS APIs ====================
 
 export async function getAllOffers(): Promise<ApiResponse<Offer[]>> {
@@ -1389,16 +1498,20 @@ export default {
   clearCart,
   
   // Orders
-  checkout,
+  createTempOrder,
   getMyOrders,
   getAllOrders,
   updateOrderStatus,
   cancelMyOrder,
+  getPendingOrders,
   
   // Payment
-  initiatePayment,
-  paymentSuccess,
-  paymentFailure,
+  createPaymentOrder,
+  verifyPayment,
+  getPaymentStatus,
+  paymentWebhook,
+  getPaymentConfig,
+  confirmPayment,
 
   // Sample Products
   requestSample,
