@@ -5,13 +5,28 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Plus, Minus, Loader2, ShoppingCart, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '../../../hooks/useToast';
 import UserLayout from '../../../components/layout/UserLayout';
 import { getProductById, addToCart, extractData, extractMessage, getFeedbackByProduct } from '../../../lib/api/auth';
 import { isAuthenticated, getUserId } from '../../../lib/api/config';
 import { useCart } from '../../../context/CartContext';
-import type { Product } from '../../../types/index';
+import type { Product, ProductSize, AddToCartPayload } from '../../../types/index';
 import UserGuard from '../../../components/guards/UserGuard'
+
+// Guest cart constants
+const GUEST_CART_KEY = 'guest_cart';
+
+interface GuestCartItem {
+  productId: number;
+  productName: string;
+  description: string;
+  price: number;
+  quantity: number;
+  images: string[];
+  selectedSize: string;
+  addedAt: number;
+}
 
 interface Feedback {
   id: number;
@@ -31,17 +46,23 @@ interface FeedbackData {
   feedbacks: Feedback[];
 }
 
+interface ProductWithSizes extends Omit<Product, 'sizes' | 'price' | 'originalPrice' | 'stockQty'> {
+  sizes: ProductSize[];
+  basePrice: number;
+  totalStockQty: number;
+}
+
 export default function ProductDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { toast } = useToast();
   const { incrementCartCount } = useCart();
 
-  const [product, setProduct] = useState<Product | null>(null);
+  const [product, setProduct] = useState<ProductWithSizes | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [feedbackData, setFeedbackData] = useState<FeedbackData>({
     averageRating: 0,
@@ -85,15 +106,29 @@ export default function ProductDetailPage() {
       }
       
       const response = await getProductById(Number(productId));
-      const productData = extractData<Product>(response);
+      const productData = extractData<any>(response);
       
       if (productData) {
-        setProduct(productData);
-        // Set default size if available
-        if (productData.sizes && productData.sizes.length > 0) {
-          setSelectedSize(productData.sizes[0]);
+        const transformedProduct: ProductWithSizes = {
+          id: productData.id,
+          name: productData.name,
+          description: productData.description,
+          createdAt: productData.createdAt,
+          basePrice: productData.basePrice,
+          totalStockQty: productData.totalStockQty,
+          sizes: productData.sizes || [],
+          images: productData.images || []
+        };
+        
+        setProduct(transformedProduct);
+        
+        if (transformedProduct.sizes && transformedProduct.sizes.length > 0) {
+          const firstInStockSize = transformedProduct.sizes.find(size => size.inStock);
+          if (firstInStockSize) {
+            setSelectedSize(firstInStockSize);
+          }
         }
-        // Fetch feedback after product is loaded
+        
         fetchFeedback(Number(productId));
       } else {
         const errorMessage = extractMessage(response) || "Failed to load product";
@@ -123,18 +158,15 @@ export default function ProductDetailPage() {
       
       const response = await getFeedbackByProduct(productId);
       
-      // Initialize with default empty data
       let processedData: FeedbackData = {
         averageRating: 0,
         totalReviews: 0,
         feedbacks: []
       };
 
-      // Handle different response structures
       if (response && response.success && response.data && Array.isArray(response.data)) {
         const feedbackItems = response.data;
         
-        // Map the API response to our Feedback interface
         const feedbacks: Feedback[] = feedbackItems.map((item: any, index: number) => ({
           id: item.id || index + 1,
           userId: item.userId || 0,
@@ -147,7 +179,6 @@ export default function ProductDetailPage() {
           createdAt: item.createdAt || new Date().toISOString()
         }));
 
-        // Calculate average rating
         const totalRating = feedbacks.reduce((sum, feedback) => sum + feedback.rating, 0);
         const averageRating = feedbacks.length > 0 ? totalRating / feedbacks.length : 0;
 
@@ -161,7 +192,6 @@ export default function ProductDetailPage() {
       setFeedbackData(processedData);
     } catch (error) {
       console.error('Error fetching feedback:', error);
-      // Keep default empty data on error
       setFeedbackData({
         averageRating: 0,
         totalReviews: 0,
@@ -170,6 +200,95 @@ export default function ProductDetailPage() {
     } finally {
       setLoadingFeedback(false);
     }
+  };
+
+  // Guest cart functions
+  const getGuestCart = (): GuestCartItem[] => {
+    try {
+      const cart = localStorage.getItem(GUEST_CART_KEY);
+      if (!cart) return [];
+      
+      const parsedCart = JSON.parse(cart);
+      
+      if (Array.isArray(parsedCart)) {
+        if (parsedCart.length > 0 && 'id' in parsedCart[0]) {
+          const migratedCart = parsedCart.map((item: any) => ({
+            productId: item.productId,
+            productName: item.productName,
+            description: item.description || '',
+            price: item.price,
+            quantity: item.quantity,
+            images: Array.isArray(item.images) ? item.images : (item.image ? [item.image] : []),
+            selectedSize: item.selectedSize || 'Default',
+            addedAt: typeof item.addedAt === 'string' ? Date.now() : (item.addedAt || Date.now())
+          }));
+          
+          localStorage.setItem(GUEST_CART_KEY, JSON.stringify(migratedCart));
+          return migratedCart;
+        }
+        
+        if (parsedCart.length > 0 && 'image' in parsedCart[0]) {
+          const migratedCart = parsedCart.map((item: any) => ({
+            productId: item.productId,
+            productName: item.productName,
+            description: item.description || '',
+            price: item.price,
+            quantity: item.quantity,
+            images: item.image ? [item.image] : [],
+            selectedSize: item.selectedSize || 'Default',
+            addedAt: item.addedAt || Date.now()
+          }));
+          
+          localStorage.setItem(GUEST_CART_KEY, JSON.stringify(migratedCart));
+          return migratedCart;
+        }
+        
+        return parsedCart;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Error loading guest cart:', error);
+      return [];
+    }
+  };
+
+  const saveGuestCart = (items: GuestCartItem[]) => {
+    try {
+      localStorage.setItem(GUEST_CART_KEY, JSON.stringify(items));
+    } catch (error) {
+      console.error('Error saving guest cart:', error);
+    }
+  };
+
+  const addToGuestCart = (product: ProductWithSizes, size: ProductSize | null, qty: number) => {
+    const guestCart = getGuestCart();
+    
+    const selectedSizeName = size?.size || 'Default';
+    const price = size?.discountedPrice || size?.price || product.basePrice;
+    
+    const existingItem = guestCart.find(
+      item => item.productId === product.id && item.selectedSize === selectedSizeName
+    );
+
+    if (existingItem) {
+      existingItem.quantity += qty;
+      existingItem.addedAt = Date.now();
+    } else {
+      guestCart.push({
+        productId: product.id,
+        productName: product.name || 'Unnamed Product',
+        description: product.description || '',
+        price: price,
+        quantity: qty,
+        images: product.images || [],
+        selectedSize: selectedSizeName,
+        addedAt: Date.now()
+      });
+    }
+
+    saveGuestCart(guestCart);
+    return guestCart;
   };
 
   const renderStars = (rating: number, size: 'sm' | 'lg' = 'sm') => {
@@ -226,15 +345,6 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = async () => {
-    if (!isAuthenticated()) {
-      toast({
-        // title: "Please Login",
-        description: "Please login to add items to cart",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (!product) return;
 
     // Validate size selection if sizes are available
@@ -247,9 +357,39 @@ export default function ProductDetailPage() {
       return;
     }
 
+    // Check if selected size is in stock
+    if (selectedSize && !selectedSize.inStock) {
+      toast({
+        title: "Out of Stock",
+        description: "This size is currently out of stock",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setAddingToCart(true);
 
+      // If user is not authenticated, store cart item in localStorage
+      if (!isAuthenticated()) {
+        // Add to guest cart
+        addToGuestCart(product, selectedSize, quantity);
+        
+        // Update cart count in global state
+        incrementCartCount(quantity);
+
+        toast({
+          title: "Added to guest cart",
+          description: `${quantity} x ${product.name}${selectedSize ? ` (${selectedSize.size})` : ''} has been added to your guest cart`,
+        });
+
+        // Reset quantity after successful add
+        setQuantity(1);
+        setAddingToCart(false);
+        return;
+      }
+
+      // Authenticated user flow
       const userId = getUserId();
       if (!userId) {
         toast({
@@ -260,26 +400,23 @@ export default function ProductDetailPage() {
         return;
       }
 
-      // Prepare cart data with size
-      const cartData = {
+      const cartData: AddToCartPayload = {
         userId: userId,
         productId: product.id,
         quantity: quantity,
-        ...(selectedSize && { selectedSize: selectedSize })
+        selectedSize: selectedSize?.size
       };
 
       const response = await addToCart(cartData);
 
       if (response && (response.success || !response.error)) {
-        // Update cart count in global state
         incrementCartCount(quantity);
 
         toast({
           title: "Added to cart",
-          description: `${quantity} x ${product.name}${selectedSize ? ` (Size: ${selectedSize})` : ''} has been added to your cart`,
+          description: `${quantity} x ${product.name}${selectedSize ? ` (${selectedSize.size})` : ''} has been added to your cart`,
         });
 
-        // Reset quantity after successful add
         setQuantity(1);
       } else {
         toast({
@@ -302,11 +439,11 @@ export default function ProductDetailPage() {
 
   const handleBuyNow = () => {
     if (!isAuthenticated()) {
-      toast({
-        // title: "Please Login",
-        description: "Please login to continue",
-        variant: "destructive",
-      });
+      // For guest users, add to cart and redirect to cart page
+      handleAddToCart();
+      setTimeout(() => {
+        router.push('/cart');
+      }, 300);
       return;
     }
 
@@ -327,9 +464,36 @@ export default function ProductDetailPage() {
     }, 300);
   };
 
+  const getCurrentPrice = () => {
+    if (selectedSize) {
+      return selectedSize.discountedPrice || selectedSize.price;
+    }
+    return product?.basePrice || 0;
+  };
+
+  const getOriginalPrice = () => {
+    if (selectedSize && selectedSize.discountedPrice) {
+      return selectedSize.price;
+    }
+    return null;
+  };
+
+  const getDiscountPercentage = () => {
+    if (selectedSize && selectedSize.discountedPrice) {
+      return Math.round(((selectedSize.price - selectedSize.discountedPrice) / selectedSize.price) * 100);
+    }
+    return null;
+  };
+
+  const getAvailableStock = () => {
+    if (selectedSize) {
+      return selectedSize.stockQty;
+    }
+    return product?.totalStockQty || 0;
+  };
+
   if (loading) {
     return (
-      // <UserGuard>
       <UserLayout>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col items-center justify-center py-12">
@@ -338,13 +502,11 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </UserLayout>
-      // </UserGuard>
     );
   }
 
   if (!product) {
     return (
-      // <UserGuard>
       <UserLayout>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
@@ -358,18 +520,38 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </UserLayout>
-      // </UserGuard>
     );
   }
 
   const images = product.images || [];
   const sizes = product.sizes || [];
   const hasReviews = feedbackData.totalReviews > 0;
+  const currentPrice = getCurrentPrice();
+  const originalPrice = getOriginalPrice();
+  const discountPercentage = getDiscountPercentage();
+  const availableStock = getAvailableStock();
+  const isOutOfStock = selectedSize ? !selectedSize.inStock : false;
 
   return (
-    // <UserGuard>
     <UserLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Guest Mode Banner */}
+        {!isAuthenticated() && (
+          <Alert className="mb-6 border-blue-200 bg-blue-50">
+            <AlertDescription className="text-blue-800 flex items-center justify-between w-full">
+              <span>🛒 You're shopping as a guest. Items will be saved to your browser.</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => router.push('/login')}
+                className="ml-4 bg-white flex-shrink-0"
+              >
+                Login to save cart
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Button
           variant="ghost"
           onClick={() => router.push('/shop')}
@@ -382,7 +564,6 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
           {/* Product Images Section */}
           <div className="space-y-4">
-            {/* Main Image */}
             <div className="relative w-full max-w-full sm:max-w-md mx-auto aspect-square overflow-hidden rounded-lg bg-muted border">
               <img
                 src={
@@ -397,7 +578,6 @@ export default function ProductDetailPage() {
                 }}
               />
               
-              {/* Navigation Arrows */}
               {images.length > 1 && (
                 <>
                   <Button
@@ -419,7 +599,6 @@ export default function ProductDetailPage() {
                 </>
               )}
               
-              {/* Image Counter */}
               {images.length > 1 && (
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
                   {selectedImageIndex + 1} / {images.length}
@@ -427,7 +606,6 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {/* Thumbnail Gallery */}
             {images.length > 1 && (
               <div className="flex gap-2 justify-center overflow-x-auto pb-2">
                 {images.map((image, index) => (
@@ -458,31 +636,34 @@ export default function ProductDetailPage() {
             )}
           </div>
 
-          {/* Product Info */}
           <div className="flex flex-col space-y-6">
             <div className="space-y-2">
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold leading-tight">
                 {product.name}
               </h1>
               
-              {/* Price */}
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <p className="text-3xl sm:text-4xl font-bold text-primary">
-                  ₹ {Number(product.price).toFixed(2)}
+                  ₹ {Number(currentPrice).toFixed(2)}
                 </p>
-                {product.originalPrice && (
+                {originalPrice && (
                   <>
                     <p className="text-xl text-muted-foreground line-through">
-                      ₹ {Number(product.originalPrice).toFixed(2)}
+                      ₹ {Number(originalPrice).toFixed(2)}
                     </p>
                     <Badge variant="destructive" className="text-sm">
-                      {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
+                      {discountPercentage}% OFF
                     </Badge>
                   </>
                 )}
               </div>
 
-              {/* Rating and Reviews */}
+              {!selectedSize && sizes.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Base price: ₹ {Number(product.basePrice).toFixed(2)} (select size for final price)
+                </p>
+              )}
+
               {hasReviews && (
                 <div className="flex items-center gap-3 pt-1">
                   {renderStars(feedbackData.averageRating, 'lg')}
@@ -495,58 +676,67 @@ export default function ProductDetailPage() {
                 </div>
               )}
               
-              {/* Stock Status - Only show when stock is 0 or <= 10 */}
-              {(product.stockQty === 0 || product.stockQty <= 10) && (
+              {selectedSize && (
                 <div className="flex items-center gap-2">
                   <span className={`h-2 w-2 rounded-full ${
-                    product.stockQty > 0 ? 'bg-green-500' : 'bg-red-500'
+                    selectedSize.inStock ? 'bg-green-500' : 'bg-red-500'
                   }`}></span>
                   <span className={`text-sm ${
-                    product.stockQty === 0 ? 'text-red-500' : 'text-muted-foreground'
+                    !selectedSize.inStock ? 'text-red-500' : 
+                    selectedSize.stockQty <= 10 ? 'text-orange-500' : 'text-muted-foreground'
                   }`}>
-                    {
-                      product.stockQty === 0
-                        ? 'Out of Stock'
-                        : `Only ${product.stockQty} left in stock`
-                    }
+                    {!selectedSize.inStock ? 'Out of Stock' : 
+                     selectedSize.stockQty <= 10 ? `Only ${selectedSize.stockQty} left in stock` : 
+                     'In Stock'}
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Sizes Selector */}
             {sizes.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">Select Size</h3>
                   {selectedSize && (
                     <span className="text-sm text-muted-foreground">
-                      Selected: <span className="font-medium">{selectedSize}</span>
+                      Selected: <span className="font-medium">{selectedSize.size}</span>
                     </span>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-3">
                   {sizes.map((size) => (
                     <Button
-                      key={size}
-                      variant={selectedSize === size ? "default" : "outline"}
+                      key={size.id}
+                      variant={selectedSize?.id === size.id ? "default" : "outline"}
                       size="sm"
-                      className={`h-11 px-5 rounded-lg ${
-                        selectedSize === size 
+                      className={`h-11 px-5 rounded-lg relative ${
+                        selectedSize?.id === size.id 
                           ? 'bg-primary text-primary-foreground' 
-                          : 'hover:bg-gray-100'
+                          : size.inStock 
+                            ? 'hover:bg-gray-100' 
+                            : 'opacity-50 cursor-not-allowed'
                       }`}
-                      onClick={() => setSelectedSize(size)}
+                      onClick={() => size.inStock && setSelectedSize(size)}
+                      disabled={!size.inStock}
                     >
-                      {size}
+                      {size.size}
+                      {size.discountedPrice && (
+                        <span className="absolute -top-2 -right-2 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full">
+                          Sale
+                        </span>
+                      )}
                     </Button>
                   ))}
                 </div>
+                {selectedSize && selectedSize.discountedPrice && (
+                  <p className="text-sm text-green-600">
+                    You save: ₹ {(selectedSize.price - selectedSize.discountedPrice).toFixed(2)} ({discountPercentage}% off)
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Quantity Selector */}
-            {product.stockQty > 0 && (
+            {!isOutOfStock && availableStock > 0 && (
               <div className="space-y-3">
                 <label className="block text-sm font-medium">Quantity</label>
                 <div className="flex items-center gap-4 mt-1">
@@ -565,8 +755,8 @@ export default function ProductDetailPage() {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => setQuantity(Math.min(product.stockQty, quantity + 1))}
-                    disabled={quantity >= product.stockQty}
+                    onClick={() => setQuantity(Math.min(availableStock, quantity + 1))}
+                    disabled={quantity >= availableStock}
                     className="h-11 w-11 rounded-md"
                   >
                     <Plus className="h-4 w-4" />
@@ -575,12 +765,11 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Add to Cart Buttons */}
             <div className="flex flex-row gap-3 pt-4">
               <Button
                 size="lg"
                 className="flex-1 rounded-full"
-                disabled={product.stockQty === 0 || addingToCart}
+                disabled={isOutOfStock || availableStock === 0 || addingToCart}
                 onClick={handleAddToCart}
               >
                 {addingToCart ? (
@@ -591,7 +780,7 @@ export default function ProductDetailPage() {
                 ) : (
                   <>
                     <ShoppingCart className="mr-2 h-5 w-5" />
-                    {product.stockQty === 0 ? 'Out of Stock' : 'Add to Cart'}
+                    {isOutOfStock || availableStock === 0 ? 'Out of Stock' : 'Add to Cart'}
                   </>
                 )}
               </Button>
@@ -599,14 +788,13 @@ export default function ProductDetailPage() {
                 size="lg"
                 variant="outline"
                 className="flex-1 rounded-full"
-                disabled={product.stockQty === 0 || addingToCart}
+                disabled={isOutOfStock || availableStock === 0 || addingToCart}
                 onClick={handleBuyNow}
               >
                 Buy Now
               </Button>
             </div>
             
-            {/* Description */}
             {product.description && (
               <div className="space-y-2 pt-4 border-t">
                 <h3 className="font-semibold text-lg">Description</h3>
@@ -616,24 +804,34 @@ export default function ProductDetailPage() {
               </div>
             )}
 
+            {/* Guest Mode Hint */}
             {!isAuthenticated() && (
-              <p className="text-sm text-muted-foreground text-center">
-                Please login to add items to cart
-              </p>
+              <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4">
+                <p className="text-sm text-blue-700">
+                  <span className="font-semibold">Guest checkout:</span> Your items are saved in your browser. 
+                  <Button 
+                    variant="link" 
+                    className="text-blue-700 px-1 underline"
+                    onClick={() => router.push('/login')}
+                  >
+                    Login
+                  </Button> 
+                  to access your cart from any device.
+                </p>
+              </div>
             )}
 
-            {/* Stock Warning - Only for items with 1-4 stock */}
-            {product.stockQty > 0 && product.stockQty < 5 && (
+            {selectedSize && selectedSize.inStock && selectedSize.stockQty > 0 && selectedSize.stockQty < 5 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-sm text-yellow-800">
-                  ⚠️ Only {product.stockQty} item{product.stockQty > 1 ? 's' : ''} left! Order soon.
+                  ⚠️ Only {selectedSize.stockQty} item{selectedSize.stockQty > 1 ? 's' : ''} left in this size! Order soon.
                 </p>
               </div>
             )}
           </div>
         </div>
 
-        {/* IMPROVED Customer Reviews Section */}
+        {/* Customer Reviews Section */}
         <div className="mt-12 border-t pt-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
             <h2 className="text-2xl font-bold">Customer Reviews</h2>
@@ -680,7 +878,6 @@ export default function ProductDetailPage() {
                     </p>
                   </div>
                   
-                  {/* Verified Purchase Badge */}
                   <div className="mt-4 pt-4 border-t border-gray-100">
                     <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-green-50 text-green-700 px-3 py-1 rounded-full">
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -704,7 +901,6 @@ export default function ProductDetailPage() {
             </div>
           )}
           
-          {/* Show helpful message when there are reviews */}
           {hasReviews && feedbackData.totalReviews >= 3 && (
             <div className="mt-8 pt-6 border-t border-gray-200 text-center">
               <p className="text-sm text-muted-foreground">
@@ -715,6 +911,5 @@ export default function ProductDetailPage() {
         </div>
       </div>
     </UserLayout>
-    // </UserGuard>
   );
 }

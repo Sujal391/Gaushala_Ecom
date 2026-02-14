@@ -7,31 +7,42 @@ import {
   X,
   ArrowLeft,
   Loader2,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { createProduct } from '../../../../lib/api/auth';
+import { Label } from '@/components/ui/label';
+import { createProduct, uploadProductImages } from '../../../../lib/api/auth'; // Add uploadProductImages import
 import { toast } from 'sonner';
 import AdminGuard from '../../../../components/guards/AdminGuard';
 import AdminLayout from '../../../../components/layout/AdminLayout';
+import { API_BASE_URL, API_ENDPOINTS } from '../../../../lib/api/config';
+
+interface SizeItem {
+  size: string;
+  price: string;
+  discountedPrice: string;
+  stockQty: string;
+}
 
 export default function AddProductPage() {
   const router = useRouter();
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    price: '',
-    stock: '',
     description: '',
-    sizes: '',
   });
-  const [imageFiles, setImageFiles] = useState([]);
-  const [imagePreviews, setImagePreviews] = useState([]);
+  const [sizes, setSizes] = useState<SizeItem[]>([
+    { size: '', price: '', discountedPrice: '', stockQty: '' }
+  ]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
       // Validate file sizes
@@ -49,24 +60,24 @@ export default function AddProductPage() {
       }
 
       // Append new files to existing ones
-      setImageFiles(prev => [...prev, ...files]);  // Changed this line
+      setImageFiles(prev => [...prev, ...files]);
       
       // Create previews for new images
       const previews = files.map(file => {
-        return new Promise((resolve) => {
+        return new Promise<string>((resolve) => {
           const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
+          reader.onloadend = () => resolve(reader.result as string);
           reader.readAsDataURL(file);
         });
       });
 
       Promise.all(previews).then(results => {
-        setImagePreviews(prev => [...prev, ...results]);  // Changed this line
+        setImagePreviews(prev => [...prev, ...results]);
       });
     }
   };
 
-  const removeImage = (index) => {
+  const removeImage = (index: number) => {
     setImageFiles(prev => prev.filter((_, i) => i !== index));
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
@@ -75,54 +86,193 @@ export default function AddProductPage() {
     fileInputRef.current?.click();
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSizeChange = (index: number, field: keyof SizeItem, value: string) => {
+    const updatedSizes = [...sizes];
+    updatedSizes[index] = { ...updatedSizes[index], [field]: value };
+    setSizes(updatedSizes);
+  };
 
-    if (!formData.name.trim()) {
-      toast.error('Product name is required');
-      return;
-    }
+  const addSize = () => {
+    setSizes([...sizes, { size: '', price: '', discountedPrice: '', stockQty: '' }]);
+  };
 
-    if (!formData.price || parseFloat(formData.price) <= 0) {
-      toast.error('Please enter a valid price');
-      return;
-    }
-
-    if (!formData.stock || parseInt(formData.stock) < 0) {
-      toast.error('Please enter a valid stock quantity');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const formDataToSend = new FormData();
-
-      formDataToSend.append('name', formData.name.trim());
-      formDataToSend.append('price', String(formData.price));
-      formDataToSend.append('Description', formData.description.trim());
-      formDataToSend.append('stockQty', String(formData.stock));
-      formDataToSend.append('sizes', String(formData.sizes));
-
-      imageFiles.forEach((file) => {
-        formDataToSend.append('images', file);
-      });
-
-      const response = await createProduct(formDataToSend);
-
-      if (response.success) {
-        toast.success('Product created successfully!');
-        router.push('/admin/products');
-      } else {
-        toast.error(response.message || 'Failed to create product');
-      }
-    } catch (error) {
-      console.error('Error creating product:', error);
-      toast.error(`Failed to create product: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
+  const removeSize = (index: number) => {
+    if (sizes.length > 1) {
+      setSizes(sizes.filter((_, i) => i !== index));
+    } else {
+      // Reset the single size if trying to remove the last one
+      setSizes([{ size: '', price: '', discountedPrice: '', stockQty: '' }]);
     }
   };
+
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      toast.error('Product name is required');
+      return false;
+    }
+
+    // Validate sizes
+    for (let i = 0; i < sizes.length; i++) {
+      const sizeItem = sizes[i];
+      
+      if (!sizeItem.size.trim()) {
+        toast.error(`Size name is required for size ${i + 1}`);
+        return false;
+      }
+
+      if (!sizeItem.price || parseFloat(sizeItem.price) <= 0) {
+        toast.error(`Please enter a valid price for ${sizeItem.size || `size ${i + 1}`}`);
+        return false;
+      }
+
+      if (sizeItem.discountedPrice && parseFloat(sizeItem.discountedPrice) >= parseFloat(sizeItem.price)) {
+        toast.error(`Discounted price must be less than original price for ${sizeItem.size}`);
+        return false;
+      }
+
+      if (!sizeItem.stockQty || parseInt(sizeItem.stockQty) < 0) {
+        toast.error(`Please enter a valid stock quantity for ${sizeItem.size || `size ${i + 1}`}`);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const uploadImages = async (productId: string | number) => {
+  if (imageFiles.length === 0) {
+    console.log('No images to upload');
+    return true;
+  }
+
+  try {
+    const formDataToSend = new FormData();
+    
+    // Add images
+    imageFiles.forEach((file) => {
+      formDataToSend.append('images', file);
+    });
+
+    console.log('=== IMAGE UPLOAD DEBUG INFO ===');
+    console.log('Product ID:', productId);
+    console.log('Number of images:', imageFiles.length);
+    
+    // Debug the API endpoint
+    console.log('API_ENDPOINTS.PRODUCTS.UPLOAD_IMAGE is a function');
+    
+    // Since UPLOAD_IMAGE is a function, call it with the product ID
+    const uploadEndpoint = API_ENDPOINTS.PRODUCTS.UPLOAD_IMAGE;
+    
+    if (typeof uploadEndpoint === 'function') {
+      const endpoint = uploadEndpoint(productId.toString());
+      console.log('Generated endpoint:', endpoint);
+    } else {
+      console.error('UPLOAD_IMAGE is not a function:', uploadEndpoint);
+      toast.error('Image upload configuration error');
+      return false;
+    }
+    
+    // Call the API utility function
+    console.log('Calling uploadProductImages API...');
+    const response = await uploadProductImages(productId, formDataToSend);
+    
+    console.log('Image upload API response:', response);
+    
+    if (response.success) {
+      toast.success('Images uploaded successfully!');
+      return true;
+    } else {
+      console.error('Image upload failed:', response);
+      toast.error(response.message || 'Failed to upload images');
+      return false;
+    }
+  } catch (error) {
+    console.error('Error uploading images:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    toast.error('Failed to upload product images');
+    return false;
+  }
+};
+
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (!validateForm()) {
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  try {
+    // Step 1: Create the product with basic info
+    const productData = {
+      name: formData.name.trim(),
+      description: formData.description.trim(),
+      sizes: sizes.map(sizeItem => ({
+        size: sizeItem.size.trim(),
+        price: parseFloat(sizeItem.price),
+        discountedPrice: sizeItem.discountedPrice ? parseFloat(sizeItem.discountedPrice) : 0,
+        stockQty: parseInt(sizeItem.stockQty)
+      }))
+    };
+
+    // Create product first
+    const createResponse = await createProduct(productData);
+
+    if (!createResponse.success) {
+      toast.error(createResponse.message || 'Failed to create product');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Debug log to see the actual response
+    console.log('Product creation response:', createResponse);
+
+    // Get the created product ID from the response
+    // Try different possible fields based on API response
+    const productId = createResponse.data?.productId;
+
+if (!productId) {
+  console.error('Product ID not found in response:', createResponse);
+  toast.error('Product created but could not get product ID from response');
+  setIsSubmitting(false);
+  return;
+}
+
+    
+    if (!productId) {
+      console.error('Product ID not found in response:', createResponse);
+      toast.error('Product created but could not get product ID from response');
+      setIsSubmitting(false);
+      return;
+    }
+
+    console.log('Extracted product ID:', productId);
+
+    // Step 2: Upload images if any
+    if (imageFiles.length > 0) {
+      toast.info('Uploading images...');
+      const uploadSuccess = await uploadImages(productId);
+      if (!uploadSuccess) {
+        // Even if image upload fails, product was created successfully
+        toast.warning('Product created but image upload failed');
+      }
+    }
+
+    // Success message
+    toast.success('Product created successfully!');
+    router.push('/admin/products');
+    
+  } catch (error) {
+    console.error('Error creating product:', error);
+    toast.error(`Failed to create product: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const headerAction = (
     <Button
@@ -140,7 +290,7 @@ export default function AddProductPage() {
   return (
     <AdminGuard>
       <AdminLayout title="Add Product" headerAction={headerAction}>
-        <Card className="max-w-3xl mx-auto">
+        <Card className="max-w-4xl mx-auto">
           <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
             <CardTitle className="text-xl sm:text-2xl">Add New Product</CardTitle>
           </CardHeader>
@@ -159,8 +309,8 @@ export default function AddProductPage() {
 
               {/* Image Upload */}
               <div>
-                <label className="block text-sm font-medium mb-2">Product Images</label>
-                <div className="border-2 border-dashed rounded-lg p-4 sm:p-6 text-center">
+                <Label>Product Images (Optional - Can be added later)</Label>
+                <div className="border-2 border-dashed rounded-lg p-4 sm:p-6 text-center mt-2">
                   {imagePreviews.length > 0 ? (
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -232,9 +382,9 @@ export default function AddProductPage() {
 
               {/* Product Name */}
               <div>
-                <label htmlFor="name" className="block text-sm font-medium mb-2">
+                <Label htmlFor="name">
                   Product Name *
-                </label>
+                </Label>
                 <Input
                   id="name"
                   type="text"
@@ -243,66 +393,123 @@ export default function AddProductPage() {
                   placeholder="Enter product name"
                   required
                   disabled={isSubmitting}
-                  className="text-sm sm:text-base"
+                  className="text-sm sm:text-base mt-2"
                 />
               </div>
 
-              {/* Price and Stock */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label htmlFor="size" className="block text-sm font-medium mb-2">
-                    Sizes
-                  </label>
-                  <Input
-                    id="size"
-                    type="text"
-                    value={formData.sizes}
-                    onChange={(e) => setFormData({ ...formData, sizes: e.target.value })}
-                    placeholder="Enter sizes (e.g., S, M, L, XL)"
+              {/* Sizes Section */}
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <Label className="text-lg">Sizes & Pricing *</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addSize}
                     disabled={isSubmitting}
-                    className="text-sm sm:text-base"
-                  />
+                    className="gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Size
+                  </Button>
                 </div>
-                <div>
-                  <label htmlFor="price" className="block text-sm font-medium mb-2">
-                    Price (₹) *
-                  </label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="0.00"
-                    required
-                    disabled={isSubmitting}
-                    className="text-sm sm:text-base"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="stock" className="block text-sm font-medium mb-2">
-                    Stock Quantity *
-                  </label>
-                  <Input
-                    id="stock"
-                    type="number"
-                    min="0"
-                    value={formData.stock}
-                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                    placeholder="0"
-                    required
-                    disabled={isSubmitting}
-                    className="text-sm sm:text-base"
-                  />
+
+                <div className="space-y-4">
+                  {sizes.map((sizeItem, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-4">
+                        <Label className="text-base">Size {index + 1}</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeSize(index)}
+                          disabled={isSubmitting || sizes.length === 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        <div>
+                          <Label htmlFor={`size-${index}`} className="text-sm">
+                            Size Name *
+                          </Label>
+                          <Input
+                            id={`size-${index}`}
+                            type="text"
+                            value={sizeItem.size}
+                            onChange={(e) => handleSizeChange(index, 'size', e.target.value)}
+                            placeholder="e.g., S, M, L, XL"
+                            required
+                            disabled={isSubmitting}
+                            className="mt-2"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor={`price-${index}`} className="text-sm">
+                            Price (₹) *
+                          </Label>
+                          <Input
+                            id={`price-${index}`}
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={sizeItem.price}
+                            onChange={(e) => handleSizeChange(index, 'price', e.target.value)}
+                            placeholder="0.00"
+                            required
+                            disabled={isSubmitting}
+                            className="mt-2"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor={`discountedPrice-${index}`} className="text-sm">
+                            Discounted Price (₹)
+                          </Label>
+                          <Input
+                            id={`discountedPrice-${index}`}
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={sizeItem.discountedPrice}
+                            onChange={(e) => handleSizeChange(index, 'discountedPrice', e.target.value)}
+                            placeholder="0.00"
+                            disabled={isSubmitting}
+                            className="mt-2"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor={`stockQty-${index}`} className="text-sm">
+                            Stock Quantity *
+                          </Label>
+                          <Input
+                            id={`stockQty-${index}`}
+                            type="number"
+                            min="0"
+                            value={sizeItem.stockQty}
+                            onChange={(e) => handleSizeChange(index, 'stockQty', e.target.value)}
+                            placeholder="0"
+                            required
+                            disabled={isSubmitting}
+                            className="mt-2"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
               {/* Description */}
               <div>
-                <label htmlFor="description" className="block text-sm font-medium mb-2">
+                <Label htmlFor="description">
                   Description
-                </label>
+                </Label>
                 <Textarea
                   id="description"
                   value={formData.description}
@@ -310,7 +517,7 @@ export default function AddProductPage() {
                   placeholder="Enter product description"
                   rows={4}
                   disabled={isSubmitting}
-                  className="text-sm sm:text-base resize-none"
+                  className="text-sm sm:text-base resize-none mt-2"
                 />
               </div>
 
@@ -328,7 +535,7 @@ export default function AddProductPage() {
                 <Button
                   type="submit"
                   className="flex-1 py-3 sm:py-2"
-                  disabled={!formData.name || !formData.price || !formData.stock || isSubmitting}
+                  disabled={isSubmitting}
                 >
                   {isSubmitting ? (
                     <>

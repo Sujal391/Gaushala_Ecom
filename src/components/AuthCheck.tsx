@@ -23,7 +23,7 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
       // Define route patterns
       const isAdminRoute = pathname.startsWith('/admin');
       const isUserOnlyRoute =
-        pathname.startsWith('/cart') ||
+        // pathname.startsWith('/cart') ||
         pathname.startsWith('/checkout') ||
         pathname.startsWith('/my-orders') ||
         pathname.startsWith('/user');

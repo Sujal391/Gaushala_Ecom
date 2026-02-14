@@ -128,10 +128,14 @@ export default function CheckoutPage() {
         productId: item.productId,
         productName: item.productName,
         price: item.productPrice || item.price,
+        discountedPrice: item.discountedPrice,
         quantity: item.quantity,
         totalPrice: item.totalPrice,
+        totalDiscountedPrice: item.totalDiscountedPrice,
         images: item.images,
-        selectedSize: item.selectedSize
+        selectedSize: item.selectedSize,
+        sizePrices: item.sizePrices,
+        sizeDiscountedPrices: item.sizeDiscountedPrices
       }));
 
       // Apply cached updates
@@ -143,7 +147,8 @@ export default function CheckoutPage() {
             return {
               ...item,
               quantity: newQuantity,
-              totalPrice: item.price * newQuantity
+              totalPrice: item.price * newQuantity,
+              totalDiscountedPrice: (item.discountedPrice || item.price) * newQuantity
             };
           }
           return item;
@@ -306,7 +311,22 @@ export default function CheckoutPage() {
   };
 
   const getSubtotal = () => {
-    return cart.reduce((total, item) => total + item.totalPrice, 0);
+    return cart.reduce((total, item) => {
+      // Use totalDiscountedPrice if available, otherwise use totalPrice
+      const itemTotal = item.totalDiscountedPrice || item.totalPrice;
+      return total + itemTotal;
+    }, 0);
+  };
+
+  const getTotalSavings = () => {
+    return cart.reduce((total, item) => {
+      if (item.discountedPrice) {
+        const originalTotal = item.price * item.quantity;
+        const discountedTotal = (item.discountedPrice || item.price) * item.quantity;
+        return total + (originalTotal - discountedTotal);
+      }
+      return total;
+    }, 0);
   };
 
   const getDiscount = () => {
@@ -317,6 +337,22 @@ export default function CheckoutPage() {
     const subtotal = getSubtotal();
     const discount = getDiscount();
     return subtotal - discount;
+  };
+
+  const getItemDisplayPrice = (item: CartItem) => {
+    return item.discountedPrice || item.price;
+  };
+
+  const getItemOriginalPrice = (item: CartItem) => {
+    return item.price;
+  };
+
+  const getItemTotal = (item: CartItem) => {
+    return item.totalDiscountedPrice || item.totalPrice;
+  };
+
+  const getItemOriginalTotal = (item: CartItem) => {
+    return item.price * item.quantity;
   };
 
   if (loading) {
@@ -355,6 +391,8 @@ export default function CheckoutPage() {
       </UserGuard>
     );
   }
+
+  const totalSavings = getTotalSavings();
 
   return (
     <UserGuard>
@@ -497,39 +535,82 @@ export default function CheckoutPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {cart.map((item) => (
-                    <div
-                      key={item.cartItemId}
-                      className="flex items-center justify-between py-3 border-b last:border-b-0"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-16 h-16 bg-muted rounded-md overflow-hidden">
-                          <img
-                            src={imageErrors.has(item.productId) 
-                              ? '/placeholder-product.jpg'
-                              : (item.images?.[0] 
-                                ? `http://gaushalaecommerce.runasp.net${item.images[0]}`
-                                : '/placeholder-product.jpg')
-                            }
-                            alt={item.productName}
-                            className="w-full h-full object-cover"
-                            onError={() => {
-                              setImageErrors(prev => new Set(prev).add(item.productId));
-                            }}
-                          />
+                  {cart.map((item) => {
+                    const displayPrice = getItemDisplayPrice(item);
+                    const originalPrice = getItemOriginalPrice(item);
+                    const itemTotal = getItemTotal(item);
+                    const originalTotal = getItemOriginalTotal(item);
+                    const hasDiscount = item.discountedPrice && item.discountedPrice < item.price;
+                    
+                    return (
+                      <div
+                        key={item.cartItemId}
+                        className="flex items-center justify-between py-3 border-b last:border-b-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-16 h-16 bg-muted rounded-md overflow-hidden">
+                            <img
+                              src={imageErrors.has(item.productId) 
+                                ? '/placeholder-product.jpg'
+                                : (item.images?.[0] 
+                                  ? `http://gaushalaecommerce.runasp.net${item.images[0]}`
+                                  : '/placeholder-product.jpg')
+                              }
+                              alt={item.productName}
+                              className="w-full h-full object-cover"
+                              onError={() => {
+                                setImageErrors(prev => new Set(prev).add(item.productId));
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <p className="font-medium">{item.productName}</p>
+                            <p className="text-sm text-muted-foreground">{item.selectedSize}</p>
+                            <div className="flex items-center gap-2 text-sm">
+                              {hasDiscount ? (
+                                <>
+                                  <span className="text-primary font-medium">
+                                    ₹{displayPrice.toFixed(2)}
+                                  </span>
+                                  <span className="text-muted-foreground line-through text-xs">
+                                    ₹{originalPrice.toFixed(2)}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground">
+                                  ₹{originalPrice.toFixed(2)}
+                                </span>
+                              )}
+                              <span className="text-muted-foreground">
+                                × {item.quantity}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{item.productName}</p>
-                          <p className="text-sm text-muted-foreground">{item.selectedSize}</p>
-                          <p className="text-sm text-muted-foreground">
-                            ₹{item.price.toFixed(2)} × {item.quantity}
+                        <div className="text-right">
+                          <p className="font-semibold text-primary">
+                            ₹{itemTotal.toFixed(2)}
                           </p>
+                          {hasDiscount && originalTotal > itemTotal && (
+                            <p className="text-xs text-muted-foreground line-through">
+                              ₹{originalTotal.toFixed(2)}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <p className="font-semibold">₹{item.totalPrice.toFixed(2)}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
+                
+                {/* Total Savings Banner */}
+                {totalSavings > 0 && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p className="text-sm text-green-700 font-medium flex items-center gap-2">
+                      <Tag className="h-4 w-4" />
+                      You're saving ₹{totalSavings.toFixed(2)} on this order!
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -606,18 +687,32 @@ export default function CheckoutPage() {
                       <span className="text-muted-foreground">Subtotal</span>
                       <span className="font-medium">₹{getSubtotal().toFixed(2)}</span>
                     </div>
+                    
+                    {/* Product Savings */}
+                    {totalSavings > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-green-600">Product Discounts</span>
+                        <span className="font-medium text-green-600">
+                          -₹{totalSavings.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Offer Code Discount */}
                     {appliedOffer && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-green-600">Discount</span>
+                        <span className="text-green-600">Offer Discount</span>
                         <span className="font-medium text-green-600">
                           -₹{getDiscount().toFixed(2)}
                         </span>
                       </div>
                     )}
+                    
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Shipping</span>
                       <span className="font-medium text-green-600">Free</span>
                     </div>
+                    
                     <div className="border-t pt-3">
                       <div className="flex justify-between">
                         <span className="font-semibold">Total</span>
@@ -625,10 +720,24 @@ export default function CheckoutPage() {
                           ₹{getTotal().toFixed(2)}
                         </span>
                       </div>
-                      {appliedOffer && (
-                        <p className="text-xs text-muted-foreground mt-1 text-right">
-                          You saved ₹{getDiscount().toFixed(2)}!
-                        </p>
+                      
+                      {/* Total Savings Summary */}
+                      {(totalSavings > 0 || appliedOffer) && (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs text-green-600 font-medium">
+                            Total savings: ₹{(totalSavings + getDiscount()).toFixed(2)}
+                          </p>
+                          {totalSavings > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              Includes product discounts
+                            </p>
+                          )}
+                          {appliedOffer && (
+                            <p className="text-xs text-muted-foreground">
+                              Includes offer code: {appliedOffer.offerCode}
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
