@@ -15,6 +15,7 @@ import type {
   LoginPayload,
   AuthResponse,
   Product,
+  CreateProductPayload,
   UpdateProductPayload,
   AddToCartPayload,
   CartResponse,
@@ -28,6 +29,7 @@ import type {
   ApplyOfferRequest,
   CreateOfferPayload,
   MyProfileResponse,
+  MyReferralResponse,
   FeedbackApiResponse,
   IncompleteUser,
   ReferralSummaryResponse,
@@ -39,6 +41,7 @@ import type {
   GetUserSampleRequestsResponse,
   UpdateSampleRequestStatusPayload,
   UpdateSampleRequestStatusResponse,
+  Banner,
 } from '../../types/index';
 
 // ==================== HELPER FUNCTIONS ====================
@@ -338,6 +341,24 @@ export async function getMyProfile(): Promise<ApiResponse<MyProfileResponse>> {
   }
 }
 
+export async function getMyReferrals(): Promise<ApiResponse<MyReferralResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.MY_REFERRAL}`, {
+      method: 'GET',
+      headers: getHeaders(true),
+    });
+
+    return handleResponse<MyReferralResponse>(response);
+  } catch (error) {
+    console.error('Get my referrals error:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch my referrals',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
 export async function getReferralSummary(): Promise<ApiResponse<ReferralSummaryResponse>> {
   try {
     const response = await fetch(
@@ -397,23 +418,111 @@ export async function getProductById(id: string | number): Promise<ApiResponse<P
   }
 }
 
-export async function createProduct(formData: FormData): Promise<ApiResponse<Product>> {
+// Update the handleResponse function or createProduct function:
+
+export async function createProduct(productData: CreateProductPayload): Promise<ApiResponse<any>> {
   try {
     const response = await fetch(
       `${API_BASE_URL}${API_ENDPOINTS.PRODUCTS.CREATE}`,
       {
         method: 'POST',
-        body: formData, // ✅ DO NOT TOUCH
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productData),
       }
     );
 
-    return handleResponse<Product>(response);
+    // Handle the response - adjust based on your API's actual response structure
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `HTTP error! status: ${response.status}`,
+        error: errorData,
+        data: null
+      };
+    }
+
+    const responseData = await response.json();
+    
+    // Log the actual response for debugging
+    console.log('API Response:', responseData);
+    
+    return {
+      success: true,
+      message: 'Product created successfully',
+      data: responseData, // This should contain productId
+      error: null
+    };
   } catch (error) {
     console.error('Create product error:', error);
     return {
       success: false,
       message: 'Failed to create product',
       error: error instanceof Error ? error.message : 'Unknown error',
+      data: null
+    };
+  }
+}
+
+export async function uploadProductImages(
+  productId: string | number,
+  formData: FormData
+): Promise<ApiResponse<any>> {
+  try {
+    // Since UPLOAD_IMAGE is a function, call it with productId
+    const endpoint = API_ENDPOINTS.PRODUCTS.UPLOAD_IMAGE(productId.toString());
+    const url = `${API_BASE_URL}${endpoint}`;
+    
+    console.log('=== UPLOAD PRODUCT IMAGES API CALL ===');
+    console.log('URL:', url);
+    console.log('Product ID:', productId);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    console.log('Response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Upload failed with status:', response.status);
+      console.error('Error response:', errorText);
+      
+      let errorData;
+      try {
+        errorData = errorText ? JSON.parse(errorText) : {};
+      } catch (e) {
+        errorData = { message: errorText };
+      }
+      
+      return {
+        success: false,
+        message: errorData.message || `Upload failed with status ${response.status}`,
+        error: errorData,
+        data: null
+      };
+    }
+
+    const responseData = await response.json();
+    console.log('Upload successful! Response:', responseData);
+    
+    return {
+      success: true,
+      message: 'Images uploaded successfully',
+      data: responseData,
+      error: null
+    };
+    
+  } catch (error) {
+    console.error('Fetch error in uploadProductImages:', error);
+    return {
+      success: false,
+      message: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      data: null
     };
   }
 }
@@ -723,24 +832,95 @@ export async function updateCustomerStatus(
 
 // ==================== ORDER APIs ====================
 
-export async function checkout(payload: CheckoutPayload): Promise<ApiResponse<Order>> {
+// auth.ts - Updated createTempOrder function
+
+export const createTempOrder = async (
+  payload: {
+    userId: number;           // camelCase number (as per Swagger)
+    houseNo: string;
+    street: string;
+    landmark: string;
+    city: string;
+    state: string;
+    pincode: string;
+    offerCode?: string;
+    customerRemark?: string;
+  },
+  token: string
+) => {
+  console.log('=== createTempOrder API Call ===');
+  console.log('URL:', `${API_BASE_URL}/api/orders/create-temp`);
+  console.log('Payload:', JSON.stringify(payload, null, 2));
+  console.log('Payload userId type:', typeof payload.userId);
+  
   try {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.ORDERS.CHECKOUT}`, {
+    const response = await fetch(`${API_BASE_URL}/api/orders/create-temp`, {
       method: 'POST',
-      headers: getHeaders(true),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
       body: JSON.stringify(payload),
     });
 
-    return handleResponse<Order>(response);
+    const responseText = await response.text();
+    console.log('Raw response text:', responseText);
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Failed to parse response as JSON:', responseText);
+      throw new Error('Invalid JSON response from server');
+    }
+
+    if (!response.ok) {
+      console.error('HTTP error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: data
+      });
+      throw new Error(data?.message || `HTTP error ${response.status}`);
+    }
+
+    return data;
   } catch (error) {
-    console.error('Checkout error:', error);
-    return {
-      success: false,
-      message: 'Failed to place order',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+    console.error('Network or fetch error:', error);
+    throw error;
   }
-}
+};
+
+export const confirmPayment = async (
+  payload: {
+    orderId: number;
+    razorpayPaymentId: string;
+    razorpayOrderId: string;
+    razorpaySignature: string;
+  },
+  token: string
+) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/orders/confirm-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.message || 'Failed to confirm payment');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error confirming payment:', error);
+    throw error;
+  }
+};
 
 export async function getMyOrders(userId?: number): Promise<ApiResponse<Order[]>> {
   try {
@@ -883,69 +1063,107 @@ export async function getPendingOrders(
 
 // ==================== PAYMENT APIs ====================
 
-export async function initiatePayment(
-  orderId: number
-): Promise<ApiResponse<PaymentInitiateResponse>> {
-  try {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.PAYMENT.INITIATE(orderId)}`, {
-      method: 'POST',
+export const createPaymentOrder = async (
+  orderId: number,
+  token: string
+) => {
+  const response = await fetch(
+    `${API_BASE_URL}${API_ENDPOINTS.PAYMENT.INITIATE(orderId)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to create payment order");
+  }
+
+  return response.json();
+};
+
+export const verifyPayment = async (
+  payload: {
+    orderId: number;
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  },
+  token: string
+) => {
+  const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.PAYMENT.VERIFY}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error("Payment verification failed");
+  }
+
+  return response.json();
+};
+
+export const getPaymentStatus = async (
+  orderId: number,
+  token: string
+) => {
+  const response = await fetch(
+    `${API_BASE_URL}${API_ENDPOINTS.PAYMENT.STATUS(orderId)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch payment status");
+  }
+
+  return response.json();
+};
+
+export const paymentWebhook = async (payload: any) => {
+  const response = await fetch(
+    `${API_BASE_URL}${API_ENDPOINTS.PAYMENT.WEBHOOK}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error("Webhook failed");
+  }
+
+  return response.json();
+};
+
+export const getPaymentConfig = async () => {
+  const response = await fetch(
+    `${API_BASE_URL}${API_ENDPOINTS.PAYMENT.CONFIG}`,
+    {
+      method: 'GET',
       headers: getHeaders(true),
-    });
+    }
+  );
 
-    return handleResponse<PaymentInitiateResponse>(response);
-  } catch (error) {
-    console.error('Initiate payment error:', error);
-    return {
-      success: false,
-      message: 'Failed to initiate payment',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+  if (!response.ok) {
+    throw new Error("Failed to fetch payment config");
   }
-}
 
-export async function paymentSuccess(gatewayResponse: any): Promise<ApiResponse> {
-  try {
-    const formData = new FormData();
-    formData.append('response', JSON.stringify(gatewayResponse));
+  return response.json();
+};
 
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.PAYMENT.SUCCESS}`, {
-      method: 'POST',
-      headers: getFormDataHeaders(true),
-      body: formData,
-    });
-
-    return handleResponse(response);
-  } catch (error) {
-    console.error('Payment success callback error:', error);
-    return {
-      success: false,
-      message: 'Failed to process payment success',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}
-
-export async function paymentFailure(gatewayResponse: any): Promise<ApiResponse> {
-  try {
-    const formData = new FormData();
-    formData.append('response', JSON.stringify(gatewayResponse));
-
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.PAYMENT.FAILURE}`, {
-      method: 'POST',
-      headers: getFormDataHeaders(true),
-      body: formData,
-    });
-
-    return handleResponse(response);
-  } catch (error) {
-    console.error('Payment failure callback error:', error);
-    return {
-      success: false,
-      message: 'Failed to process payment failure',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}
 // ==================== OFFERS APIs ====================
 
 export async function getAllOffers(): Promise<ApiResponse<Offer[]>> {
@@ -1008,6 +1226,158 @@ export async function applyOffer(userId: number, offerCode: string): Promise<Api
     return {
       success: false,
       message: 'Failed to apply offer',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+// ==================== BANNER APIs ====================
+
+export async function getAllBanners(): Promise<ApiResponse<Banner[]>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.BANNER.GET}`,
+      {
+        method: 'GET',
+        headers: getHeaders(true),
+      }
+    );
+
+    return handleResponse<Banner[]>(response);
+  } catch (error) {
+    console.error('Get banners error:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch banners',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function createBanner(imageFile: File): Promise<ApiResponse<{ id: number }>> {
+  try {
+    const formData = new FormData();
+    formData.append('image', imageFile); // Parameter name must match backend 'image'
+
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.BANNER.CREATE}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`, // Add token manually
+          // Don't set Content-Type - browser will set it with boundary
+        },
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return {
+        success: false,
+        message: errorText || 'Failed to upload banner',
+      };
+    }
+
+    // Handle response (could be JSON or plain text)
+    const contentType = response.headers.get('content-type');
+    let bannerId: number;
+
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json();
+      bannerId = typeof data === 'object' ? data.id || data : data;
+    } else {
+      const textData = await response.text();
+      bannerId = parseInt(textData);
+    }
+
+    return {
+      success: true,
+      data: { id: bannerId },
+      message: 'Banner uploaded successfully',
+    };
+  } catch (error) {
+    console.error('Create banner error:', error);
+    return {
+      success: false,
+      message: 'Failed to create banner',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function updateBanner(id: number, imageFile: File): Promise<ApiResponse> {
+  try {
+    const formData = new FormData();
+    formData.append('image', imageFile); // Parameter name must match backend 'image'
+
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.BANNER.UPDATE(id)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`, // Add token manually
+          // Don't set Content-Type - browser will set it with boundary
+        },
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return {
+        success: false,
+        message: errorText || 'Failed to update banner',
+      };
+    }
+
+    // Handle response (backend returns boolean)
+    const contentType = response.headers.get('content-type');
+    
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json();
+      return {
+        success: true,
+        data: data,
+        message: 'Banner updated successfully',
+      };
+    } else {
+      const textData = await response.text();
+      // If response is "true" or "false"
+      const success = textData === 'true' || textData === '1' || textData === 'True';
+      
+      return {
+        success: success,
+        data: { success: success },
+        message: success ? 'Banner updated successfully' : 'Failed to update banner',
+      };
+    }
+  } catch (error) {
+    console.error('Update banner error:', error);
+    return {
+      success: false,
+      message: 'Failed to update banner',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function deleteBanner(id: number): Promise<ApiResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.BANNER.DELETE(id)}`,
+      {
+        method: 'DELETE',
+        headers: getHeaders(true),
+      }
+    );
+
+    return handleResponse(response);
+  } catch (error) {
+    console.error('Delete banner error:', error);
+    return {
+      success: false,
+      message: 'Failed to delete banner',
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
@@ -1110,6 +1480,7 @@ export default {
   getIncompleteUsers,
   loginUser,
   getMyProfile,
+  getMyReferrals,
   getReferralSummary,
   
   // Products
@@ -1118,6 +1489,7 @@ export default {
   createProduct,
   updateProduct,
   deleteProduct,
+  uploadProductImages,
   
   // Cart
   addToCart,
@@ -1126,20 +1498,30 @@ export default {
   clearCart,
   
   // Orders
-  checkout,
+  createTempOrder,
   getMyOrders,
   getAllOrders,
   updateOrderStatus,
   cancelMyOrder,
+  getPendingOrders,
   
   // Payment
-  initiatePayment,
-  paymentSuccess,
-  paymentFailure,
+  createPaymentOrder,
+  verifyPayment,
+  getPaymentStatus,
+  paymentWebhook,
+  getPaymentConfig,
+  confirmPayment,
 
   // Sample Products
   requestSample,
   getAllSampleRequests,
   getUserSampleRequests,
   updateSampleRequestStatus,
+
+  // Banners
+  getAllBanners,
+  createBanner,
+  updateBanner,
+  deleteBanner,
 };

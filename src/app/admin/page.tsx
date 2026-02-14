@@ -28,7 +28,7 @@ import AdminLayout from '../../components/layout/AdminLayout';
 interface RecentOrder {
   orderId: number;
   userId: number;
-  totalAmount: number;
+  finalAmount: number;
   orderStatus: string;
   orderDate: string;
   customerName: string;
@@ -242,7 +242,7 @@ export default function AdminDashboard() {
                               </div>
                             </td>
                             <td className="p-3 sm:p-4 font-medium text-xs sm:text-sm">
-                              ₹ {order.totalAmount.toFixed(2)}
+                              ₹ {order.finalAmount.toFixed(2)}
                             </td>
                             <td className="p-3 sm:p-4">
                               <span

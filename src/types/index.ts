@@ -6,7 +6,8 @@ export interface ApiResponse<T = any> {
   success: boolean;
   message: string;
   data?: T;
-  error?: string;
+  items?: T;
+  error?: string | null | undefined;
 }
 
 // ==================== AUTH TYPES ====================
@@ -56,6 +57,35 @@ export interface MyProfileResponse {
   createdAt: string;
 }
 
+// Referred user
+export interface ReferredUser {
+  userId: number;
+  name: string;
+  email: string;
+  mobileNo: string;
+  registeredAt: string; // ISO date string
+  isReferralUsed: boolean;
+}
+
+// Main referral data
+export interface MyReferralData {
+  referrerUserId: number;
+  referrerName: string;
+  referralCode: string;
+  totalReferredCount: number;
+  referredUsers: ReferredUser[];
+}
+
+export type MyReferralResponse = MyReferralData;
+
+// ==================== BANNER TYPES ====================
+
+export interface Banner {
+  id: number;
+  image: string;
+  createdAt: string;
+}
+
 // ==================== REFERRAL TYPES ====================
 
 export interface ReferredUser {
@@ -87,21 +117,23 @@ export interface ReferralSummaryResponse {
 export interface Product {
   id: number;
   name: string;
-  price: number;
-  originalPrice?: number;
   description: string;
-  stockQty: number;
-  sizes: string[];
-  images: string[];
   createdAt: string;
+  basePrice: number;
+  totalStockQty: number;
+  sizes: ProductSize[];  // This should be ProductSize[], not string[]
+  images: string[];
 }
 
 export interface CreateProductPayload {
   name: string;
-  price: number;
   description: string;
-  stockQty: number;
-  images: File[];
+  sizes: Array<{
+    size: string;
+    price: number;
+    discountedPrice: number;
+    stockQty: number;
+  }>;
 }
 
 export interface UpdateProductPayload {
@@ -110,6 +142,15 @@ export interface UpdateProductPayload {
   description: string;
   stockQty: number;
   images: string[];
+}
+
+export interface ProductSize {
+  id: number;
+  size: string;
+  price: number;
+  discountedPrice: number;
+  stockQty: number;
+  inStock: boolean;
 }
 
 // ==================== CART TYPES ====================
@@ -125,12 +166,17 @@ export interface CartItem {
   cartItemId: number;
   productId: number;
   productName: string;
+  description: string;
   sizes: string;
   selectedSize: string;
   price: number;
+  discountedPrice: number;
+  totalDiscountedPrice: number;
   quantity: number;
   totalPrice: number;
   images: string[];
+  sizePrices: Record<string, number>;
+  sizeDiscountedPrices: Record<string, number>;
 }
 
 export interface CartResponse {
@@ -226,6 +272,7 @@ export interface CheckoutPayload {
   city: string;
   state: string;
   pincode: string;
+  customerRemark: string;
   offerCode: string;
 }
 
@@ -240,6 +287,8 @@ export interface Order {
   orderId: number;
   userId?: number;
   totalAmount: number;
+  productLevelDiscount: number;
+  offerDiscount: number;
   discountAmount: number;
   finalAmount: number;
   isReferralDiscountApplied: boolean;
@@ -290,6 +339,46 @@ export interface IncompleteUser {
 }
 
 // ==================== PAYMENT TYPES ====================
+
+export interface CreateTempOrderPayload {
+  userId: number;
+  houseNo: string;
+  street: string;
+  landmark: string;
+  city: string;
+  state: string;
+  pincode: string;
+  offerCode?: string;
+  customerRemark?: string;
+}
+
+export interface CreateTempOrderResponse {
+  success: boolean;
+  data: {
+    orderId: number;
+    amount: number;
+    currency: string;
+    status: 'DRAFT' | 'PENDING_PAYMENT';
+  };
+  message?: string;
+}
+
+export interface ConfirmPaymentPayload {
+  orderId: number;
+  razorpayPaymentId: string;
+  razorpayOrderId: string;
+  razorpaySignature: string;
+}
+
+export interface ConfirmPaymentResponse {
+  success: boolean;
+  data: {
+    orderId: number;
+    status: 'CONFIRMED' | 'FAILED';
+    message?: string;
+  };
+  message?: string;
+}
 
 export interface PaymentInitiateResponse {
   orderId: number;
@@ -362,6 +451,13 @@ export interface OfferSlab {
 export interface ApplyOfferRequest {
   userId: number;
   offerCode: string;
+  totalAmount: number;
+  discount: number;
+  discountPercentage: number;
+  items: {
+    productId: number;
+    quantity: number;
+  }[];
 }
 
 export interface LayoutProps {

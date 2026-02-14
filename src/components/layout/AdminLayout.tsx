@@ -36,6 +36,7 @@ const menuItems = [
   { icon: TagIcon, label: 'Offers', href: '/admin/offer' },
   { icon: Users, label: 'Customers', href: '/admin/customers' },
   { icon: Users, label: 'Referrals', href: '/admin/referrals' },
+  { icon: ShoppingBag, label: 'Banners', href: '/admin/banner' },
 ];
 
 export default function AdminLayout({ children, title, headerAction }: AdminLayoutProps) {

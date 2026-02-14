@@ -1,19 +1,35 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
-  Package, Loader2, ShoppingBag, ArrowLeft, Calendar,
-  DollarSign, XCircle, CheckCircle, MessageSquare, Star,
-  MapPin, Home, Navigation, Building, Map, Hash,
-  Mail, Phone, User, TagIcon
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+  Package,
+  Loader2,
+  ShoppingBag,
+  ArrowLeft,
+  Calendar,
+  DollarSign,
+  XCircle,
+  CheckCircle,
+  MessageSquare,
+  Star,
+  MapPin,
+  Home,
+  Navigation,
+  Building,
+  Map,
+  Hash,
+  Mail,
+  Phone,
+  User,
+  TagIcon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +39,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -31,14 +47,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import UserLayout from '../../components/layout/UserLayout';
-import UserGuard from '../../components/guards/UserGuard';
-import { getMyOrders, cancelMyOrder } from '../../lib/api/auth';
-import { submitFeedback } from '../../lib/api/auth';
-import { isAuthenticated, getUserId } from '../../lib/api/config';
-import OrderStatusAnimation from '../../components/OrderStatusAnimation';
-import { toast } from 'sonner';
+} from "@/components/ui/dialog";
+import UserLayout from "../../components/layout/UserLayout";
+import UserGuard from "../../components/guards/UserGuard";
+import { getMyOrders, cancelMyOrder } from "../../lib/api/auth";
+import { submitFeedback } from "../../lib/api/auth";
+import { isAuthenticated, getUserId } from "../../lib/api/config";
+import OrderStatusAnimation from "../../components/OrderStatusAnimation";
+import { toast } from "sonner";
 
 interface OrderItem {
   productId: number;
@@ -47,6 +63,7 @@ interface OrderItem {
   productPrice: number;
   quantity: number;
   totalPrice: number;
+  discountedPrice: number;
   size?: string;
   images?: string[];
   hasFeedback?: boolean;
@@ -73,6 +90,7 @@ interface Order {
   orderId: number;
   userId?: number;
   totalAmount: number;
+  productLevelDiscount: number;
   discountAmount: number;
   finalAmount: number;
   isReferralDiscountApplied: boolean;
@@ -105,7 +123,7 @@ export default function MyOrdersPage() {
     orderId: number;
     orderNumber: string;
   } | null>(null);
-  
+
   // Feedback states
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<{
@@ -118,14 +136,14 @@ export default function MyOrdersPage() {
     orderId: 0,
     productId: 0,
     rating: 5,
-    review: '',
+    review: "",
   });
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      toast.error('Please login to view your orders');
-      router.push('/shop');
+      toast.error("Please login to view your orders");
+      router.push("/shop");
       return;
     }
 
@@ -138,17 +156,17 @@ export default function MyOrdersPage() {
       const userId = getUserId();
 
       if (!userId) {
-        toast.error('User not found. Please login again.');
-        router.push('/shop');
+        toast.error("User not found. Please login again.");
+        router.push("/shop");
         return;
       }
 
       const response = await getMyOrders(userId);
-      console.log('Orders API response:', response);
+      console.log("Orders API response:", response);
 
       // Handle different response structures
       let ordersData = [];
-      
+
       if (response && response.success && response.data) {
         ordersData = response.data;
       } else if (response && Array.isArray(response)) {
@@ -163,27 +181,30 @@ export default function MyOrdersPage() {
         userId: order.userId || order.customer?.userId,
         totalAmount: order.totalAmount || 0,
         discountAmount: order.discountAmount || 0,
+        offerDiscount: order.offerDiscount || 0,
+        productLevelDiscount: order.productLevelDiscount || 0,
         finalAmount: order.finalAmount || 0,
         isReferralDiscountApplied: order.isReferralDiscountApplied || false,
         discountSource: order.discountSource,
         offerCode: order.offerCode,
-        paymentStatus: order.paymentStatus || 'Pending',
-        orderStatus: order.orderStatus || 'PLACED',
-        orderDate: order.orderDate || order.createdAt || new Date().toISOString(),
+        paymentStatus: order.paymentStatus || "Pending",
+        orderStatus: order.orderStatus || "PLACED",
+        orderDate:
+          order.orderDate || order.createdAt || new Date().toISOString(),
         customer: order.customer || {
           userId: order.userId || userId,
-          name: 'Customer',
-          email: '',
-          mobileNo: ''
+          name: "Customer",
+          email: "",
+          mobileNo: "",
         },
         address: order.address || {
-          houseNo: '',
-          street: '',
-          landmark: '',
-          city: '',
-          state: '',
-          pincode: '',
-          fullAddress: 'Address not available'
+          houseNo: "",
+          street: "",
+          landmark: "",
+          city: "",
+          state: "",
+          pincode: "",
+          fullAddress: "Address not available",
         },
         items: order.items || [],
       }));
@@ -194,12 +215,12 @@ export default function MyOrdersPage() {
         const dateB = new Date(b.orderDate).getTime();
         return dateB - dateA;
       });
-      
-      console.log('Mapped orders:', sortedOrders);
+
+      console.log("Mapped orders:", sortedOrders);
       setOrders(sortedOrders);
     } catch (error) {
-      console.error('Error loading orders:', error);
-      toast.error('Failed to load orders');
+      console.error("Error loading orders:", error);
+      toast.error("Failed to load orders");
       setOrders([]);
     } finally {
       setLoading(false);
@@ -207,7 +228,12 @@ export default function MyOrdersPage() {
   };
 
   // Feedback functions
-  const openFeedbackDialog = (orderId: number, productId: number, productName: string, image?: string) => {
+  const openFeedbackDialog = (
+    orderId: number,
+    productId: number,
+    productName: string,
+    image?: string
+  ) => {
     setSelectedProduct({
       orderId,
       productId,
@@ -218,19 +244,19 @@ export default function MyOrdersPage() {
       orderId,
       productId,
       rating: 5,
-      review: '',
+      review: "",
     });
     setShowFeedbackDialog(true);
   };
 
   const handleSubmitFeedback = async () => {
     if (!feedbackForm.review.trim()) {
-      toast.error('Please write your review');
+      toast.error("Please write your review");
       return;
     }
 
     if (feedbackForm.review.trim().length < 10) {
-      toast.error('Review must be at least 10 characters');
+      toast.error("Review must be at least 10 characters");
       return;
     }
 
@@ -239,15 +265,15 @@ export default function MyOrdersPage() {
       const response = await submitFeedback(feedbackForm);
 
       if (response.success) {
-        toast.success('Thank you for your feedback!');
-        
+        toast.success("Thank you for your feedback!");
+
         // Update the order item to mark feedback as submitted
-        setOrders(prevOrders =>
-          prevOrders.map(order => {
+        setOrders((prevOrders) =>
+          prevOrders.map((order) => {
             if (order.orderId === feedbackForm.orderId) {
               return {
                 ...order,
-                items: order.items.map(item =>
+                items: order.items.map((item) =>
                   item.productId === feedbackForm.productId
                     ? { ...item, hasFeedback: true }
                     : item
@@ -257,21 +283,21 @@ export default function MyOrdersPage() {
             return order;
           })
         );
-        
+
         setShowFeedbackDialog(false);
         setSelectedProduct(null);
         setFeedbackForm({
           orderId: 0,
           productId: 0,
           rating: 5,
-          review: '',
+          review: "",
         });
       } else {
-        toast.error(response.message || 'Failed to submit feedback');
+        toast.error(response.message || "Failed to submit feedback");
       }
     } catch (error) {
-      console.error('Error submitting feedback:', error);
-      toast.error('Failed to submit feedback. Please try again.');
+      console.error("Error submitting feedback:", error);
+      toast.error("Failed to submit feedback. Please try again.");
     } finally {
       setSubmittingFeedback(false);
     }
@@ -279,18 +305,18 @@ export default function MyOrdersPage() {
 
   const isFeedbackEligible = (orderStatus: string) => {
     const normalizedStatus = orderStatus.toUpperCase();
-    return normalizedStatus === 'DELIVERED';
+    return normalizedStatus === "DELIVERED";
   };
 
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     } catch {
       return dateString;
@@ -300,48 +326,50 @@ export default function MyOrdersPage() {
   const getStatusColor = (status: string) => {
     const normalizedStatus = status.toUpperCase();
     const statusColors: { [key: string]: string } = {
-      'PLACED': 'bg-blue-100 text-blue-800 border-blue-200',
-      'PACKED': 'bg-purple-100 text-purple-800 border-purple-200',
-      'CONFIRMED': 'bg-purple-100 text-purple-800 border-purple-200',
-      'DISPATCHED': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      'SHIPPED': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      'DELIVERED': 'bg-green-100 text-green-800 border-green-200',
-      'CANCELLED': 'bg-red-100 text-red-800 border-red-200',
-      'PROCESSING': 'bg-orange-100 text-orange-800 border-orange-200',
+      PLACED: "bg-blue-100 text-blue-800 border-blue-200",
+      PACKED: "bg-purple-100 text-purple-800 border-purple-200",
+      CONFIRMED: "bg-purple-100 text-purple-800 border-purple-200",
+      DISPATCHED: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      SHIPPED: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      DELIVERED: "bg-green-100 text-green-800 border-green-200",
+      CANCELLED: "bg-red-100 text-red-800 border-red-200",
+      PROCESSING: "bg-orange-100 text-orange-800 border-orange-200",
     };
-    return statusColors[normalizedStatus] || 'bg-gray-100 text-gray-800 border-gray-200';
+    return (
+      statusColors[normalizedStatus] ||
+      "bg-gray-100 text-gray-800 border-gray-200"
+    );
   };
 
   const getPaymentStatusColor = (status: string) => {
     const statusColors: Record<string, string> = {
-      'PAID': "bg-green-100 text-green-800 border-green-200",
-      'PENDING': "bg-yellow-100 text-yellow-800 border-yellow-200",
-      'FAILED': "bg-red-100 text-red-800 border-red-200",
-      'REFUNDED': "bg-blue-100 text-blue-800 border-blue-200",
+      PAID: "bg-green-100 text-green-800 border-green-200",
+      PENDING: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      FAILED: "bg-red-100 text-red-800 border-red-200",
+      REFUNDED: "bg-blue-100 text-blue-800 border-blue-200",
     };
-    
+
     const statusUpper = status.toUpperCase();
     return (
-      statusColors[statusUpper] ||
-      "bg-gray-100 text-gray-800 border-gray-200"
+      statusColors[statusUpper] || "bg-gray-100 text-gray-800 border-gray-200"
     );
   };
 
   const getStatusDisplay = (status: string): string => {
     const statusUpper = status.toUpperCase();
     const STATUS_DISPLAY_MAP: Record<string, string> = {
-      'PLACED': 'Placed',
-      'PACKED': 'Packed',
-      'DISPATCHED': 'Dispatched',
-      'DELIVERED': 'Delivered',
-      'CANCELLED': 'Cancelled',
+      PLACED: "Placed",
+      PACKED: "Packed",
+      DISPATCHED: "Dispatched",
+      DELIVERED: "Delivered",
+      CANCELLED: "Cancelled",
     };
     return STATUS_DISPLAY_MAP[statusUpper] || status;
   };
 
   const isCancellable = (orderStatus: string) => {
     const normalizedStatus = orderStatus.toUpperCase();
-    return ['PLACED', 'PACKED'].includes(normalizedStatus);
+    return ["PLACED", "PACKED"].includes(normalizedStatus);
   };
 
   const toggleOrderExpansion = (orderId: number) => {
@@ -352,15 +380,15 @@ export default function MyOrdersPage() {
     if (images && images.length > 0) {
       return images[0];
     }
-    return '/placeholder-product.jpg';
+    return "/placeholder-product.jpg";
   };
 
   const handleCancelClick = (orderId: number) => {
-    const order = orders.find(o => o.orderId === orderId);
+    const order = orders.find((o) => o.orderId === orderId);
     if (order) {
       setOrderToCancel({
         orderId,
-        orderNumber: `#${orderId}`
+        orderNumber: `#${orderId}`,
       });
       setShowCancelDialog(true);
     }
@@ -372,30 +400,30 @@ export default function MyOrdersPage() {
     try {
       setCancellingOrder(orderToCancel.orderId);
       const userId = getUserId();
-      
+
       if (!userId) {
-        toast.error('User not found. Please login again.');
+        toast.error("User not found. Please login again.");
         return;
       }
 
       const response = await cancelMyOrder(orderToCancel.orderId, userId);
-      
+
       if (response.success) {
-        toast.success('Order cancelled successfully');
-        
-        setOrders(prevOrders =>
-          prevOrders.map(order =>
+        toast.success("Order cancelled successfully");
+
+        setOrders((prevOrders) =>
+          prevOrders.map((order) =>
             order.orderId === orderToCancel.orderId
-              ? { ...order, orderStatus: 'CANCELLED' }
+              ? { ...order, orderStatus: "CANCELLED" }
               : order
           )
         );
       } else {
-        toast.error(response.message || 'Failed to cancel order');
+        toast.error(response.message || "Failed to cancel order");
       }
     } catch (error) {
-      console.error('Error cancelling order:', error);
-      toast.error('Failed to cancel order. Please try again.');
+      console.error("Error cancelling order:", error);
+      toast.error("Failed to cancel order. Please try again.");
     } finally {
       setCancellingOrder(null);
       setOrderToCancel(null);
@@ -411,14 +439,14 @@ export default function MyOrdersPage() {
         <button
           key={i}
           type="button"
-          onClick={() => setFeedbackForm(prev => ({ ...prev, rating: i }))}
+          onClick={() => setFeedbackForm((prev) => ({ ...prev, rating: i }))}
           className="focus:outline-none"
         >
           <Star
             className={`h-8 w-8 ${
               i <= feedbackForm.rating
-                ? 'fill-yellow-400 text-yellow-400'
-                : 'text-gray-300'
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-gray-300"
             } hover:text-yellow-400 transition-colors`}
           />
         </button>
@@ -449,7 +477,7 @@ export default function MyOrdersPage() {
           <div className="flex items-center justify-between mb-6">
             <Button
               variant="ghost"
-              onClick={() => router.push('/shop')}
+              onClick={() => router.push("/shop")}
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -469,7 +497,7 @@ export default function MyOrdersPage() {
               <p className="text-muted-foreground mb-6">
                 Start shopping to see your orders here
               </p>
-              <Button onClick={() => router.push('/shop')}>
+              <Button onClick={() => router.push("/shop")}>
                 Browse Products
               </Button>
             </div>
@@ -502,7 +530,9 @@ export default function MyOrdersPage() {
                             <span>Payment Status: </span>
                             <Badge
                               variant="outline"
-                              className={getPaymentStatusColor(order.paymentStatus)}
+                              className={getPaymentStatusColor(
+                                order.paymentStatus
+                              )}
                             >
                               {order.paymentStatus}
                             </Badge>
@@ -512,7 +542,9 @@ export default function MyOrdersPage() {
                       <div className="flex flex-col sm:items-end gap-2">
                         <Badge
                           variant="outline"
-                          className={`${getStatusColor(order.orderStatus)} font-semibold`}
+                          className={`${getStatusColor(
+                            order.orderStatus
+                          )} font-semibold`}
                         >
                           {getStatusDisplay(order.orderStatus)}
                         </Badge>
@@ -540,7 +572,9 @@ export default function MyOrdersPage() {
                             size="sm"
                             onClick={() => toggleOrderExpansion(order.orderId)}
                           >
-                            {expandedOrder === order.orderId ? 'Hide Details' : 'View Details'}
+                            {expandedOrder === order.orderId
+                              ? "Hide Details"
+                              : "View Details"}
                           </Button>
                           {isCancellable(order.orderStatus) && (
                             <Button
@@ -552,7 +586,7 @@ export default function MyOrdersPage() {
                               {cancellingOrder === order.orderId ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
-                                'Cancel Order'
+                                "Cancel Order"
                               )}
                             </Button>
                           )}
@@ -566,14 +600,17 @@ export default function MyOrdersPage() {
                         <div className="p-3 bg-white rounded-lg border">
                           <div className="flex items-center gap-2 mb-2">
                             <MapPin className="h-4 w-4 text-blue-500" />
-                            <h4 className="font-semibold text-sm">Shipping Address</h4>
+                            <h4 className="font-semibold text-sm">
+                              Shipping Address
+                            </h4>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
                                 <Home className="h-3 w-3 text-muted-foreground" />
                                 <span className="text-sm">
-                                  {order.address.houseNo}, {order.address.street}
+                                  {order.address.houseNo},{" "}
+                                  {order.address.street}
                                 </span>
                               </div>
                               {order.address.landmark && (
@@ -587,7 +624,8 @@ export default function MyOrdersPage() {
                               <div className="flex items-center gap-2">
                                 <Building className="h-3 w-3 text-muted-foreground" />
                                 <span className="text-sm">
-                                  {order.address.city}, {order.address.state} - {order.address.pincode}
+                                  {order.address.city}, {order.address.state} -{" "}
+                                  {order.address.pincode}
                                 </span>
                               </div>
                             </div>
@@ -617,16 +655,19 @@ export default function MyOrdersPage() {
                                   <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 bg-muted rounded-md overflow-hidden flex-shrink-0">
                                       <img
-                                        src={imageErrors.has(item.productId) 
-                                          ? '/placeholder-product.jpg'
-                                          : (item.images?.[0] 
+                                        src={
+                                          imageErrors.has(item.productId)
+                                            ? "/placeholder-product.jpg"
+                                            : item.images?.[0]
                                             ? `http://gaushalaecommerce.runasp.net${item.images[0]}`
-                                            : '/placeholder-product.jpg')
+                                            : "/placeholder-product.jpg"
                                         }
                                         alt={item.productName}
                                         className="w-full h-full object-cover"
                                         onError={() => {
-                                          setImageErrors(prev => new Set(prev).add(item.productId));
+                                          setImageErrors((prev) =>
+                                            new Set(prev).add(item.productId)
+                                          );
                                         }}
                                       />
                                     </div>
@@ -648,32 +689,33 @@ export default function MyOrdersPage() {
                                           </>
                                         )}
                                       </div>
-                                      <p className="text-xs text-muted-foreground mt-1">
-                                        ₹{item.productPrice.toFixed(2)} ×{" "}
-                                        {item.quantity}
-                                      </p>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        {item.discountedPrice &&
+                                        item.discountedPrice <
+                                          item.productPrice ? (
+                                          <>
+                                            <span className="text-xs text-muted-foreground line-through">
+                                              ₹{item.productPrice.toFixed(2)}
+                                            </span>
+                                            <span className="text-sm font-semibold text-primary">
+                                              ₹{item.discountedPrice.toFixed(2)}
+                                            </span>
+                                          </>
+                                        ) : (
+                                          <span className="text-sm font-medium">
+                                            ₹{item.productPrice.toFixed(2)}
+                                          </span>
+                                        )}
+                                        <span className="text-xs text-muted-foreground">
+                                          × {item.quantity}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <p className="font-semibold text-sm">
                                       ₹{item.totalPrice.toFixed(2)}
                                     </p>
-                                    {isFeedbackEligible(order.orderStatus) && !item.hasFeedback && (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => openFeedbackDialog(
-                                          order.orderId,
-                                          item.productId,
-                                          item.productName,
-                                          item.images?.[0]
-                                        )}
-                                        className="gap-1"
-                                      >
-                                        <MessageSquare className="h-3 w-3" />
-                                        Feedback
-                                      </Button>
-                                    )}
                                     {item.hasFeedback && (
                                       <Badge
                                         variant="outline"
@@ -692,13 +734,15 @@ export default function MyOrdersPage() {
 
                         {/* Order Summary Section */}
                         <div className="p-4 bg-white rounded-lg border space-y-3">
-                          <h4 className="font-semibold text-sm mb-2">Order Summary</h4>
-                          
+                          <h4 className="font-semibold text-sm mb-2">
+                            Order Summary
+                          </h4>
+
                           {order.offerCode && (
                             <div className="flex items-center gap-2 p-2 bg-yellow-50 rounded">
                               <TagIcon className="h-3 w-3 text-yellow-600" />
                               <span className="text-xs text-yellow-700">
-                                Applied {order.discountSource || 'Offer'}: {order.offerCode}
+                                Offer Applied : {order.offerCode}
                               </span>
                             </div>
                           )}
@@ -716,7 +760,18 @@ export default function MyOrdersPage() {
                             {order.discountAmount > 0 && (
                               <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">
-                                  Discount
+                                  Product Discount
+                                </span>
+                                <span className="font-medium text-green-600">
+                                  -₹{order.productLevelDiscount.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+
+                            {order.discountAmount > 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  Offer Discount
                                 </span>
                                 <span className="font-medium text-green-600">
                                   -₹{order.discountAmount.toFixed(2)}
@@ -750,11 +805,11 @@ export default function MyOrdersPage() {
                                   Total Amount
                                 </span>
                                 <div className="text-right">
-                                  {order.discountAmount > 0 && (
+                                  {/* {order.discountAmount > 0 && (
                                     <div className="text-xs text-muted-foreground line-through">
                                       ₹{order.totalAmount.toFixed(2)}
                                     </div>
-                                  )}
+                                  )} */}
                                   <span className="text-lg font-bold text-primary">
                                     ₹{order.finalAmount.toFixed(2)}
                                   </span>
@@ -773,23 +828,26 @@ export default function MyOrdersPage() {
 
           {orders.length > 0 && (
             <div className="mt-8 text-center">
-              <Button
-                variant="outline"
-                onClick={() => router.push('/shop')}
-              >
+              <Button variant="outline" onClick={() => router.push("/shop")}>
                 Continue Shopping
               </Button>
             </div>
           )}
 
           {/* Cancel Order Confirmation Dialog */}
-          <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <AlertDialog
+            open={showCancelDialog}
+            onOpenChange={setShowCancelDialog}
+          >
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Cancel Order {orderToCancel?.orderNumber}?</AlertDialogTitle>
+                <AlertDialogTitle>
+                  Cancel Order {orderToCancel?.orderNumber}?
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to cancel this order? This action cannot be undone.
-                  Any payment will be refunded according to the refund policy.
+                  Are you sure you want to cancel this order? This action cannot
+                  be undone. Any payment will be refunded according to the
+                  refund policy.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -807,7 +865,7 @@ export default function MyOrdersPage() {
                       Cancelling...
                     </>
                   ) : (
-                    'Yes, Cancel Order'
+                    "Yes, Cancel Order"
                   )}
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -815,15 +873,19 @@ export default function MyOrdersPage() {
           </AlertDialog>
 
           {/* Feedback Dialog */}
-          <Dialog open={showFeedbackDialog} onOpenChange={setShowFeedbackDialog}>
+          <Dialog
+            open={showFeedbackDialog}
+            onOpenChange={setShowFeedbackDialog}
+          >
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Leave Feedback</DialogTitle>
                 <DialogDescription>
-                  Share your experience with this product from order #{selectedProduct?.orderId}
+                  Share your experience with this product from order #
+                  {selectedProduct?.orderId}
                 </DialogDescription>
               </DialogHeader>
-              
+
               {selectedProduct && (
                 <div className="space-y-6 py-4">
                   {/* Product Info */}
@@ -833,14 +895,16 @@ export default function MyOrdersPage() {
                         src={
                           selectedProduct.image
                             ? `http://gaushalaecommerce.runasp.net${selectedProduct.image}`
-                            : '/placeholder-product.jpg'
+                            : "/placeholder-product.jpg"
                         }
                         alt={selectedProduct.productName}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div>
-                      <h4 className="font-semibold">{selectedProduct.productName}</h4>
+                      <h4 className="font-semibold">
+                        {selectedProduct.productName}
+                      </h4>
                       <p className="text-sm text-muted-foreground">
                         Order #{selectedProduct.orderId}
                       </p>
@@ -865,10 +929,12 @@ export default function MyOrdersPage() {
                       id="review"
                       placeholder="Share your thoughts about this product..."
                       value={feedbackForm.review}
-                      onChange={(e) => setFeedbackForm(prev => ({
-                        ...prev,
-                        review: e.target.value
-                      }))}
+                      onChange={(e) =>
+                        setFeedbackForm((prev) => ({
+                          ...prev,
+                          review: e.target.value,
+                        }))
+                      }
                       className="min-h-[120px]"
                     />
                     <p className="text-xs text-muted-foreground">
@@ -888,7 +954,9 @@ export default function MyOrdersPage() {
                 </Button>
                 <Button
                   onClick={handleSubmitFeedback}
-                  disabled={submittingFeedback || feedbackForm.review.trim().length < 10}
+                  disabled={
+                    submittingFeedback || feedbackForm.review.trim().length < 10
+                  }
                 >
                   {submittingFeedback ? (
                     <>
@@ -896,7 +964,7 @@ export default function MyOrdersPage() {
                       Submitting...
                     </>
                   ) : (
-                    'Submit Feedback'
+                    "Submit Feedback"
                   )}
                 </Button>
               </DialogFooter>

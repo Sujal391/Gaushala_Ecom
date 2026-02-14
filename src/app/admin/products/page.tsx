@@ -32,22 +32,51 @@ import { getAllProducts, deleteProduct } from '../../../lib/api/auth';
 import AdminGuard from '../../../components/guards/AdminGuard';
 import AdminLayout from '../../../components/layout/AdminLayout';
 
+// TypeScript Interfaces
+interface ProductSize {
+  id: number;
+  size: string;
+  price: number;
+  discountedPrice: number | null;
+  stockQty: number;
+  inStock: boolean;
+}
+
+interface Product {
+  id: number;
+  name: string;
+  description: string;
+  createdAt: string;
+  basePrice: number;
+  totalStockQty: number;
+  sizes: ProductSize[];
+  images: string[];
+}
+
+interface ApiResponse<T> {
+  success?: boolean;
+  data?: T;
+  message?: string;
+}
+
+type ProductsResponse = Product[] | ApiResponse<Product[]>;
+
 export default function AdminProductsPage() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [products, setProducts] = useState([]);
-  const [deleteId, setDeleteId] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   useEffect(() => {
     fetchProducts();
   }, []);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (): Promise<void> => {
     setIsLoading(true);
     try {
-      const response = await getAllProducts();
+      const response = await getAllProducts() as ProductsResponse;
       
       // Check if response is an array (direct data) or has success property
       if (Array.isArray(response)) {
@@ -61,7 +90,7 @@ export default function AdminProductsPage() {
         toast.success(`Loaded ${response.data.length} products`);
       } else {
         console.error('Failed to fetch products:', response);
-        toast.error('Failed to load products: ' + (response.message || 'Unknown error'));
+        toast.error('Failed to load products: ' + ((response as ApiResponse<Product[]>).message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -71,13 +100,13 @@ export default function AdminProductsPage() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: number): Promise<void> => {
     setIsDeleting(true);
     try {
-      const response = await deleteProduct(id);
+      const response = await deleteProduct(id) as ApiResponse<null>;
       
       if (response.success || response.message?.includes('success')) {
-        setProducts(products.filter((p) => p.id !== id));
+        setProducts(products.filter((p: Product) => p.id !== id));
         toast.success('Product deleted successfully!');
       } else {
         toast.error('Failed to delete product: ' + (response.message || 'Unknown error'));
@@ -91,28 +120,125 @@ export default function AdminProductsPage() {
     }
   };
 
-  const filteredProducts = products.filter((product) =>
+  const filteredProducts = products.filter((product: Product) =>
     product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getTotalStock = () => {
-    return products.reduce((sum, product) => sum + (product.stockQty || 0), 0);
+  const getTotalStock = (): number => {
+    return products.reduce((sum: number, product: Product) => sum + (product.totalStockQty || 0), 0);
   };
 
-  const getOutOfStockCount = () => {
-    return products.filter(product => (product.stockQty || 0) === 0).length;
+  const getOutOfStockCount = (): number => {
+    return products.filter((product: Product) => 
+      (product.totalStockQty || 0) === 0 || 
+      product.sizes?.every((size: ProductSize) => !size.inStock || size.stockQty === 0)
+    ).length;
   };
 
-  const getAveragePrice = () => {
-    if (products.length === 0) return 0;
-    const total = products.reduce((sum, product) => sum + (product.price || 0), 0);
+  const getAveragePrice = (): string => {
+    if (products.length === 0) return '0';
+    const total = products.reduce((sum: number, product: Product) => sum + (product.basePrice || 0), 0);
     return (total / products.length).toFixed(2);
   };
 
-  const getMostExpensiveProduct = () => {
+  const getMostExpensiveProduct = (): number => {
     if (products.length === 0) return 0;
-    return Math.max(...products.map(product => product.price || 0));
+    return Math.max(...products.map((product: Product) => product.basePrice || 0));
+  };
+
+  const getAvailableSizes = (product: Product): string => {
+    if (!Array.isArray(product.sizes)) return 'No sizes available';
+    
+    const availableSizes = product.sizes
+      .filter((size: ProductSize) => size.inStock && size.stockQty > 0)
+      .map((size: ProductSize) => size.size);
+    
+    return availableSizes.length > 0 
+      ? availableSizes.join(', ')
+      : 'Out of stock';
+  };
+
+  const getLowestPrice = (product: Product): number => {
+    if (!Array.isArray(product.sizes) || product.sizes.length === 0) {
+      return product.basePrice || 0;
+    }
+    
+    const prices = product.sizes.map((size: ProductSize) => size.discountedPrice || size.price);
+    return Math.min(...prices);
+  };
+
+  const getHighestPrice = (product: Product): number => {
+    if (!Array.isArray(product.sizes) || product.sizes.length === 0) {
+      return product.basePrice || 0;
+    }
+    
+    const prices = product.sizes.map((size: ProductSize) => size.discountedPrice || size.price);
+    return Math.max(...prices);
+  };
+
+  const formatPriceRange = (product: Product): string => {
+    if (!Array.isArray(product.sizes) || product.sizes.length === 0) {
+      return `₹ ${product.basePrice || 0}`;
+    }
+    
+    const lowest = getLowestPrice(product);
+    const highest = getHighestPrice(product);
+    
+    if (lowest === highest) {
+      return `₹ ${lowest}`;
+    }
+    
+    return `₹ ${lowest} - ₹ ${highest}`;
+  };
+
+  const hasDiscountedPrices = (product: Product): boolean => {
+    if (!Array.isArray(product.sizes) || product.sizes.length === 0) return false;
+    return product.sizes.some((size: ProductSize) => 
+      size.discountedPrice !== null && 
+      size.discountedPrice !== undefined && 
+      size.discountedPrice < size.price
+    );
+  };
+
+  const getDiscountedPriceRange = (product: Product): string | null => {
+    if (!Array.isArray(product.sizes) || product.sizes.length === 0) {
+      return null;
+    }
+    
+    const discountedSizes = product.sizes.filter((size: ProductSize) => 
+      size.discountedPrice !== null && 
+      size.discountedPrice !== undefined && 
+      size.discountedPrice < size.price
+    );
+    
+    if (discountedSizes.length === 0) return null;
+    
+    const discountedPrices = discountedSizes.map((size: ProductSize) => size.discountedPrice as number);
+    const minDiscounted = Math.min(...discountedPrices);
+    const maxDiscounted = Math.max(...discountedPrices);
+    
+    if (minDiscounted === maxDiscounted) {
+      return `₹ ${minDiscounted}`;
+    }
+    
+    return `₹ ${minDiscounted} - ₹ ${maxDiscounted}`;
+  };
+
+  const getOriginalPriceRange = (product: Product): string => {
+    if (!Array.isArray(product.sizes) || product.sizes.length === 0) {
+      return `₹ ${product.basePrice || 0}`;
+    }
+    
+    const originalPrices = product.sizes.map((size: ProductSize) => size.price);
+    const minOriginal = Math.min(...originalPrices);
+    const maxOriginal = Math.max(...originalPrices);
+    
+    if (minOriginal === maxOriginal) {
+      return `₹ ${minOriginal}`;
+    }
+    
+    return `₹ ${minOriginal} - ₹ ${maxOriginal}`;
   };
 
   const headerAction = (
@@ -156,7 +282,7 @@ export default function AdminProductsPage() {
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Avg Price</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Avg Base Price</p>
                   <p className="text-xl sm:text-2xl font-bold">₹ {getAveragePrice()}</p>
                 </div>
                 <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
@@ -187,7 +313,7 @@ export default function AdminProductsPage() {
                   type="text"
                   placeholder="Search products by name or description..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -214,7 +340,7 @@ export default function AdminProductsPage() {
           <>
             {/* Products Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-              {filteredProducts.map((product) => (
+              {filteredProducts.map((product: Product) => (
                 <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                   <div className="aspect-square relative overflow-hidden bg-muted">
                     <img
@@ -226,7 +352,7 @@ export default function AdminProductsPage() {
                       alt={product.name}
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     />
-                    {(product.stockQty || 0) === 0 && (
+                    {(product.totalStockQty || 0) === 0 && (
                       <div className="absolute top-2 right-2">
                         <span className="bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded">
                           Out of Stock
@@ -240,15 +366,30 @@ export default function AdminProductsPage() {
                       {product.description || 'No description available'}
                     </p>
                     <p className="text-xs sm:text-sm text-muted-foreground mb-2 min-h-[40px]">
-                      {Array.isArray(product.sizes) && product.sizes.length > 0
-                        ? product.sizes.join(', ')
-                        : 'No sizes available'}
+                      {getAvailableSizes(product)}
                     </p>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-lg sm:text-xl font-bold text-primary">₹ {product.price || 0}</span>
-                      <span className={`text-xs sm:text-sm ${(product.stockQty || 0) === 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                        Stock: {product.stockQty || 0}
-                      </span>
+                    <div className="flex flex-col gap-1 mb-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          {hasDiscountedPrices(product) ? (
+                            <>
+                              <span className="text-lg sm:text-xl font-bold text-primary">
+                                {getDiscountedPriceRange(product)}
+                              </span>
+                              <span className="text-sm text-gray-500 line-through">
+                                {getOriginalPriceRange(product)}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-lg sm:text-xl font-bold text-primary">
+                              {formatPriceRange(product)}
+                            </span>
+                          )}
+                        </div>
+                        <span className={(product.totalStockQty || 0) === 0 ? 'text-destructive text-xs sm:text-sm' : 'text-muted-foreground text-xs sm:text-sm'}>
+                          Stock: {product.totalStockQty || 0}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex flex-col gap-2">
                       {/* Edit + Delete row */}
@@ -315,7 +456,7 @@ export default function AdminProductsPage() {
         )}
 
         {/* Delete Confirmation Dialog */}
-        <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -326,7 +467,7 @@ export default function AdminProductsPage() {
             <AlertDialogFooter>
               <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
               <AlertDialogAction 
-                onClick={() => handleDelete(deleteId)}
+                onClick={() => deleteId !== null && handleDelete(deleteId)}
                 disabled={isDeleting}
               >
                 {isDeleting ? (

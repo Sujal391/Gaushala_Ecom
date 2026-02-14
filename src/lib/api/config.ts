@@ -14,6 +14,7 @@ export const API_ENDPOINTS = {
     PARTIAL_USERS: '/api/auth/incomplete-users',
     LOGIN: '/api/auth/login',
     ME: '/api/auth/me',
+    MY_REFERRAL: '/api/auth/my-referrals',
     REFERRAL_SUMMARY: '/api/auth/referrals/summary',
   },
   DASHBOARD: '/api/dashboard',
@@ -28,6 +29,7 @@ export const API_ENDPOINTS = {
     CREATE: '/api/products',
     UPDATE: (id: string | number) => `/api/products/${id}`,
     DELETE: (id: string | number) => `/api/products/${id}`,
+    UPLOAD_IMAGE: (id: string | number) => `/api/products/${id}/images`,
   },
   CART: {
     ADD: '/api/cart/add',
@@ -36,8 +38,9 @@ export const API_ENDPOINTS = {
     CLEAR: (userId: number) => `/api/cart/clear/${userId}`,
   },
   ORDERS: {
-    CHECKOUT: '/api/orders/checkout',
-    MY_ORDERS: (userId: number) => `/api/orders/my/${userId}`,
+    CREATE_TEMP: '/api/orders/create-temp',
+    CONFIRM_PAYMENT: '/api/orders/confirm-payment',
+    MY_ORDERS: (userId: number) => `/api/orders/my`,
     ALL_ORDERS: '/api/orders/all',
     UPDATE_STATUS: (orderId: number) => `/api/orders/status/${orderId}`,
     CANCEL_MY_ORDER: (orderId: number, userId: number) =>
@@ -45,10 +48,11 @@ export const API_ENDPOINTS = {
     PENDING_ORDERS: '/api/orders/pending',
   },
   PAYMENT: {
-    INITIATE: (orderId: number) =>
-      `/api/payment/initiate?orderId=${orderId}`,
-    SUCCESS: '/api/payment/success',
-    FAILURE: '/api/payment/failure',
+    INITIATE: (orderId: number) => `/api/payment/create-order/${orderId}`,
+    VERIFY: '/api/payment/verify',
+    STATUS: (orderId: number) => `/api/payment/status/${orderId}`,
+    WEBHOOK: '/api/payment/webhook',
+    CONFIG: '/api/payment/config',
   },
   OFFER: {
     LIST: '/api/offers/active',
@@ -58,6 +62,12 @@ export const API_ENDPOINTS = {
   FEEDBACK: {
     SUBMIT: '/api/feedback/submit',
     GET: '/api/feedback/product/{productId}',
+  },
+  BANNER: {
+    GET: '/api/banners',
+    CREATE: '/api/banners',
+    UPDATE: (id: number) => `/api/banners/${id}`,
+    DELETE: (id: number) => `/api/banners/${id}`,
   },
   SAMPLE_REQUESTS: {
   REQUEST_SAMPLE: '/api/sample-requests',

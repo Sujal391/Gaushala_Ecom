@@ -317,7 +317,7 @@ export default function SignUp({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md backdrop-blur-sm">
         <DialogHeader>
           <DialogTitle className="text-2xl">
             {authMode === 'login' ? 'Welcome back' : 'Create an account'}

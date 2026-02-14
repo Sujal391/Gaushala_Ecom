@@ -55,6 +55,7 @@ interface OrderItem {
   description?: string;
   quantity: number;
   productPrice: number;
+  discountedPrice: number;
   totalPrice: number;
   size?: string;
   images?: string[];
@@ -81,6 +82,8 @@ interface Order {
   orderId: number;
   userId?: number;
   totalAmount: number;
+  productLevelDiscount: number;
+  offerDiscount: number;
   discountAmount: number;
   finalAmount: number;
   isReferralDiscountApplied: boolean;
@@ -156,6 +159,8 @@ export default function AdminOrdersPage() {
         orderId: order.orderId || order.id,
         userId: order.userId || order.customer?.userId,
         totalAmount: order.totalAmount || 0,
+        productLevelDiscount: order.productLevelDiscount || 0,
+        offerDiscount: order.offerDiscount || 0,
         discountAmount: order.discountAmount || 0,
         finalAmount: order.finalAmount || 0,
         isReferralDiscountApplied: order.isReferralDiscountApplied || false,
@@ -652,6 +657,14 @@ export default function AdminOrdersPage() {
                             <div className="space-y-1">
                               <h4 className="font-semibold text-sm">Customer Details</h4>
                               <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                                {order.customer.userId && (
+                                  <>
+                                    <div className="flex items-center gap-1">
+                                      <span>Customer ID: {order.customer.userId}</span>
+                                    </div>
+                                    <span className="text-muted-foreground">•</span>
+                                  </>
+                                )}
                                 <div className="flex items-center gap-1">
                                   <User className="h-3 w-3" />
                                   <span className="font-medium">{order.customer.name}</span>
@@ -666,15 +679,6 @@ export default function AdminOrdersPage() {
                                   <Phone className="h-3 w-3" />
                                   <span>{order.customer.mobileNo}</span>
                                 </div>
-                                {order.customer.userId && (
-                                  <>
-                                    <span className="text-muted-foreground">•</span>
-                                    <div className="flex items-center gap-1">
-                                      <Hash className="h-3 w-3" />
-                                      <span>ID: {order.customer.userId}</span>
-                                    </div>
-                                  </>
-                                )}
                               </div>
                             </div>
                             
@@ -794,10 +798,25 @@ export default function AdminOrdersPage() {
                                               </>
                                             )}
                                           </div>
-                                          <p className="text-xs text-muted-foreground mt-1">
-                                            ₹{item.productPrice.toFixed(2)} ×{" "}
-                                            {item.quantity}
-                                          </p>
+                                          <div className="flex items-center gap-2 mt-1">
+    {item.discountedPrice && item.discountedPrice < item.productPrice ? (
+      <>
+        <span className="text-xs text-muted-foreground line-through">
+          ₹{item.productPrice.toFixed(2)}
+        </span>
+        <span className="text-xs font-semibold text-primary">
+          ₹{item.discountedPrice.toFixed(2)}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          × {item.quantity}
+        </span>
+      </>
+    ) : (
+      <p className="text-xs text-muted-foreground">
+        ₹{item.productPrice.toFixed(2)} × {item.quantity}
+      </p>
+    )}
+  </div>
                                         </div>
                                       </div>
                                       <p className="font-semibold text-sm flex-shrink-0">
@@ -817,7 +836,7 @@ export default function AdminOrdersPage() {
                                 <div className="flex items-center gap-2 p-2 bg-yellow-50 rounded">
                                   <TagIcon className="h-3 w-3 text-yellow-600" />
                                   <span className="text-xs text-yellow-700">
-                                    Applied {order.discountSource || 'Offer'}: {order.offerCode}
+                                    Offer Applied : {order.offerCode}
                                   </span>
                                 </div>
                               )}
@@ -835,7 +854,18 @@ export default function AdminOrdersPage() {
                                 {order.discountAmount > 0 && (
                                   <div className="flex justify-between text-sm">
                                     <span className="text-muted-foreground">
-                                      Discount
+                                      Product Discount
+                                    </span>
+                                    <span className="font-medium text-green-600">
+                                      -₹{order.productLevelDiscount.toFixed(2)}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {order.discountAmount > 0 && (
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                      Offer Discount
                                     </span>
                                     <span className="font-medium text-green-600">
                                       -₹{order.discountAmount.toFixed(2)}
