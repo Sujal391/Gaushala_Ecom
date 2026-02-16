@@ -37,7 +37,7 @@ import { toast } from "sonner";
 import AdminGuard from "../../../components/guards/AdminGuard";
 import AdminLayout from "../../../components/layout/AdminLayout";
 import { getPendingOrders } from "../../../lib/api/auth";
-import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, subDays } from "date-fns";
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, differenceInDays, max, min } from "date-fns";
 
 /* ===================== TYPES ===================== */
 
@@ -71,6 +71,11 @@ interface DateRange {
   to: Date | undefined;
 }
 
+/* ===================== CONSTANTS ===================== */
+
+const MAX_DAYS_RANGE = 30;
+const DEFAULT_DAYS = 7;
+
 /* ===================== PAGE ===================== */
 
 export default function AdminPendingOrdersPage() {
@@ -93,10 +98,11 @@ export default function AdminPendingOrdersPage() {
   });
   
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [dateError, setDateError] = useState<string | null>(null);
 
   // Load last 7 days data by default on initial load
   useEffect(() => {
-    const sevenDaysAgo = subDays(new Date(), 7);
+    const sevenDaysAgo = subDays(new Date(), DEFAULT_DAYS);
     const today = new Date();
     
     setAppliedDateRange({
@@ -113,6 +119,12 @@ export default function AdminPendingOrdersPage() {
   // Fetch data when appliedDateRange changes
   useEffect(() => {
     if (appliedDateRange.from && appliedDateRange.to) {
+      // Check if the date range exceeds max days before fetching
+      const daysDifference = differenceInDays(appliedDateRange.to, appliedDateRange.from);
+      if (daysDifference > MAX_DAYS_RANGE) {
+        toast.error(`Date range cannot exceed ${MAX_DAYS_RANGE} days`);
+        return;
+      }
       fetchPendingOrders();
     }
   }, [appliedDateRange]);
@@ -131,6 +143,8 @@ export default function AdminPendingOrdersPage() {
     }
 
     setIsLoading(true);
+    setDateError(null);
+    
     try {
       const params: any = {};
       
@@ -182,15 +196,46 @@ export default function AdminPendingOrdersPage() {
     );
   };
 
+  const validateDateRange = (from: Date, to: Date): boolean => {
+    const daysDifference = differenceInDays(to, from);
+    
+    if (daysDifference < 0) {
+      setDateError("End date cannot be before start date");
+      return false;
+    }
+    
+    if (daysDifference > MAX_DAYS_RANGE) {
+      setDateError(`Date range cannot exceed ${MAX_DAYS_RANGE} days`);
+      return false;
+    }
+    
+    setDateError(null);
+    return true;
+  };
+
   const handleTempDateRangeSelect = (range: DateRange | undefined) => {
     if (range?.from && range?.to) {
+      // Validate the date range
+      const isValid = validateDateRange(range.from, range.to);
+      if (isValid) {
+        setTempDateRange(range);
+      }
+    } else if (range?.from) {
+      // Just selecting start date
       setTempDateRange(range);
+      setDateError(null);
     }
   };
 
   const applyDateFilter = () => {
     if (!tempDateRange.from || !tempDateRange.to) {
       toast.error("Please select both start and end dates");
+      return;
+    }
+
+    // Validate again before applying
+    if (!validateDateRange(tempDateRange.from, tempDateRange.to)) {
+      toast.error(dateError || `Date range cannot exceed ${MAX_DAYS_RANGE} days`);
       return;
     }
     
@@ -200,27 +245,56 @@ export default function AdminPendingOrdersPage() {
 
   const applyQuickFilter = (days: number) => {
     const end = new Date();
-    const start = subDays(end, days);
+    let start;
+    
+    if (days === 0) {
+      // Today only
+      start = startOfDay(end);
+      end.setHours(23, 59, 59, 999);
+    } else {
+      start = subDays(end, days);
+    }
     
     setTempDateRange({ from: start, to: end });
     setAppliedDateRange({ from: start, to: end });
+    setDateError(null);
+  };
+
+  const applyCustomRange = (days: number) => {
+    const end = new Date();
+    const start = subDays(end, days);
+    
+    // Ensure it doesn't exceed max days
+    const adjustedStart = days > MAX_DAYS_RANGE ? subDays(end, MAX_DAYS_RANGE) : start;
+    
+    setTempDateRange({ from: adjustedStart, to: end });
+    setAppliedDateRange({ from: adjustedStart, to: end });
+    setDateError(null);
   };
 
   const clearDateFilter = () => {
-    const sevenDaysAgo = subDays(new Date(), 7);
+    const sevenDaysAgo = subDays(new Date(), DEFAULT_DAYS);
     const today = new Date();
     
     setTempDateRange({ from: sevenDaysAgo, to: today });
     setAppliedDateRange({ from: sevenDaysAgo, to: today });
+    setDateError(null);
   };
 
   const clearAllFilters = () => {
     setSearchQuery("");
-    const sevenDaysAgo = subDays(new Date(), 7);
+    const sevenDaysAgo = subDays(new Date(), DEFAULT_DAYS);
     const today = new Date();
     
     setTempDateRange({ from: sevenDaysAgo, to: today });
     setAppliedDateRange({ from: sevenDaysAgo, to: today });
+    setDateError(null);
+  };
+
+  const isDateRangeValid = (range: DateRange): boolean => {
+    if (!range.from || !range.to) return false;
+    const daysDiff = differenceInDays(range.to, range.from);
+    return daysDiff >= 0 && daysDiff <= MAX_DAYS_RANGE;
   };
 
   const formatCurrency = (amount: number) =>
@@ -265,7 +339,7 @@ export default function AdminPendingOrdersPage() {
 
   const hasActiveFilters = searchQuery || 
     (appliedDateRange.from && appliedDateRange.to && 
-     (format(appliedDateRange.from, "yyyy-MM-dd") !== format(subDays(new Date(), 7), "yyyy-MM-dd") || 
+     (format(appliedDateRange.from, "yyyy-MM-dd") !== format(subDays(new Date(), DEFAULT_DAYS), "yyyy-MM-dd") || 
       format(appliedDateRange.to, "yyyy-MM-dd") !== format(new Date(), "yyyy-MM-dd")));
 
   const headerAction = (
@@ -286,8 +360,9 @@ export default function AdminPendingOrdersPage() {
         variant="outline" 
         size="sm"
         className="gap-2"
+        disabled={!isDateRangeValid(appliedDateRange)}
       >
-        <Loader2 className="h-4 w-4" />
+        <Loader2 className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
         <span className="hidden sm:inline">Refresh</span>
       </Button>
     </div>
@@ -331,7 +406,7 @@ export default function AdminPendingOrdersPage() {
                         Pending Amount
                       </p>
                       <p className="text-xl sm:text-2xl font-bold">
-                        ₹ {getTotalPendingAmount().toFixed(2)}
+                        {formatCurrency(getTotalPendingAmount())}
                       </p>
                     </div>
                     <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
@@ -379,7 +454,7 @@ export default function AdminPendingOrdersPage() {
                   {/* Quick Date Filters */}
                   <div>
                     <p className="text-sm font-medium mb-2 text-muted-foreground">
-                      Quick Filters
+                      Quick Filters <span className="text-xs ml-2">(Max {MAX_DAYS_RANGE} days)</span>
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <Button
@@ -407,7 +482,18 @@ export default function AdminPendingOrdersPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyQuickFilter(30)}
+                        onClick={() => applyQuickFilter(15)}
+                        className={appliedDateRange.from && appliedDateRange.to && 
+                          format(appliedDateRange.from, "yyyy-MM-dd") === format(subDays(new Date(), 15), "yyyy-MM-dd") ? 
+                          "bg-primary/10 border-primary" : ""
+                        }
+                      >
+                        Last 15 days
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyCustomRange(30)}
                         className={appliedDateRange.from && appliedDateRange.to && 
                           format(appliedDateRange.from, "yyyy-MM-dd") === format(subDays(new Date(), 30), "yyyy-MM-dd") ? 
                           "bg-primary/10 border-primary" : ""
@@ -421,8 +507,13 @@ export default function AdminPendingOrdersPage() {
                         onClick={() => {
                           const start = startOfMonth(new Date());
                           const end = endOfMonth(new Date());
-                          setTempDateRange({ from: start, to: end });
-                          setAppliedDateRange({ from: start, to: end });
+                          // Check if this month exceeds max days (unlikely but just in case)
+                          if (differenceInDays(end, start) <= MAX_DAYS_RANGE) {
+                            setTempDateRange({ from: start, to: end });
+                            setAppliedDateRange({ from: start, to: end });
+                          } else {
+                            toast.error(`Date range cannot exceed ${MAX_DAYS_RANGE} days`);
+                          }
                         }}
                       >
                         This Month
@@ -460,7 +551,10 @@ export default function AdminPendingOrdersPage() {
                         onOpenChange={setIsDatePickerOpen}
                       >
                         <PopoverTrigger asChild>
-                          <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                          <Button 
+                            variant="outline" 
+                            className={`gap-2 w-full sm:w-auto ${dateError ? 'border-red-500' : ''}`}
+                          >
                             <Calendar className="h-4 w-4" />
                             <span>{formatDateRangeDisplay(tempDateRange)}</span>
                           </Button>
@@ -468,11 +562,21 @@ export default function AdminPendingOrdersPage() {
                         <PopoverContent className="w-auto p-0" align="end">
                           <div className="p-3 border-b">
                             <div className="flex justify-between items-center">
-                              <p className="text-sm font-medium">Select Date Range</p>
+                              <div>
+                                <p className="text-sm font-medium">Select Date Range</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Max {MAX_DAYS_RANGE} days
+                                </p>
+                                {dateError && (
+                                  <p className="text-xs text-red-500 mt-1">
+                                    {dateError}
+                                  </p>
+                                )}
+                              </div>
                               <Button
                                 size="sm"
                                 onClick={applyDateFilter}
-                                disabled={!tempDateRange.from || !tempDateRange.to}
+                                disabled={!tempDateRange.from || !tempDateRange.to || !!dateError}
                               >
                                 <Filter className="h-4 w-4 mr-2" />
                                 Apply
@@ -483,9 +587,25 @@ export default function AdminPendingOrdersPage() {
                             mode="range"
                             selected={tempDateRange}
                             onSelect={handleTempDateRangeSelect}
-                            numberOfMonths={2}
+                            numberOfMonths={1} // Changed from 2 to 1
                             initialFocus
+                            disabled={(date) => {
+                              // Disable future dates
+                              if (date > new Date()) return true;
+                              
+                              // If both dates are selected, disable dates that would exceed max range
+                              if (tempDateRange.from && !tempDateRange.to) {
+                                const maxDate = new Date(tempDateRange.from);
+                                maxDate.setDate(maxDate.getDate() + MAX_DAYS_RANGE);
+                                return date > maxDate || date < tempDateRange.from;
+                              }
+                              
+                              return false;
+                            }}
                           />
+                          <div className="p-2 border-t text-center text-xs text-muted-foreground">
+                            Select start and end date (max {MAX_DAYS_RANGE} days)
+                          </div>
                         </PopoverContent>
                       </Popover>
 
@@ -499,6 +619,14 @@ export default function AdminPendingOrdersPage() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Date Range Warning */}
+                  {appliedDateRange.from && appliedDateRange.to && 
+                   differenceInDays(appliedDateRange.to, appliedDateRange.from) > MAX_DAYS_RANGE && (
+                    <div className="text-sm text-red-500 bg-red-50 p-2 rounded">
+                      ⚠️ Selected date range exceeds {MAX_DAYS_RANGE} days. Please select a shorter range.
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -556,7 +684,7 @@ export default function AdminPendingOrdersPage() {
                                 {order.items.reduce((sum, i) => sum + i.quantity, 0)}
                               </TableCell>
                               <TableCell className="font-semibold text-xs sm:text-sm">
-                                ₹ {order.finalAmount.toFixed(2)}
+                                {formatCurrency(order.finalAmount)}
                                 <div className="text-xs text-muted-foreground sm:hidden">
                                   Items: {order.items.reduce((sum, i) => sum + i.quantity, 0)}
                                 </div>
@@ -583,6 +711,9 @@ export default function AdminPendingOrdersPage() {
                   {appliedDateRange.from && appliedDateRange.to && (
                     <span className="block sm:inline sm:ml-2">
                       from {format(appliedDateRange.from, "MMM dd, yyyy")} to {format(appliedDateRange.to, "MMM dd, yyyy")}
+                      {differenceInDays(appliedDateRange.to, appliedDateRange.from) > MAX_DAYS_RANGE && (
+                        <span className="text-red-500 ml-2">(Exceeds {MAX_DAYS_RANGE} days limit)</span>
+                      )}
                     </span>
                   )}
                 </div>

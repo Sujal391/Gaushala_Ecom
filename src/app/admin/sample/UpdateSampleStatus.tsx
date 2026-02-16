@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, Package, User, MapPin, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,12 +54,12 @@ export default function UpdateSampleStatusModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Reset form when request changes
-  useState(() => {
+  useEffect(() => {
     if (request) {
       setStatus(request.status);
       setAdminRemark(request.adminRemark || "");
     }
-  });
+  }, [request]);
 
   const handleSubmit = async () => {
     if (!request) {
@@ -156,123 +156,124 @@ export default function UpdateSampleStatusModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 gap-0">
+        {/* Header - Always at top */}
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle className="text-xl">Update Sample Request Status</DialogTitle>
           <DialogDescription>
             Review and update the status of this sample request
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 mt-2">
-          {/* Request Details Card */}
-          <div className="border rounded-lg overflow-hidden">
-            <div className="bg-muted/50 px-4 py-3 border-b">
-              <h3 className="text-sm font-semibold text-muted-foreground">Request Details</h3>
-            </div>
-            
-            <div className="p-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Customer Name</p>
-                  <p className="text-sm font-medium">{request.customerName}</p>
+        {/* Scrollable Content - Takes available space */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="space-y-6">
+            {/* Request Details Card */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted/50 px-4 py-3 border-b">
+                <h3 className="text-sm font-semibold text-muted-foreground">Request Details</h3>
+              </div>
+              
+              <div className="p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <User className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Customer Name</p>
+                    <p className="text-sm font-medium">sujal1</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-3">
-                <Package className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Product</p>
-                  <p className="text-sm font-medium">{request.productName}</p>
+                <div className="flex items-start gap-3">
+                  <Package className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Product</p>
+                    <p className="text-sm font-medium">pant</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-3">
-                <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Location</p>
-                  <p className="text-sm font-medium">{request.city}</p>
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Location</p>
+                    <p className="text-sm font-medium">Ahmedabad</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-3">
-                <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Requested On</p>
-                  <p className="text-sm font-medium">{formatDate(request.createdAt)}</p>
+                <div className="flex items-start gap-3">
+                  <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Requested On</p>
+                    <p className="text-sm font-medium">Invalid Date</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="pt-2 border-t">
-                <p className="text-xs text-muted-foreground mb-2">Current Status</p>
-                <Badge 
-                  className={`${getStatusColor(request.status)} text-white capitalize`}
-                  variant="secondary"
-                >
-                  {request.status}
-                </Badge>
-              </div>
+                <div className="pt-2 border-t">
+                  <p className="text-xs text-muted-foreground mb-2">Current Status</p>
+                  <Badge 
+                    className="bg-green-500 text-white capitalize"
+                    variant="secondary"
+                  >
+                    Approved
+                  </Badge>
+                </div>
 
-              {request.adminRemark && (
                 <div className="pt-2 border-t">
                   <p className="text-xs text-muted-foreground mb-1">Previous Admin Remark</p>
-                  <p className="text-sm bg-muted/30 p-2 rounded border italic">
-                    "{request.adminRemark}"
+                  <p className="text-sm bg-muted/30 p-2 rounded border italic break-words">
+                    "trial chal rha hai"
                   </p>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Update Form */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="status" className="text-sm font-semibold">
-                New Status <span className="text-red-500">*</span>
-              </Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger id="status" className="w-full">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <div className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full ${option.color}`} />
-                        {option.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="adminRemark" className="text-sm font-semibold">
-                Admin Remark
-              </Label>
-              <Textarea
-                id="adminRemark"
-                value={adminRemark}
-                onChange={(e) => setAdminRemark(e.target.value)}
-                placeholder="Add notes, comments, or reasons for this status update..."
-                className="min-h-[120px] resize-none"
-                maxLength={500}
-              />
-              <div className="flex justify-between items-center">
-                <p className="text-xs text-muted-foreground">
-                  Optional field for internal tracking
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {adminRemark.length}/500
-                </p>
+            {/* Update Form */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="status" className="text-sm font-semibold">
+                  New Status <span className="text-red-500">*</span>
+                </Label>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger id="status" className="w-full">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <div className="flex items-center gap-2">
+                          <div className={`h-2 w-2 rounded-full ${option.color}`} />
+                          {option.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="adminRemark" className="text-sm font-semibold">
+                  Admin Remark
+                </Label>
+                <Textarea
+                  id="adminRemark"
+                  value={adminRemark}
+                  onChange={(e) => setAdminRemark(e.target.value)}
+                  placeholder="Add notes, comments, or reasons for this status update..."
+                  className="min-h-[100px] resize-none"
+                  maxLength={500}
+                />
+                <div className="flex justify-between items-center">
+                  <p className="text-xs text-muted-foreground">
+                    {adminRemark.length}/500
+                  </p>
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-2">
+        {/* Footer with Buttons - Always at bottom */}
+        <div className="px-6 py-4 border-t shrink-0">
+          <div className="flex gap-3">
             <Button
               type="button"
               variant="outline"
