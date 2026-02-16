@@ -417,7 +417,7 @@ export default function SignUp({
                       type="text"
                       value={registerForm.name}
                       onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
-                      placeholder="John Doe"
+                      placeholder="Full Name"
                       required
                       disabled={loading}
                     />
@@ -432,7 +432,7 @@ export default function SignUp({
                       type="email"
                       value={registerForm.email}
                       onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-                      placeholder="john@example.com"
+                      placeholder="email@example.com"
                       required
                       disabled={loading}
                     />
