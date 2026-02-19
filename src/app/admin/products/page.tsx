@@ -13,6 +13,7 @@ import {
   PackageOpen,
   TrendingUp,
   MessageSquare,
+  ImageIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,11 @@ import AdminGuard from '../../../components/guards/AdminGuard';
 import AdminLayout from '../../../components/layout/AdminLayout';
 
 // TypeScript Interfaces
+interface ProductImage {
+  id: number;
+  imageUrl: string;
+}
+
 interface ProductSize {
   id: number;
   size: string;
@@ -50,7 +56,7 @@ interface Product {
   basePrice: number;
   totalStockQty: number;
   sizes: ProductSize[];
-  images: string[];
+  images: ProductImage[];
 }
 
 interface ApiResponse<T> {
@@ -60,6 +66,9 @@ interface ApiResponse<T> {
 }
 
 type ProductsResponse = Product[] | ApiResponse<Product[]>;
+
+// API Base URL - should be imported from config
+const API_BASE_URL = 'https://gaushalaecommerce.runasp.net';
 
 export default function AdminProductsPage() {
   const router = useRouter();
@@ -119,6 +128,24 @@ export default function AdminProductsPage() {
       setDeleteId(null);
     }
   };
+
+  // Helper function to get product image URL
+  const getProductImageUrl = (product: Product): string => {
+  if (!product.images || product.images.length === 0) {
+    return 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400';
+  }
+  
+  const firstImage = product.images[0];
+  
+  // Check if the image is a ProductImage object (has imageUrl property)
+  if (firstImage && typeof firstImage === 'object' && 'imageUrl' in firstImage) {
+    return `${API_BASE_URL}${firstImage.imageUrl}`;
+  }
+  
+  // If it's a string (but according to types, it shouldn't be, so we need type assertion)
+  // Or you can handle both cases if your API might return strings
+  return 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400';
+};
 
   const filteredProducts = products.filter((product: Product) =>
     product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -342,16 +369,41 @@ export default function AdminProductsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {filteredProducts.map((product: Product) => (
                 <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="aspect-square relative overflow-hidden bg-muted">
+                  <div className="aspect-square relative overflow-hidden bg-muted group">
                     <img
-                      src={
-                        product.images?.[0]
-                          ? `https://gaushalaecommerce.runasp.net${product.images[0]}`
-                          : 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400'
-                      }
+                      src={getProductImageUrl(product)}
                       alt={product.name}
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400';
+                      }}
                     />
+                    
+                    {/* Image count badge */}
+                    {product.images && product.images.length > 1 && (
+                      <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                        <ImageIcon className="h-3 w-3" />
+                        {product.images.length}
+                      </div>
+                    )}
+                    
+                    {/* Image navigation dots for multiple images (optional enhancement) */}
+                    {product.images && product.images.length > 1 && (
+                      <div className="absolute bottom-2 left-2 flex gap-1">
+                        {product.images.slice(0, 3).map((_, index) => (
+                          <div
+                            key={index}
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              index === 0 ? 'bg-white' : 'bg-white/50'
+                            }`}
+                          />
+                        ))}
+                        {product.images.length > 3 && (
+                          <span className="text-xs text-white/70">+{product.images.length - 3}</span>
+                        )}
+                      </div>
+                    )}
+                    
                     {(product.totalStockQty || 0) === 0 && (
                       <div className="absolute top-2 right-2">
                         <span className="bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded">
@@ -362,9 +414,12 @@ export default function AdminProductsPage() {
                   </div>
                   <CardContent className="p-4">
                     <h3 className="font-semibold text-base sm:text-lg mb-1 truncate">{product.name}</h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2 min-h-[40px]">
-                      {product.description || 'No description available'}
-                    </p>
+                    {/* Scrollable Description Container with preserved formatting */}
+                    <div className="mb-2">
+                      <div className="max-h-[80px] overflow-y-auto pr-1 text-xs sm:text-sm text-muted-foreground scrollbar-thin scrollbar-thumb-gray-300 hover:scrollbar-thumb-gray-400 whitespace-pre-wrap break-words">
+                        {product.description || 'No description available'}
+                      </div>
+                    </div>
                     <p className="text-xs sm:text-sm text-muted-foreground mb-2 min-h-[40px]">
                       {getAvailableSizes(product)}
                     </p>

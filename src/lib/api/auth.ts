@@ -42,6 +42,8 @@ import type {
   UpdateSampleRequestStatusPayload,
   UpdateSampleRequestStatusResponse,
   Banner,
+  DeleteProductImagesPayload,
+  DeleteProductImagesResponse,
 } from '../../types/index';
 
 // ==================== HELPER FUNCTIONS ====================
@@ -549,6 +551,39 @@ export async function updateProduct(
   }
 }
 
+export async function deleteProductImages(
+  productId: string | number,
+  imageIndexes: DeleteProductImagesPayload
+): Promise<ApiResponse<DeleteProductImagesResponse>> {
+  try {
+    const endpoint = API_ENDPOINTS.PRODUCTS.DELETE_IMAGES(
+      productId.toString()
+    );
+    const url = `${API_BASE_URL}${endpoint}`;
+
+    console.log("=== DELETE PRODUCT IMAGES API CALL ===");
+    console.log("URL:", url);
+    console.log("Product ID:", productId);
+    console.log("Image Indexes:", imageIndexes);
+
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: getHeaders(true), // includes Content-Type + auth
+      body: JSON.stringify(imageIndexes),
+    });
+
+    return handleResponse<DeleteProductImagesResponse>(response);
+
+  } catch (error) {
+    console.error("Delete product images error:", error);
+    return {
+      success: false,
+      message: "Failed to delete product images",
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
 export async function deleteProduct(id: string | number): Promise<ApiResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.PRODUCTS.DELETE(id)}`, {
@@ -566,6 +601,32 @@ export async function deleteProduct(id: string | number): Promise<ApiResponse> {
     };
   }
 }
+
+export const getNewProducts = async (): Promise<Product[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.PRODUCTS.NEW_PRODUCTS}`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+
+    const data = await handleResponse<Product[]>(response);
+    console.log('New products data:', data);
+    
+    // The API might return the array directly or wrapped in a response object
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data && Array.isArray(data.data)) {
+      return data.data;
+    } else if (data && Array.isArray(data)) {
+      return data;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Error fetching new products:', error);
+    throw error;
+  }
+};
 
 // ==================== CART APIs ====================
 
@@ -1490,6 +1551,8 @@ export default {
   updateProduct,
   deleteProduct,
   uploadProductImages,
+  deleteProductImages,
+  getNewProducts,
   
   // Cart
   addToCart,

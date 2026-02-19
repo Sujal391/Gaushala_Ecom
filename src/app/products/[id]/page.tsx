@@ -13,6 +13,7 @@ import { isAuthenticated, getUserId } from '../../../lib/api/config';
 import { useCart } from '../../../context/CartContext';
 import type { Product, ProductSize, AddToCartPayload } from '../../../types/index';
 import UserGuard from '../../../components/guards/UserGuard'
+import { API_BASE_URL } from '../../../lib/api/config';
 
 // Guest cart constants
 const GUEST_CART_KEY = 'guest_cart';
@@ -202,93 +203,120 @@ export default function ProductDetailPage() {
     }
   };
 
-  // Guest cart functions
+  // Guest cart functions - FIXED VERSION
   const getGuestCart = (): GuestCartItem[] => {
     try {
+      if (typeof window === 'undefined') return [];
+      
       const cart = localStorage.getItem(GUEST_CART_KEY);
       if (!cart) return [];
       
       const parsedCart = JSON.parse(cart);
       
-      if (Array.isArray(parsedCart)) {
-        if (parsedCart.length > 0 && 'id' in parsedCart[0]) {
-          const migratedCart = parsedCart.map((item: any) => ({
-            productId: item.productId,
-            productName: item.productName,
-            description: item.description || '',
-            price: item.price,
-            quantity: item.quantity,
-            images: Array.isArray(item.images) ? item.images : (item.image ? [item.image] : []),
-            selectedSize: item.selectedSize || 'Default',
-            addedAt: typeof item.addedAt === 'string' ? Date.now() : (item.addedAt || Date.now())
-          }));
-          
-          localStorage.setItem(GUEST_CART_KEY, JSON.stringify(migratedCart));
-          return migratedCart;
-        }
-        
-        if (parsedCart.length > 0 && 'image' in parsedCart[0]) {
-          const migratedCart = parsedCart.map((item: any) => ({
-            productId: item.productId,
-            productName: item.productName,
-            description: item.description || '',
-            price: item.price,
-            quantity: item.quantity,
-            images: item.image ? [item.image] : [],
-            selectedSize: item.selectedSize || 'Default',
-            addedAt: item.addedAt || Date.now()
-          }));
-          
-          localStorage.setItem(GUEST_CART_KEY, JSON.stringify(migratedCart));
-          return migratedCart;
-        }
-        
-        return parsedCart;
+      // If it's not an array, return empty array
+      if (!Array.isArray(parsedCart)) {
+        console.warn('Guest cart is not an array, resetting');
+        localStorage.removeItem(GUEST_CART_KEY);
+        return [];
       }
       
-      return [];
+      // Normalize cart items to match GuestCartItem interface
+      const normalizedCart = parsedCart.map((item: any) => {
+        // Ensure item is an object
+        if (!item || typeof item !== 'object') {
+          return null;
+        }
+        
+        return {
+          productId: item.productId || 0,
+          productName: item.productName || 'Unknown Product',
+          description: item.description || '',
+          price: item.price || 0,
+          quantity: item.quantity || 1,
+          images: Array.isArray(item.images) ? item.images : 
+                  (item.image ? [item.image] : []),
+          selectedSize: item.selectedSize || 'Default',
+          addedAt: item.addedAt || Date.now()
+        };
+      }).filter((item): item is GuestCartItem => item !== null && item.productId > 0); // Remove invalid items
+      
+      // Only save back if we changed something
+      if (normalizedCart.length !== parsedCart.length) {
+        localStorage.setItem(GUEST_CART_KEY, JSON.stringify(normalizedCart));
+      }
+      
+      return normalizedCart;
     } catch (error) {
       console.error('Error loading guest cart:', error);
+      // If there's an error parsing, clear the corrupt cart
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(GUEST_CART_KEY);
+      }
       return [];
     }
   };
 
   const saveGuestCart = (items: GuestCartItem[]) => {
     try {
-      localStorage.setItem(GUEST_CART_KEY, JSON.stringify(items));
+      if (typeof window === 'undefined') return;
+      
+      // Validate items before saving
+      const validItems = items.filter(item => 
+        item && 
+        typeof item === 'object' && 
+        item.productId > 0 &&
+        item.quantity > 0
+      );
+      
+      localStorage.setItem(GUEST_CART_KEY, JSON.stringify(validItems));
+      
+      // Dispatch a storage event for other tabs/windows
+      window.dispatchEvent(new Event('storage'));
     } catch (error) {
       console.error('Error saving guest cart:', error);
     }
   };
 
   const addToGuestCart = (product: ProductWithSizes, size: ProductSize | null, qty: number) => {
-    const guestCart = getGuestCart();
-    
-    const selectedSizeName = size?.size || 'Default';
-    const price = size?.discountedPrice || size?.price || product.basePrice;
-    
-    const existingItem = guestCart.find(
-      item => item.productId === product.id && item.selectedSize === selectedSizeName
-    );
+    try {
+      const guestCart = getGuestCart();
+      
+      const selectedSizeName = size?.size || 'Default';
+      const price = size?.discountedPrice || size?.price || product.basePrice;
+      
+      // Create image URLs array
+      const imageUrls = product.images?.map(img => 
+        typeof img === 'string' ? img : (img.imageUrl || '')
+      ).filter(url => url) || [];
+      
+      const existingItemIndex = guestCart.findIndex(
+        item => item.productId === product.id && item.selectedSize === selectedSizeName
+      );
 
-    if (existingItem) {
-      existingItem.quantity += qty;
-      existingItem.addedAt = Date.now();
-    } else {
-      guestCart.push({
-        productId: product.id,
-        productName: product.name || 'Unnamed Product',
-        description: product.description || '',
-        price: price,
-        quantity: qty,
-        images: product.images || [],
-        selectedSize: selectedSizeName,
-        addedAt: Date.now()
-      });
+      if (existingItemIndex >= 0) {
+        // Update existing item
+        guestCart[existingItemIndex].quantity += qty;
+        guestCart[existingItemIndex].addedAt = Date.now();
+      } else {
+        // Add new item
+        guestCart.push({
+          productId: product.id,
+          productName: product.name || 'Unnamed Product',
+          description: product.description || '',
+          price: price,
+          quantity: qty,
+          images: imageUrls,
+          selectedSize: selectedSizeName,
+          addedAt: Date.now()
+        });
+      }
+
+      saveGuestCart(guestCart);
+      return guestCart;
+    } catch (error) {
+      console.error('Error adding to guest cart:', error);
+      return [];
     }
-
-    saveGuestCart(guestCart);
-    return guestCart;
   };
 
   const renderStars = (rating: number, size: 'sm' | 'lg' = 'sm') => {
@@ -492,6 +520,21 @@ export default function ProductDetailPage() {
     return product?.totalStockQty || 0;
   };
 
+  // Helper function to get image URL
+  const getImageUrl = (image: any): string => {
+    if (!image) return '/placeholder-product.jpg';
+    
+    if (typeof image === 'string') {
+      return image.startsWith('http') ? image : `${API_BASE_URL}${image}`;
+    }
+    
+    if (image.imageUrl) {
+      return image.imageUrl.startsWith('http') ? image.imageUrl : `${API_BASE_URL}${image.imageUrl}`;
+    }
+    
+    return '/placeholder-product.jpg';
+  };
+
   if (loading) {
     return (
       <UserLayout>
@@ -566,11 +609,7 @@ export default function ProductDetailPage() {
           <div className="space-y-4">
             <div className="relative w-full max-w-full sm:max-w-md mx-auto aspect-square overflow-hidden rounded-lg bg-muted border">
               <img
-                src={
-                  images[selectedImageIndex]
-                    ? `https://gaushalaecommerce.runasp.net${images[selectedImageIndex]}`
-                    : 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400'
-                }
+                src={getImageUrl(images[selectedImageIndex])}
                 alt={`${product.name} - Image ${selectedImageIndex + 1}`}
                 className="w-full h-full object-contain"
                 onError={(e) => {
@@ -619,11 +658,7 @@ export default function ProductDetailPage() {
                     onClick={() => handleImageClick(index)}
                   >
                     <img
-                      src={
-                        image
-                          ? `https://gaushalaecommerce.runasp.net${image}`
-                          : 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=100'
-                      }
+                      src={getImageUrl(image)}
                       alt={`Thumbnail ${index + 1}`}
                       className="w-full h-full object-cover"
                       onError={(e) => {
