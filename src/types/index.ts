@@ -122,7 +122,12 @@ export interface Product {
   basePrice: number;
   totalStockQty: number;
   sizes: ProductSize[];  // This should be ProductSize[], not string[]
-  images: string[];
+  images: ProductImage[] | string[];
+}
+
+export interface ProductImage {
+  id: number;
+  imageUrl: string;
 }
 
 export interface CreateProductPayload {
@@ -141,7 +146,7 @@ export interface UpdateProductPayload {
   price: number;
   description: string;
   stockQty: number;
-  images: string[];
+  images: ProductImage[] | string[];
 }
 
 export interface ProductSize {
@@ -151,6 +156,13 @@ export interface ProductSize {
   discountedPrice: number;
   stockQty: number;
   inStock: boolean;
+}
+
+export type DeleteProductImagesPayload = number[];
+
+export interface DeleteProductImagesResponse {
+  message?: string;
+  deletedIndexes?: number[];
 }
 
 // ==================== CART TYPES ====================

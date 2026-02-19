@@ -17,12 +17,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import AdminGuard from '../../../../../components/guards/AdminGuard';
 import AdminLayout from '../../../../../components/layout/AdminLayout';
+import { API_BASE_URL, getAuthToken } from '@/src/lib/api/config';
 
 // Import auth helpers from config
 import {
-  getAuthToken,
-  API_BASE_URL
-} from '../../../../../lib/api/config';
+  getProductById,  // Add this import
+  deleteProductImages,
+  uploadProductImages
+} from '../../../../../lib/api/auth';
 
 // Types
 interface ProductSize {
@@ -37,14 +39,10 @@ interface Product {
   name: string;
   description: string | null;
   sizes: ProductSize[] | null;
-  images: string[];
-}
-
-interface UpdateProductQueryParams {
-  Name: string;
-  Description?: string;
-  Sizes?: ProductSize[];
-  RemovalImageIds?: number[];
+  images: {
+    id: number;
+    imageUrl: string;
+  }[];
 }
 
 interface ExistingImage {
@@ -70,38 +68,7 @@ export default function EditProductPage() {
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
   const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [removalImageIds, setRemovalImageIds] = useState<number[]>([]);
-
-  // Function to fetch product by ID
-  const fetchProductById = async (id: string): Promise<Product | null> => {
-    const token = getAuthToken();
-    
-    if (!token) {
-      toast.error('Authentication token not found');
-      router.push('/login');
-      return null;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/products/${id}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      throw error;
-    }
-  };
+  const [imagesToDelete, setImagesToDelete] = useState<number[]>([]);
 
   // Fetch product data from API on component mount
   useEffect(() => {
@@ -110,11 +77,14 @@ export default function EditProductPage() {
         setLoading(true);
         console.log('Fetching product with ID:', params.id);
         
-        const product = await fetchProductById(params.id as string);
+        // Use getProductById from auth.ts
+        const response = await getProductById(params.id as string);
         
-        console.log('API Response:', product);
+        console.log('API Response:', response);
         
-        if (product) {
+        if (response.success && response.data) {
+          const product = response.data;
+          
           setFormData({
             name: product.name || '',
             description: product.description || '',
@@ -126,28 +96,53 @@ export default function EditProductPage() {
           }
           
           // Map existing images with IDs
-          const imagesWithIds: ExistingImage[] = Array.isArray(product.images) 
-            ? product.images.map((img: any, index: number) => ({
-                id: img.id || index,
-                url: typeof img === 'string' ? img : img.url
-              }))
-            : [];
+          const imagesWithIds: ExistingImage[] = [];
+          const previewUrls: string[] = [];
+          
+          if (product.images && Array.isArray(product.images)) {
+            console.log('Processing images:', product.images);
+            
+            product.images.forEach((img: any) => {
+              // Extract URL and ID from the object format
+              if (img && typeof img === 'object') {
+                const imageUrl = img.imageUrl || '';
+                const imageId = img.id || 0;
+                
+                console.log('Processing image:', { id: imageId, imageUrl });
+                
+                if (imageUrl) {
+                  imagesWithIds.push({
+                    id: imageId,
+                    url: imageUrl
+                  });
+                  
+                  // Build full image URL for preview
+                  let fullImageUrl = imageUrl;
+                  
+                  // Check if it's already a complete URL
+                  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+                    fullImageUrl = imageUrl;
+                  } else {
+                    // Remove leading slash if present and construct full URL
+                    const baseUrl = API_BASE_URL.replace(/\/$/, '');
+                    const imagePath = imageUrl.replace(/^\//, '');
+                    fullImageUrl = `${baseUrl}/${imagePath}`;
+                  }
+                  
+                  console.log('Full image URL:', fullImageUrl);
+                  previewUrls.push(fullImageUrl);
+                }
+              }
+            });
+          }
+          
+          console.log('Final imagesWithIds:', imagesWithIds);
+          console.log('Final previewUrls:', previewUrls);
           
           setExistingImages(imagesWithIds);
-          
-          // Build full image URLs for previews
-          setImagePreviews(
-            imagesWithIds.map(img => {
-              if (img.url.startsWith('http')) {
-                return img.url;
-              }
-              const baseUrl = API_BASE_URL.replace(/\/$/, '');
-              const imagePath = img.url.replace(/^\//, '');
-              return `${baseUrl}/${imagePath}`;
-            })
-          );
+          setImagePreviews(previewUrls);
         } else {
-          toast.error('Failed to load product details: Invalid response format');
+          toast.error(response.message || 'Failed to load product details');
           router.push('/admin/products');
         }
       } catch (error) {
@@ -236,9 +231,9 @@ export default function EditProductPage() {
     const totalExistingImages = existingImages.length;
     
     if (index < totalExistingImages) {
-      // Removing an existing image - track its ID for removal
+      // Removing an existing image - track its ID for deletion
       const removedImage = existingImages[index];
-      setRemovalImageIds(prev => [...prev, removedImage.id]);
+      setImagesToDelete(prev => [...prev, removedImage.id]);
       setExistingImages(prev => prev.filter((_, i) => i !== index));
     } else {
       // Removing a new image
@@ -287,6 +282,7 @@ export default function EditProductPage() {
     return true;
   };
 
+  // Main submit handler with proper API workflow
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -302,107 +298,72 @@ export default function EditProductPage() {
     setSubmitting(true);
 
     try {
-      // Create FormData object for request body
-      const formDataObj = new FormData();
-
-      // Add new image files to FormData
-      newImageFiles.forEach((file) => {
-        formDataObj.append('Images', file);
-      });
-
-      // Build query parameters according to API spec
-      const queryParams: UpdateProductQueryParams = {
-        Name: formData.name.trim(),
-      };
-
-      // Add optional description
-      if (formData.description.trim()) {
-        queryParams.Description = formData.description.trim();
-      }
-
-      // Add sizes array of objects
-      if (sizes.length > 0) {
-        queryParams.Sizes = sizes;
-      }
-
-      // Add removal image IDs if any
-      if (removalImageIds.length > 0) {
-        queryParams.RemovalImageIds = removalImageIds;
-      }
-
-      // Build the URL with query parameters
-      const baseUrl = `${API_BASE_URL}/api/products/${params.id}`;
-      const url = new URL(baseUrl);
-      
-      // Append query parameters
-      Object.entries(queryParams).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          // Handle array parameters
-          value.forEach(item => {
-            if (typeof item === 'object') {
-              // For Sizes array of objects - stringify each object
-              url.searchParams.append(key, JSON.stringify(item));
-            } else {
-              // For RemovalImageIds array of integers
-              url.searchParams.append(key, item.toString());
-            }
-          });
-        } else {
-          // Handle string parameters
-          url.searchParams.append(key, value);
-        }
-      });
-
-      console.log('Updating product with URL:', url.toString());
-      console.log('Query params:', queryParams);
-      console.log('New images:', newImageFiles.length);
-      console.log('Removal image IDs:', removalImageIds);
-
-      // Get auth token
       const token = getAuthToken();
-      
       if (!token) {
         toast.error('Authentication token not found. Please log in again.');
         router.push('/login');
         return;
       }
 
-      // Make the PUT API call
-      const response = await fetch(url.toString(), {
+      // STEP 1: Delete images if any are marked for deletion
+      if (imagesToDelete.length > 0) {
+        console.log('Deleting images with IDs:', imagesToDelete);
+        const deleteResult = await deleteProductImages(params.id as string, imagesToDelete);
+        
+        if (!deleteResult.success) {
+          throw new Error(`Failed to delete images: ${deleteResult.message}`);
+        }
+        console.log('Images deleted successfully');
+      }
+
+      // STEP 2: Upload new images if any
+      if (newImageFiles.length > 0) {
+        console.log('Uploading new images:', newImageFiles.length);
+        const uploadFormData = new FormData();
+        newImageFiles.forEach((file) => {
+          uploadFormData.append('images', file);
+        });
+
+        const uploadResult = await uploadProductImages(params.id as string, uploadFormData);
+        
+        if (!uploadResult.success) {
+          throw new Error(`Failed to upload images: ${uploadResult.message}`);
+        }
+        console.log('Images uploaded successfully');
+      }
+
+      // STEP 3: Update product details
+      console.log('Updating product details');
+      
+      // Prepare the update payload according to the API spec
+      const updatePayload = {
+        name: formData.name.trim(),
+        description: formData.description.trim() || undefined,
+        sizes: sizes
+      };
+
+      const updateResponse = await fetch(`${API_BASE_URL}/api/products/${params.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: formDataObj,
+        body: JSON.stringify(updatePayload),
       });
 
-      console.log('Update response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
+      if (!updateResponse.ok) {
+        const errorText = await updateResponse.text();
         console.error('Error response:', errorText);
         
-        if (response.status === 401) {
+        if (updateResponse.status === 401) {
           toast.error('Your session has expired. Please log in again.');
           router.push('/login');
           return;
         }
         
-        throw new Error(`Failed to update product. Status: ${response.status}`);
+        throw new Error(`Failed to update product details. Status: ${updateResponse.status}`);
       }
 
-      // Try to parse response
-      const contentType = response.headers.get('content-type');
-      let result;
-      
-      if (contentType && contentType.includes('application/json')) {
-        result = await response.json();
-      } else {
-        result = { success: true };
-      }
-
-      console.log('Update result:', result);
-      
       toast.success('Product updated successfully!');
       router.push('/admin/products');
       
@@ -469,11 +430,17 @@ export default function EditProductPage() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                         {imagePreviews.map((preview, index) => (
                           <div key={index} className="relative group">
-                            <img
-                              src={preview}
-                              alt={`Preview ${index + 1}`}
-                              className="w-full h-32 sm:h-48 object-contain rounded-lg border"
-                            />
+                            {preview && (
+                              <img
+                                src={preview}
+                                alt={`Preview ${index + 1}`}
+                                className="w-full h-32 sm:h-48 object-contain rounded-lg border"
+                                onError={(e) => {
+                                  // Fallback for broken images
+                                  (e.target as HTMLImageElement).src = '/placeholder-image.png';
+                                }}
+                              />
+                            )}
                             <Button
                               type="button"
                               variant="destructive"
@@ -508,7 +475,8 @@ export default function EditProductPage() {
                           variant="destructive"
                           className="flex-1"
                           onClick={() => {
-                            setRemovalImageIds(prev => [...prev, ...existingImages.map(img => img.id)]);
+                            // Mark all existing images for deletion
+                            setImagesToDelete(prev => [...prev, ...existingImages.map(img => img.id)]);
                             setImagePreviews([]);
                             setNewImageFiles([]);
                             setExistingImages([]);
