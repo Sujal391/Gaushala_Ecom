@@ -16,6 +16,8 @@ import {
   Loader2,
   TagIcon,
   Clock,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,44 +44,102 @@ interface DashboardStats {
   recentOrders: RecentOrder[];
 }
 
+// Default empty state
+const defaultDashboardData: DashboardStats = {
+  totalRevenue: 0,
+  totalProducts: 0,
+  totalOrders: 0,
+  totalCustomers: 0,
+  recentOrders: [],
+};
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<DashboardStats>({
-    totalRevenue: 0,
-    totalProducts: 0,
-    totalOrders: 0,
-    totalCustomers: 0,
-    recentOrders: [],
-  });
+  const [error, setError] = useState<string | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardStats>(defaultDashboardData);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
   }, []);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (showToast = false) => {
     try {
       setLoading(true);
+      setError(null);
+      
       const response = await getDashboardStats();
       console.log('Dashboard data response:', response);
 
+      // Handle 204 No Content
+      if (!response) {
+        setDashboardData(defaultDashboardData);
+        if (showToast) {
+          toast.info('No dashboard data available');
+        }
+        return;
+      }
+
       // Handle different response formats
-      if (response && response.success && response.data) {
+      if (response && response.success === false) {
+        // API returned error
+        setError(response.message || 'Failed to load dashboard data');
+        setDashboardData(defaultDashboardData);
+        if (showToast) {
+          toast.error(response.message || 'Failed to load dashboard data');
+        }
+      } else if (response && response.success && response.data) {
+        // Standard API response format
         setDashboardData(response.data);
+        if (showToast) {
+          toast.success('Dashboard data refreshed');
+        }
       } else if (response && 'totalRevenue' in response) {
+        // Direct data format
         setDashboardData(response as DashboardStats);
-      } else if (response) {
-        // Fallback for direct data
-        setDashboardData(response);
+        if (showToast) {
+          toast.success('Dashboard data refreshed');
+        }
+      } else {
+        // Fallback for any other format
+        setDashboardData(defaultDashboardData);
+        if (showToast) {
+          toast.info('No dashboard data available');
+        }
       }
       
-      toast.success('Dashboard data loaded successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading dashboard data:', error);
-      toast.error('Failed to load dashboard data');
+      
+      // Handle different error types
+      if (error.response?.status === 401) {
+        setError('Your session has expired. Please login again.');
+        // Optionally redirect to login
+        router.push('/login');
+      } else if (error.response?.status === 403) {
+        setError('You do not have permission to access this page.');
+      } else if (error.response?.status === 500) {
+        setError('Server error. Please try again later.');
+      } else {
+        setError('Failed to load dashboard data. Please try again.');
+      }
+      
+      // Set default data on error
+      setDashboardData(defaultDashboardData);
+      
+      if (showToast) {
+        toast.error(error.response?.data?.message || 'Failed to load dashboard data');
+      }
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    loadDashboardData(true);
   };
 
   const handleLogout = () => {
@@ -150,12 +210,13 @@ export default function AdminDashboard() {
   const headerAction = (
     <div className="flex items-center gap-2">
       <Button 
-        onClick={loadDashboardData} 
+        onClick={handleRefresh} 
         variant="outline" 
         size="sm"
         className="gap-2"
+        disabled={isRefreshing}
       >
-        <Loader2 className="h-4 w-4" />
+        <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
         <span className="hidden sm:inline">Refresh</span>
       </Button>
       <Button onClick={() => router.push('/admin/products/add')} className="gap-2">
@@ -165,6 +226,38 @@ export default function AdminDashboard() {
       </Button>
     </div>
   );
+
+  // Error state UI
+  if (error && !loading) {
+    return (
+      <AdminGuard>
+        <AdminLayout title="Dashboard" headerAction={headerAction}>
+          <Card className="mb-6">
+            <CardContent className="p-8 sm:p-12">
+              <div className="text-center">
+                <div className="bg-red-100 rounded-full p-3 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                  <AlertCircle className="h-8 w-8 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Unable to Load Dashboard</h3>
+                <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                  {error}
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <Button onClick={handleRefresh} variant="default" className="gap-2">
+                    <RefreshCw className="h-4 w-4" />
+                    Try Again
+                  </Button>
+                  <Button onClick={() => router.push('/admin/products')} variant="outline">
+                    Go to Products
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </AdminLayout>
+      </AdminGuard>
+    );
+  }
 
   return (
     <AdminGuard>
@@ -176,7 +269,7 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <>
-            {/* Stats Grid */}
+            {/* Stats Grid - Always show, even with zero values */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
               {stats.map((stat) => (
                 <Card key={stat.title} className="hover:shadow-lg transition-shadow">
@@ -204,6 +297,7 @@ export default function AdminDashboard() {
                     variant="ghost" 
                     size="sm"
                     onClick={() => router.push('/admin/orders')}
+                    disabled={dashboardData.recentOrders.length === 0}
                   >
                     View All
                   </Button>
@@ -213,7 +307,8 @@ export default function AdminDashboard() {
                 {dashboardData.recentOrders.length === 0 ? (
                   <div className="text-center py-8 sm:py-12 text-muted-foreground">
                     <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No recent orders</p>
+                    <p className="mb-2">No recent orders found</p>
+                    <p className="text-sm">When customers place orders, they will appear here</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -263,7 +358,7 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            {/* Quick Actions */}
+            {/* Quick Actions - Always show */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <Card 
                 className="cursor-pointer hover:shadow-lg transition-all hover:scale-105" 

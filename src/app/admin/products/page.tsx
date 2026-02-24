@@ -32,6 +32,7 @@ import { toast } from 'sonner';
 import { getAllProducts, deleteProduct } from '../../../lib/api/auth';
 import AdminGuard from '../../../components/guards/AdminGuard';
 import AdminLayout from '../../../components/layout/AdminLayout';
+import { API_BASE_URL } from '../../../lib/api/config';
 
 // TypeScript Interfaces
 interface ProductImage {
@@ -66,9 +67,6 @@ interface ApiResponse<T> {
 }
 
 type ProductsResponse = Product[] | ApiResponse<Product[]>;
-
-// API Base URL - should be imported from config
-const API_BASE_URL = 'https://gaushalaecommerce.runasp.net';
 
 export default function AdminProductsPage() {
   const router = useRouter();

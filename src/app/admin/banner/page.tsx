@@ -38,6 +38,7 @@ import { toast } from 'sonner';
 import { getAllBanners, deleteBanner } from '../../../lib/api/auth';
 import AdminGuard from '../../../components/guards/AdminGuard';
 import AdminLayout from '../../../components/layout/AdminLayout';
+import { API_BASE_URL } from '../../../lib/api/config';
 
 // TypeScript Interfaces based on actual API response
 interface Banner {
@@ -264,7 +265,7 @@ export default function AdminBannersPage() {
                         <TableCell>
                           <div className="w-16 h-16 rounded-md overflow-hidden bg-muted">
                             <img
-                              src={`https://gaushalaecommerce.runasp.net${banner.imageUrl}`}
+                              src={`${API_BASE_URL}${banner.imageUrl}`}
                               alt={`Banner ${banner.id}`}
                               className="w-full h-full object-cover"
                               onError={(e) => {
@@ -288,7 +289,7 @@ export default function AdminBannersPage() {
                               variant="outline"
                               size="sm"
                               className="h-8 w-8 p-0"
-                              onClick={() => window.open(`https://gaushalaecommerce.runasp.net${banner.imageUrl}`, '_blank')}
+                              onClick={() => window.open(`${API_BASE_URL}${banner.imageUrl}`, '_blank')}
                               title="View full size"
                             >
                               <Eye className="h-4 w-4" />

@@ -1030,7 +1030,7 @@ export async function getAllOrders(): Promise<ApiResponse<Order[]>> {
 
 export async function updateOrderStatus(
   orderId: number,
-  status: 'Placed' | 'Packed' | 'Dispatched' | 'Delivered'
+  status: 'Placed' | 'Processing' | 'Dispatched' | 'Delivered'
 ): Promise<ApiResponse<null>> {
   try {
     // Build URL with query parameter

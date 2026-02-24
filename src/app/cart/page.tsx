@@ -13,7 +13,7 @@ import {
   clearCart, 
   addToCart 
 } from '../../lib/api/auth';
-import { isAuthenticated, getUserId } from '../../lib/api/config';
+import { isAuthenticated, getUserId, API_BASE_URL } from '../../lib/api/config';
 import { useCart } from '../../context/CartContext';
 import { toast } from 'sonner';
 import type { CartItem } from '../../types/index';
@@ -785,7 +785,7 @@ export default function CartPage() {
                         <img
                           src={
                             item.images?.[0]
-                              ? `https://gaushalaecommerce.runasp.net${item.images[0]}`
+                              ? `${API_BASE_URL}${item.images[0]}`
                               : '/placeholder-product.jpg'
                           }
                           alt={item.productName}

@@ -4,7 +4,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 
 export const metadata = {
-  title: "My App",
+  title: "Untapped Nature",
   description: "Clean Next.js starter",
 };
 

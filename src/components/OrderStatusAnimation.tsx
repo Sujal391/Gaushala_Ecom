@@ -10,7 +10,7 @@ import canceled from "../animations/canceled.json";
 
 const animationMap: Record<string, any> = {
   PLACED: placed,
-  PACKED: packed,
+  PROCESSING: packed,
   DISPATCHED: dispatched,
   DELIVERED: delivered,
   CANCELED: canceled,
@@ -20,7 +20,7 @@ const animationMap: Record<string, any> = {
 // STEP 1 — scale config (TOP LEVEL)
 const animationScaleMap: Record<string, number> = {
   PLACED: 1.9,
-  PACKED: 1.9,
+  PROCESSING: 1.9,
   DISPATCHED: 1.8,
   DELIVERED: 1.9,
   CANCELED: 1.1,
