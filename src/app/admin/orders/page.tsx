@@ -46,7 +46,7 @@ import {
 import { toast } from "sonner";
 import { getAllOrders, updateOrderStatus } from "../../../lib/api/auth";
 import AdminGuard from "../../../components/guards/AdminGuard";
-import { removeAuthToken } from "../../../lib/api/config";
+import { removeAuthToken, API_BASE_URL } from "../../../lib/api/config";
 import AdminLayout from "../../../components/layout/AdminLayout";
 
 interface OrderItem {
@@ -98,13 +98,13 @@ interface Order {
 }
 
 // Valid statuses for the backend
-const VALID_STATUSES = ['PLACED', 'PACKED', 'DISPATCHED', 'DELIVERED', 'CANCELLED'] as const;
+const VALID_STATUSES = ['PLACED', 'PROCESSING', 'DISPATCHED', 'DELIVERED', 'CANCELLED'] as const;
 type OrderStatus = typeof VALID_STATUSES[number];
 
 // Status display mapping
 const STATUS_DISPLAY_MAP: Record<string, string> = {
   'PLACED': 'Placed',
-  'PACKED': 'Packed',
+  'PROCESSING': 'Processing',
   'DISPATCHED': 'Dispatched',
   'DELIVERED': 'Delivered',
   'CANCELLED': 'Cancelled',
@@ -248,7 +248,7 @@ export default function AdminOrdersPage() {
   const getStatusColor = (status: string) => {
     const statusColors: Record<string, string> = {
       'PLACED': "bg-blue-100 text-blue-800 border-blue-200",
-      'PACKED': "bg-purple-100 text-purple-800 border-purple-200",
+      'PROCESSING': "bg-purple-100 text-purple-800 border-purple-200",
       'CONFIRMED': "bg-purple-100 text-purple-800 border-purple-200",
       'DISPATCHED': "bg-yellow-100 text-yellow-800 border-yellow-200",
       'SHIPPED': "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -504,7 +504,7 @@ export default function AdminOrdersPage() {
                       <SelectContent>
                         <SelectItem value="ALL">All Status</SelectItem>
                         <SelectItem value="PLACED">Placed</SelectItem>
-                        <SelectItem value="PACKED">Packed</SelectItem>
+                        <SelectItem value="PROCESSING">Processing</SelectItem>
                         <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                         <SelectItem value="DISPATCHED">Dispatched</SelectItem>
                         <SelectItem value="SHIPPED">Shipped</SelectItem>
@@ -765,7 +765,7 @@ export default function AdminOrdersPage() {
                                               src={imageErrors.has(item.productId) 
                                                 ? '/placeholder-product.jpg'
                                                 : (item.images?.[0] 
-                                                  ? `http://gaushalaecommerce.runasp.net${item.images[0]}`
+                                                  ? `${API_BASE_URL}${item.images[0]}`
                                                   : '/placeholder-product.jpg')
                                               }
                                               alt={item.productName}

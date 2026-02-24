@@ -55,6 +55,7 @@ import { submitFeedback } from "../../lib/api/auth";
 import { isAuthenticated, getUserId } from "../../lib/api/config";
 import OrderStatusAnimation from "../../components/OrderStatusAnimation";
 import { toast } from "sonner";
+import { API_BASE_URL } from "../../lib/api/config";
 
 interface OrderItem {
   productId: number;
@@ -327,7 +328,6 @@ export default function MyOrdersPage() {
     const normalizedStatus = status.toUpperCase();
     const statusColors: { [key: string]: string } = {
       PLACED: "bg-blue-100 text-blue-800 border-blue-200",
-      PACKED: "bg-purple-100 text-purple-800 border-purple-200",
       CONFIRMED: "bg-purple-100 text-purple-800 border-purple-200",
       DISPATCHED: "bg-yellow-100 text-yellow-800 border-yellow-200",
       SHIPPED: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -359,7 +359,7 @@ export default function MyOrdersPage() {
     const statusUpper = status.toUpperCase();
     const STATUS_DISPLAY_MAP: Record<string, string> = {
       PLACED: "Placed",
-      PACKED: "Packed",
+      PROCESSING: "Processing",
       DISPATCHED: "Dispatched",
       DELIVERED: "Delivered",
       CANCELLED: "Cancelled",
@@ -369,7 +369,7 @@ export default function MyOrdersPage() {
 
   const isCancellable = (orderStatus: string) => {
     const normalizedStatus = orderStatus.toUpperCase();
-    return ["PLACED", "PACKED"].includes(normalizedStatus);
+    return ["PLACED", "PROCESSING"].includes(normalizedStatus);
   };
 
   const toggleOrderExpansion = (orderId: number) => {
@@ -659,7 +659,7 @@ export default function MyOrdersPage() {
                                           imageErrors.has(item.productId)
                                             ? "/placeholder-product.jpg"
                                             : item.images?.[0]
-                                            ? `http://gaushalaecommerce.runasp.net${item.images[0]}`
+                                            ? `${API_BASE_URL}${item.images[0]}`
                                             : "/placeholder-product.jpg"
                                         }
                                         alt={item.productName}
@@ -894,7 +894,7 @@ export default function MyOrdersPage() {
                       <img
                         src={
                           selectedProduct.image
-                            ? `http://gaushalaecommerce.runasp.net${selectedProduct.image}`
+                            ? `${API_BASE_URL}${selectedProduct.image}`
                             : "/placeholder-product.jpg"
                         }
                         alt={selectedProduct.productName}
