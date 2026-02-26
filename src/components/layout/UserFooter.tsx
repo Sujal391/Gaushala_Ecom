@@ -87,12 +87,12 @@ export const Footer = () => {
               Untapped Nature
             </span>
           </div>
-          <p className="text-lg text-slate-600 dark:text-slate-400 mb-6">
+          {/* <p className="text-lg text-slate-600 dark:text-slate-400 mb-6">
             Discover the purest essentials for a natural lifestyle. Join our community of nature lovers.
-          </p>
+          </p> */}
           
           {/* Newsletter Form - Enhanced styling */}
-          <div className="max-w-md mx-auto">
+          {/* <div className="max-w-md mx-auto">
             <form className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1 relative">
                 <input
@@ -108,7 +108,7 @@ export const Footer = () => {
                 Subscribe
               </Button>
             </form>
-          </div>
+          </div> */}
         </div>
 
         {/* Gaushala Promotion Section - Enhanced with professional gradient */}
@@ -310,7 +310,7 @@ export const MobileFooter = () => {
           </div>
           
           {/* Newsletter Section */}
-          <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/30">
+          {/* <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/30">
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
               Subscribe for exclusive offers
             </p>
@@ -328,7 +328,7 @@ export const MobileFooter = () => {
                 Subscribe
               </Button>
             </form>
-          </div>
+          </div> */}
 
           {/* Gaushala Promotion - Mobile Enhanced */}
           <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white">

@@ -23,6 +23,7 @@ import {
   Phone,
   User,
   TagIcon,
+  Circle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -725,6 +726,23 @@ export default function MyOrdersPage() {
                                         Reviewed
                                       </Badge>
                                     )}
+                                    {isFeedbackEligible(order.orderStatus) && !item.hasFeedback && (
+  <Button
+    size="sm"
+    variant="outline"
+    onClick={() =>
+      openFeedbackDialog(
+        order.orderId,
+        item.productId,
+        item.productName,
+        item.images?.[0]
+      )
+    }
+  >
+    <MessageSquare className="h-4 w-4 mr-1" />
+    Write Review
+  </Button>
+)}
                                   </div>
                                 </div>
                               ))}

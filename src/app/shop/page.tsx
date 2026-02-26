@@ -1,21 +1,25 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShoppingBag, Loader2 } from "lucide-react";
+import { ShoppingBag, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "../../hooks/useToast";
 import UserLayout from "../../components/layout/UserLayout";
-import BannerSlider from "../../components/BannerSlider";
-import { getAllProducts, addToCart } from "../../lib/api/auth";
+import { getAllProducts, addToCart, getAllBanners } from "../../lib/api/auth";
 import { getUserId, isAuthenticated, API_BASE_URL } from "../../lib/api/config";
 import { useCart } from "../../context/CartContext";
-import type { Product, ProductSize, ApiResponse } from "../../types/index";
+import type {
+  Product,
+  ProductSize,
+  ApiResponse,
+  Banner as ImportedBanner,
+} from "../../types/index";
 import NewProducts from "@/src/components/NewProducts";
 
 // Guest cart constants
-const GUEST_CART_KEY = 'guest_cart';
+const GUEST_CART_KEY = "guest_cart";
 
 interface GuestCartItem {
   productId: number;
@@ -28,23 +32,36 @@ interface GuestCartItem {
   addedAt: number;
 }
 
+// Local Banner interface to match API response
+interface Banner {
+  id: number;
+  imageUrl: string;
+  createdAt: string;
+}
+
 // Type guard functions
 function isProductArray(data: unknown): data is Product[] {
-  return Array.isArray(data) && data.every(item => 
-    typeof item === 'object' && 
-    item !== null && 
-    'id' in item && 
-    'name' in item &&
-    'sizes' in item &&
-    Array.isArray((item as Product).sizes)
+  return (
+    Array.isArray(data) &&
+    data.every(
+      (item) =>
+        typeof item === "object" &&
+        item !== null &&
+        "id" in item &&
+        "name" in item &&
+        "sizes" in item &&
+        Array.isArray((item as Product).sizes)
+    )
   );
 }
 
 function isApiResponse(response: unknown): response is ApiResponse<Product[]> {
-  return typeof response === 'object' && 
-    response !== null && 
-    'success' in response && 
-    'data' in response;
+  return (
+    typeof response === "object" &&
+    response !== null &&
+    "success" in response &&
+    "data" in response
+  );
 }
 
 // Separate component that uses useSearchParams
@@ -56,13 +73,37 @@ function ShopContent() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [bannersLoading, setBannersLoading] = useState(true);
   const [addingToCart, setAddingToCart] = useState<number | null>(null);
-  const [showBanner, setShowBanner] = useState(true);
+
+  // Refs for auto-slide and horizontal scroll
+  const bannerIntervalRef = useRef<NodeJS.Timeout>();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadProducts();
+    loadBanners();
   }, []);
+
+  // Auto-slide for banners
+  useEffect(() => {
+    if (banners.length > 1) {
+      bannerIntervalRef.current = setInterval(() => {
+        setCurrentBannerIndex((prevIndex) =>
+          prevIndex === banners.length - 1 ? 0 : prevIndex + 1
+        );
+      }, 4000);
+
+      return () => {
+        if (bannerIntervalRef.current) {
+          clearInterval(bannerIntervalRef.current);
+        }
+      };
+    }
+  }, [banners.length]);
 
   // Filter products when search params change
   useEffect(() => {
@@ -81,8 +122,46 @@ function ShopContent() {
     }
   }, [searchParams, products]);
 
-  const handleCloseBanner = () => {
-    setShowBanner(false);
+  const loadBanners = async () => {
+    try {
+      setBannersLoading(true);
+      const response = await getAllBanners();
+
+      if (response.success && response.data && response.data.length > 0) {
+        // Map the response data to match local Banner interface
+        const bannerData: Banner[] = response.data.map(
+          (item: ImportedBanner) => ({
+            id: item.id,
+            imageUrl: item.imageUrl,
+            createdAt: item.createdAt || new Date().toISOString(),
+          })
+        );
+        setBanners(bannerData);
+      }
+    } catch (error) {
+      console.error("Error loading banners:", error);
+    } finally {
+      setBannersLoading(false);
+    }
+  };
+
+  const goToNextBanner = () => {
+    setCurrentBannerIndex((prevIndex) =>
+      prevIndex === banners.length - 1 ? 0 : prevIndex + 1
+    );
+  };
+
+  const goToPreviousBanner = () => {
+    setCurrentBannerIndex((prevIndex) =>
+      prevIndex === 0 ? banners.length - 1 : prevIndex - 1
+    );
+  };
+
+  const getFullImageUrl = (imageUrl: string): string => {
+    if (imageUrl.startsWith("http") || imageUrl.startsWith("https")) {
+      return imageUrl;
+    }
+    return `${API_BASE_URL}${imageUrl}`;
   };
 
   const loadProducts = async (): Promise<void> => {
@@ -99,15 +178,19 @@ function ShopContent() {
           setProducts(productData);
           setFilteredProducts(productData);
         } else {
-          throw new Error('Invalid product data format');
+          throw new Error("Invalid product data format");
         }
-      } else if (response && typeof response === 'object' && 'data' in response) {
+      } else if (
+        response &&
+        typeof response === "object" &&
+        "data" in response
+      ) {
         const possibleData = (response as any).data;
         if (isProductArray(possibleData)) {
           setProducts(possibleData);
           setFilteredProducts(possibleData);
         } else {
-          throw new Error('Invalid product data format');
+          throw new Error("Invalid product data format");
         }
       } else {
         toast({
@@ -120,9 +203,10 @@ function ShopContent() {
       console.error("Error loading products:", error);
       toast({
         title: "Error",
-        description: error instanceof Error 
-          ? error.message 
-          : "Failed to load products. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to load products. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -132,126 +216,136 @@ function ShopContent() {
 
   // Guest cart functions
   const getGuestCart = (): GuestCartItem[] => {
-  try {
-    const cart = localStorage.getItem(GUEST_CART_KEY);
-    if (!cart) return [];
-    
-    const parsedCart = JSON.parse(cart);
-    
-    // Handle legacy cart formats
-    if (Array.isArray(parsedCart)) {
-      if (parsedCart.length > 0 && 'id' in parsedCart[0]) {
-        // Migrate old format to new format
-        const migratedCart = parsedCart.map((item: any) => ({
-          productId: item.productId,
-          productName: item.productName,
-          description: item.description || '',
-          price: item.price,
-          quantity: item.quantity,
-          // Transform images to ensure they're strings
-          images: Array.isArray(item.images) 
-            ? item.images.map((img: any) => {
-                if (typeof img === 'string') return img;
-                if (img && typeof img === 'object' && 'imageUrl' in img) {
-                  return img.imageUrl;
-                }
-                return '';
-              }).filter((url: string) => url !== '')
-            : (item.image ? [item.image] : []),
-          selectedSize: item.selectedSize || 'Default',
-          addedAt: typeof item.addedAt === 'string' ? Date.now() : (item.addedAt || Date.now())
-        }));
-        
-        localStorage.setItem(GUEST_CART_KEY, JSON.stringify(migratedCart));
-        return migratedCart;
+    try {
+      const cart = localStorage.getItem(GUEST_CART_KEY);
+      if (!cart) return [];
+
+      const parsedCart = JSON.parse(cart);
+
+      // Handle legacy cart formats
+      if (Array.isArray(parsedCart)) {
+        if (parsedCart.length > 0 && "id" in parsedCart[0]) {
+          // Migrate old format to new format
+          const migratedCart = parsedCart.map((item: any) => ({
+            productId: item.productId,
+            productName: item.productName,
+            description: item.description || "",
+            price: item.price,
+            quantity: item.quantity,
+            images: Array.isArray(item.images)
+              ? item.images
+                  .map((img: any) => {
+                    if (typeof img === "string") return img;
+                    if (img && typeof img === "object" && "imageUrl" in img) {
+                      return img.imageUrl;
+                    }
+                    return "";
+                  })
+                  .filter((url: string) => url !== "")
+              : item.image
+              ? [item.image]
+              : [],
+            selectedSize: item.selectedSize || "Default",
+            addedAt:
+              typeof item.addedAt === "string"
+                ? Date.now()
+                : item.addedAt || Date.now(),
+          }));
+
+          localStorage.setItem(GUEST_CART_KEY, JSON.stringify(migratedCart));
+          return migratedCart;
+        }
+
+        if (parsedCart.length > 0 && "image" in parsedCart[0]) {
+          const migratedCart = parsedCart.map((item: any) => ({
+            productId: item.productId,
+            productName: item.productName,
+            description: item.description || "",
+            price: item.price,
+            quantity: item.quantity,
+            images: item.image ? [item.image] : [],
+            selectedSize: item.selectedSize || "Default",
+            addedAt: item.addedAt || Date.now(),
+          }));
+
+          localStorage.setItem(GUEST_CART_KEY, JSON.stringify(migratedCart));
+          return migratedCart;
+        }
+
+        return parsedCart;
       }
-      
-      if (parsedCart.length > 0 && 'image' in parsedCart[0]) {
-        const migratedCart = parsedCart.map((item: any) => ({
-          productId: item.productId,
-          productName: item.productName,
-          description: item.description || '',
-          price: item.price,
-          quantity: item.quantity,
-          images: item.image ? [item.image] : [],
-          selectedSize: item.selectedSize || 'Default',
-          addedAt: item.addedAt || Date.now()
-        }));
-        
-        localStorage.setItem(GUEST_CART_KEY, JSON.stringify(migratedCart));
-        return migratedCart;
-      }
-      
-      return parsedCart;
+
+      return [];
+    } catch (error) {
+      console.error("Error loading guest cart:", error);
+      return [];
     }
-    
-    return [];
-  } catch (error) {
-    console.error('Error loading guest cart:', error);
-    return [];
-  }
-};
+  };
 
   const saveGuestCart = (items: GuestCartItem[]) => {
     try {
       localStorage.setItem(GUEST_CART_KEY, JSON.stringify(items));
     } catch (error) {
-      console.error('Error saving guest cart:', error);
+      console.error("Error saving guest cart:", error);
     }
   };
 
   const addToGuestCart = (product: Product, size: ProductSize) => {
-  const guestCart = getGuestCart();
-  
-  const existingItem = guestCart.find(
-    item => item.productId === product.id && item.selectedSize === size.size
-  );
+    const guestCart = getGuestCart();
 
-  // Transform images to string array
-  const transformImages = (images: any): string[] => {
-    if (!images || !Array.isArray(images)) return [];
-    
-    return images.map(img => {
-      if (typeof img === 'string') return img;
-      if (img && typeof img === 'object' && 'imageUrl' in img) {
-        return img.imageUrl;
-      }
-      return '';
-    }).filter(url => url !== '');
+    const existingItem = guestCart.find(
+      (item) => item.productId === product.id && item.selectedSize === size.size
+    );
+
+    const transformImages = (images: any): string[] => {
+      if (!images || !Array.isArray(images)) return [];
+
+      return images
+        .map((img) => {
+          if (typeof img === "string") return img;
+          if (img && typeof img === "object" && "imageUrl" in img) {
+            return img.imageUrl;
+          }
+          return "";
+        })
+        .filter((url) => url !== "");
+    };
+
+    if (existingItem) {
+      existingItem.quantity += 1;
+      existingItem.addedAt = Date.now();
+    } else {
+      guestCart.push({
+        productId: product.id,
+        productName: product.name || "Unnamed Product",
+        description: product.description || "",
+        price: size.discountedPrice || size.price,
+        quantity: 1,
+        images: transformImages(product.images),
+        selectedSize: size.size,
+        addedAt: Date.now(),
+      });
+    }
+
+    saveGuestCart(guestCart);
+    return guestCart;
   };
 
-  if (existingItem) {
-    existingItem.quantity += 1;
-    existingItem.addedAt = Date.now();
-  } else {
-    guestCart.push({
-      productId: product.id,
-      productName: product.name || 'Unnamed Product',
-      description: product.description || '',
-      price: size.discountedPrice || size.price,
-      quantity: 1,
-      images: transformImages(product.images),
-      selectedSize: size.size,
-      addedAt: Date.now()
-    });
-  }
-
-  saveGuestCart(guestCart);
-  return guestCart;
-};
-
-  const handleAddToCart = async (product: Product, size: ProductSize): Promise<void> => {
+  const handleAddToCart = async (
+    product: Product,
+    size: ProductSize
+  ): Promise<void> => {
     if (!isAuthenticated()) {
       // Guest cart handling
       try {
         setAddingToCart(product.id);
-        
+
         // Add to guest cart
         addToGuestCart(product, size);
-        
+
         // Update cart count in context
         incrementCartCount(1);
-        
+
         toast({
           title: "Added to guest cart",
           description: `${product.name} (${size.size}) has been added to your guest cart`,
@@ -299,11 +393,13 @@ function ShopContent() {
       });
     } catch (error: unknown) {
       console.error("Error adding to cart:", error);
-      
+
       let errorMessage = "Failed to add item to cart. Please try again.";
-      
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
+
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as {
+          response?: { data?: { message?: string } };
+        };
         errorMessage = axiosError.response?.data?.message || errorMessage;
       } else if (error instanceof Error) {
         errorMessage = error.message;
@@ -320,34 +416,43 @@ function ShopContent() {
   };
 
   const getProductImage = (product: Product): string => {
-  if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-    // Check if the first image is an object with imageUrl property
-    const firstImage = product.images[0];
-    if (typeof firstImage === 'object' && firstImage !== null && 'imageUrl' in firstImage) {
-      return `${API_BASE_URL}${firstImage.imageUrl}`;
+    if (
+      product.images &&
+      Array.isArray(product.images) &&
+      product.images.length > 0
+    ) {
+      const firstImage = product.images[0];
+      if (
+        typeof firstImage === "object" &&
+        firstImage !== null &&
+        "imageUrl" in firstImage
+      ) {
+        return `${API_BASE_URL}${firstImage.imageUrl}`;
+      }
+      if (typeof firstImage === "string") {
+        return `${API_BASE_URL}${firstImage}`;
+      }
     }
-    // If it's a string (fallback for backward compatibility)
-    if (typeof firstImage === 'string') {
-      return `${API_BASE_URL}${firstImage}`;
-    }
-  }
-  return "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400";
-};
+    return "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400";
+  };
 
   const getAvailableSizes = (product: Product): ProductSize[] => {
-    return product.sizes?.filter((size): size is ProductSize => 
-      size && 
-      typeof size === 'object' && 
-      'inStock' in size && 
-      size.inStock === true &&
-      size.stockQty > 0
-    ) || [];
+    return (
+      product.sizes?.filter(
+        (size): size is ProductSize =>
+          size &&
+          typeof size === "object" &&
+          "inStock" in size &&
+          size.inStock === true &&
+          size.stockQty > 0
+      ) || []
+    );
   };
 
   const getDisplayPrice = (product: Product): string => {
     const availableSizes = getAvailableSizes(product);
     if (availableSizes.length > 0) {
-      const prices = availableSizes.map(s => s.discountedPrice || s.price);
+      const prices = availableSizes.map((s) => s.discountedPrice || s.price);
       const minPrice = Math.min(...prices);
       return `₹ ${minPrice.toFixed(2)}`;
     }
@@ -357,11 +462,13 @@ function ShopContent() {
   const getOriginalPrice = (product: Product): string | null => {
     const availableSizes = getAvailableSizes(product);
     if (availableSizes.length > 0) {
-      const hasDiscount = availableSizes.some(s => 
-        s.discountedPrice && s.discountedPrice < s.price
+      const hasDiscount = availableSizes.some(
+        (s) => s.discountedPrice && s.discountedPrice < s.price
       );
       if (hasDiscount) {
-        const minOriginalPrice = Math.min(...availableSizes.map(s => s.price));
+        const minOriginalPrice = Math.min(
+          ...availableSizes.map((s) => s.price)
+        );
         return `₹ ${minOriginalPrice.toFixed(2)}`;
       }
     }
@@ -373,14 +480,14 @@ function ShopContent() {
       return 0;
     }
     return product.sizes.reduce((total, size) => {
-      return total + (typeof size.stockQty === 'number' ? size.stockQty : 0);
+      return total + (typeof size.stockQty === "number" ? size.stockQty : 0);
     }, 0);
   };
 
   const hasDiscount = (product: Product): boolean => {
     const availableSizes = getAvailableSizes(product);
-    return availableSizes.some(s => 
-      s.discountedPrice && s.discountedPrice < s.price
+    return availableSizes.some(
+      (s) => s.discountedPrice && s.discountedPrice < s.price
     );
   };
 
@@ -391,154 +498,304 @@ function ShopContent() {
     return null;
   };
 
+  const handleScroll = (direction: "left" | "right") => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = 300;
+      const currentScroll = scrollContainerRef.current.scrollLeft;
+      const newScroll =
+        direction === "left"
+          ? currentScroll - scrollAmount
+          : currentScroll + scrollAmount;
+
+      scrollContainerRef.current.scrollTo({
+        left: newScroll,
+        behavior: "smooth",
+      });
+    }
+  };
+
   const searchQuery = searchParams.get("search");
 
   return (
-    <>
-      {/* Banner Popup - Always shows on mount until closed */}
-      {showBanner && <BannerSlider onClose={handleCloseBanner} />}
-
-      <NewProducts limit={4} showViewAll={true} />
-
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Guest Mode Banner */}
-        {!isAuthenticated() && (
-          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-blue-800 text-sm">
-              🛒 You're shopping as a guest. Items will be saved to your browser.
-              <Button
-                variant="link"
-                className="text-blue-600 hover:text-blue-800 px-2"
-                onClick={() => router.push('/login')}
-              >
-                Login to save your cart permanently
-              </Button>
-            </p>
-          </div>
-        )}
-
-        {/* Page Header with Search Results Info */}
-        <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-2">
-            {searchQuery ? `Search Results for "${searchQuery}"` : "Shop All Products"}
-          </h1>
-          <p className="text-muted-foreground">
-            {searchQuery 
-              ? `Found ${filteredProducts.length} product${filteredProducts.length !== 1 ? 's' : ''}`
-              : "Discover our latest collection"}
-          </p>
-        </div>
-
-        {/* Loading State */}
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
+    <div className="min-h-screen flex flex-col">
+      {/* Banner Carousel - 30vh on mobile and desktop */}
+      <section className="h-[30vh] bg-gray-100 relative overflow-hidden">
+        {bannersLoading ? (
+          <div className="w-full h-full flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : filteredProducts.length > 0 ? (
-          /* Products Grid */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-            {filteredProducts.map((product) => {
-              const totalStockQty = getTotalStockQty(product);
-              const availableSizes = getAvailableSizes(product);
-              const hasStock = totalStockQty > 0 && availableSizes.length > 0;
-              const displayPrice = getDisplayPrice(product);
-              const originalPrice = getOriginalPrice(product);
-              const productHasDiscount = hasDiscount(product);
-
-              return (
-                <Card
-                  key={product.id}
-                  className="overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => router.push(`/products/${product.id}`)}
+        ) : banners.length > 0 ? (
+          <div className="relative w-full h-full">
+            {/* Images */}
+            <div
+              className="flex h-full transition-transform duration-500 ease-out"
+              style={{ transform: `translateX(-${currentBannerIndex * 100}%)` }}
+            >
+              {banners.map((banner) => (
+                <div
+                  key={banner.id}
+                  className="flex-shrink-0 w-full h-full flex items-center justify-center bg-gray-100"
                 >
-                  <div className="relative aspect-square overflow-hidden bg-muted">
-                    <img
-                      src={getProductImage(product)}
-                      alt={product.name || 'Product image'}
-                      className="object-cover w-full h-full transition-transform group-hover:scale-105"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          "/placeholder-product.jpg";
-                      }}
-                    />
-                    {productHasDiscount && (
-                      <span className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
-                        Sale
-                      </span>
-                    )}
-                    {hasStock && totalStockQty < 10 && (
-                      <span className="absolute top-2 right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded">
-                        Only {totalStockQty} left
-                      </span>
-                    )}
-                    {!hasStock && (
-                      <span className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                        Out of Stock
-                      </span>
-                    )}
-                  </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold text-base sm:text-lg mb-1 line-clamp-1">
-                      {product.name || 'Unnamed Product'}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                      {product.description || 'No description available'}
-                    </p>
-                    
-                    {/* Size Options */}
-                    {product.sizes && product.sizes.length > 0 && (
-                      <div className="mb-3">
-                        <div className="flex flex-wrap gap-1.5">
-                          {product.sizes.map((size) => {
-                            const discountPercentage = getDiscountPercentage(size);
-                            return (
-                              <span
-                                key={size.id}
-                                className={`
-                                  inline-flex items-center px-2 py-1 rounded text-xs font-medium
-                                  ${size.inStock && size.stockQty > 0
-                                    ? 'bg-primary/10 text-primary border border-primary/30' 
-                                    : 'bg-muted text-muted-foreground line-through'
-                                  }
-                                `}
-                              >
-                                {size.size}
-                                {discountPercentage && size.inStock && (
-                                  <span className="ml-1 text-green-600 font-bold">
-                                    -{discountPercentage}%
-                                  </span>
-                                )}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                  <img
+                    src={getFullImageUrl(banner.imageUrl)}
+                    alt={`Banner ${banner.id}`}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = "/placeholder-banner.jpg";
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
 
-                    {/* Price Display */}
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-xl sm:text-2xl font-bold text-primary">
-                        {displayPrice}
-                      </p>
-                      {originalPrice && productHasDiscount && (
-                        <p className="text-sm text-muted-foreground line-through">
-                          {originalPrice}
-                        </p>
+            {/* Navigation Arrows */}
+            {banners.length > 1 && (
+              <>
+                <button
+                  onClick={goToPreviousBanner}
+                  className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 md:p-2 rounded-full transition-all z-10 backdrop-blur-sm"
+                  aria-label="Previous banner"
+                >
+                  <ChevronLeft size={20} className="md:w-6 md:h-6" />
+                </button>
+                <button
+                  onClick={goToNextBanner}
+                  className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 md:p-2 rounded-full transition-all z-10 backdrop-blur-sm"
+                  aria-label="Next banner"
+                >
+                  <ChevronRight size={20} className="md:w-6 md:h-6" />
+                </button>
+              </>
+            )}
+
+            {/* Dots Indicator */}
+            {banners.length > 1 && (
+              <div className="absolute bottom-2 md:bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-1.5 md:space-x-2 bg-black/20 backdrop-blur-sm px-2 md:px-3 py-1 md:py-1.5 rounded-full z-10">
+                {banners.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentBannerIndex(index)}
+                    className={`transition-all duration-200 ${
+                      index === currentBannerIndex
+                        ? "w-4 md:w-6 h-1.5 md:h-2 bg-white rounded-full"
+                        : "w-1.5 md:w-2 h-1.5 md:h-2 bg-white/50 hover:bg-white/75 rounded-full"
+                    }`}
+                    aria-label={`Go to slide ${index + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-primary/10 to-primary/5">
+            <p className="text-gray-500">No banners available</p>
+          </div>
+        )}
+      </section>
+
+      {/* New Arrivals Section - Horizontal Scroll with View All */}
+      <section className="h-[18vh] md:h-[30vh] bg-white border-b overflow-hidden">
+        <div className="h-full container mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-4">
+          <div className="flex items-center justify-between mb-1 md:mb-2">
+            <h2 className="text-base md:text-lg lg:text-xl font-bold">
+              New Arrivals
+            </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs md:text-sm text-primary hover:text-primary/80"
+              onClick={() => router.push("/new-products")}
+            >
+              View All
+              <ChevronRight className="h-3 w-3 md:h-4 md:w-4 ml-1" />
+            </Button>
+          </div>
+
+          <div className="h-[calc(100%-2rem)] md:h-[calc(100%-2.5rem)] relative group">
+            {/* Scroll Buttons */}
+            <button
+              onClick={() => handleScroll("left")}
+              className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 disabled:opacity-0"
+              aria-label="Scroll left"
+              disabled={
+                !scrollContainerRef.current ||
+                scrollContainerRef.current.scrollLeft <= 0
+              }
+            >
+              <ChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
+            </button>
+
+            <button
+              onClick={() => handleScroll("right")}
+              className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              aria-label="Scroll right"
+            >
+              <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
+            </button>
+
+            {/* Horizontal Scroll Container */}
+            <div
+              ref={scrollContainerRef}
+              className="overflow-x-auto scrollbar-hide h-full flex gap-2 md:gap-4 pb-2"
+              style={{
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center w-full h-full">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                }
+              >
+                <div className="flex gap-2 md:gap-4 min-w-max pb-1">
+                  <NewProducts limit={10} showViewAll={false} />
+                </div>
+              </Suspense>
+            </div>
+
+            {/* Gradient fade indicators */}
+            <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-white to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+            <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+          </div>
+        </div>
+      </section>
+
+      {/* Shop Products Section - Remaining height */}
+      <section className="flex-1 overflow-y-auto bg-gray-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
+          {/* Page Header */}
+          <div className="mb-4 md:mb-6">
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold mb-1">
+              {searchQuery
+                ? `Search Results for "${searchQuery}"`
+                : "Shop All Products"}
+            </h1>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              {searchQuery
+                ? `Found ${filteredProducts.length} product${
+                    filteredProducts.length !== 1 ? "s" : ""
+                  }`
+                : "Discover our latest collection"}
+            </p>
+          </div>
+
+          {/* Loading State */}
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="h-6 w-6 md:h-8 md:w-8 animate-spin text-primary" />
+            </div>
+          ) : filteredProducts.length > 0 ? (
+            /* Products Grid - 2 columns on mobile, 4 on desktop */
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 lg:gap-6">
+              {filteredProducts.map((product) => {
+                const totalStockQty = getTotalStockQty(product);
+                const availableSizes = getAvailableSizes(product);
+                const hasStock = totalStockQty > 0 && availableSizes.length > 0;
+                const displayPrice = getDisplayPrice(product);
+                const originalPrice = getOriginalPrice(product);
+                const productHasDiscount = hasDiscount(product);
+
+                return (
+                  <Card
+                    key={product.id}
+                    className="overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => router.push(`/products/${product.id}`)}
+                  >
+                    <div className="relative aspect-square overflow-hidden bg-muted">
+                      <img
+                        src={getProductImage(product)}
+                        alt={product.name || "Product image"}
+                        className="object-contain w-full h-full transition-transform group-hover:scale-105"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            "/placeholder-product.jpg";
+                        }}
+                      />
+                      {productHasDiscount && (
+                        <span className="absolute top-1 left-1 md:top-2 md:left-2 bg-green-500 text-white text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded">
+                          Sale
+                        </span>
+                      )}
+                      {hasStock && totalStockQty < 10 && (
+                        <span className="absolute top-1 right-1 md:top-2 md:right-2 bg-orange-500 text-white text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded">
+                          Only {totalStockQty} left
+                        </span>
+                      )}
+                      {!hasStock && (
+                        <span className="absolute top-1 right-1 md:top-2 md:right-2 bg-red-500 text-white text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded">
+                          Out of Stock
+                        </span>
                       )}
                     </div>
-                    
-                    {/* Starting from text if multiple sizes */}
-                    {availableSizes.length > 1 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Starting from {displayPrice}
-                      </p>
-                    )}
-                  </CardContent>
-                  <CardFooter className="p-4 pt-0">
-                    {hasStock && availableSizes.length > 0 ? (
-                      <div className="w-full space-y-2">
+                    <CardContent className="p-2 md:p-4">
+                      <h3 className="font-semibold text-xs md:text-sm lg:text-base mb-1 line-clamp-1">
+                        {product.name || "Unnamed Product"}
+                      </h3>
+
+                      {product.description && (
+                        <p className="text-[10px] md:text-xs text-muted-foreground mb-2 line-clamp-2">
+                          {product.description}
+                        </p>
+                      )}
+
+                      {/* Size Options - Simplified for mobile */}
+                      {product.sizes && product.sizes.length > 0 && (
+                        <div className="mb-1 md:mb-2">
+                          <div className="flex flex-wrap gap-1">
+                            {product.sizes.slice(0, 3).map((size) => {
+                              const discountPercentage =
+                                getDiscountPercentage(size);
+                              return (
+                                <span
+                                  key={size.id}
+                                  className={`
+                                    inline-flex items-center px-1 md:px-1.5 py-0.5 rounded text-[8px] md:text-xs font-medium
+                                    ${
+                                      size.inStock && size.stockQty > 0
+                                        ? "bg-primary/10 text-primary border border-primary/30"
+                                        : "bg-muted text-muted-foreground line-through"
+                                    }
+                                  `}
+                                >
+                                  {size.size}
+                                  {discountPercentage && size.inStock && (
+                                    <span className="ml-0.5 text-[8px] md:text-xs text-green-600 font-bold">
+                                      -{discountPercentage}%
+                                    </span>
+                                  )}
+                                </span>
+                              );
+                            })}
+                            {product.sizes.length > 3 && (
+                              <span className="text-[8px] md:text-xs text-muted-foreground">
+                                +{product.sizes.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Price Display - Compact for mobile */}
+                      <div className="flex items-baseline gap-1 md:gap-2">
+                        <p className="text-sm md:text-lg lg:text-xl font-bold text-primary">
+                          {displayPrice}
+                        </p>
+                        {originalPrice && productHasDiscount && (
+                          <p className="text-[10px] md:text-sm text-muted-foreground line-through">
+                            {originalPrice}
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="p-2 md:p-4 pt-0 md:pt-0">
+                      {hasStock && availableSizes.length > 0 ? (
                         <Button
-                          className="w-full"
+                          size="sm"
+                          className="w-full text-xs md:text-sm py-1 md:py-2 h-auto"
                           disabled={addingToCart === product.id}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -547,67 +804,92 @@ function ShopContent() {
                         >
                           {addingToCart === product.id ? (
                             <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Adding...
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              <span className="hidden md:inline">
+                                Adding...
+                              </span>
+                              <span className="md:hidden">Adding...</span>
                             </>
                           ) : (
-                            `Add to Cart ${availableSizes.length > 1 ? `(${availableSizes[0].size})` : ''}`
+                            `Add to Cart ${
+                              availableSizes.length > 1
+                                ? `(${availableSizes[0].size})`
+                                : ""
+                            }`
                           )}
                         </Button>
-                        {availableSizes.length > 1 && (
-                          <p className="text-xs text-center text-muted-foreground">
-                            More sizes available • Click to select
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      <Button className="w-full" disabled>
-                        Out of Stock
-                      </Button>
-                    )}
-                  </CardFooter>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          /* Empty State */
-          <div className="text-center py-12">
-            <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold mb-2">
-              {searchQuery ? "No products found" : "No products available yet"}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              {searchQuery
-                ? `No products found for "${searchQuery}". Try different keywords.`
-                : "Check back soon for new arrivals!"}
-            </p>
-            {searchQuery && (
-              <Button
-                variant="outline"
-                className="mt-2"
-                onClick={() => router.push("/shop")}
-              >
-                View All Products
-              </Button>
-            )}
-            <Button variant="outline" className="mt-4 ml-2" onClick={loadProducts}>
-              Refresh Products
-            </Button>
-          </div>
-        )}
-      </div>
-    </>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="w-full text-xs md:text-sm py-1 md:py-2 h-auto"
+                          disabled
+                        >
+                          Out of Stock
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            /* Empty State - Compact */
+            <div className="text-center py-6 md:py-8">
+              <ShoppingBag className="h-10 w-10 md:h-12 md:w-12 mx-auto text-muted-foreground mb-2" />
+              <h3 className="text-base md:text-lg font-semibold mb-1">
+                {searchQuery
+                  ? "No products found"
+                  : "No products available yet"}
+              </h3>
+              <p className="text-xs md:text-sm text-muted-foreground mb-2">
+                {searchQuery
+                  ? `No products found for "${searchQuery}". Try different keywords.`
+                  : "Check back soon for new arrivals!"}
+              </p>
+              <div className="flex gap-2 justify-center">
+                {searchQuery && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => router.push("/shop")}
+                  >
+                    View All
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs"
+                  onClick={loadProducts}
+                >
+                  Refresh
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Add custom scrollbar hide styles */}
+      <style jsx global>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+    </div>
   );
 }
 
 // Loading fallback component
 function ShopLoadingFallback() {
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-center items-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+    <div className="min-h-screen flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   );
 }
