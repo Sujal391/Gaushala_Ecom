@@ -188,6 +188,7 @@ export interface CartItem {
   quantity: number;
   totalPrice: number;
   images: string[];
+  isFreeItem: boolean;
   sizePrices: Record<string, number>;
   sizeDiscountedPrices: Record<string, number>;
 }
@@ -195,7 +196,7 @@ export interface CartItem {
 export interface CartResponse {
   items: CartItem[];
   cartTotal: number;
-  
+  subtotalAfterProductDiscount: number;
 }
 
 // ==================== SAMPLE REQUEST TYPES ====================
@@ -303,6 +304,7 @@ export interface Order {
   productLevelDiscount: number;
   offerDiscount: number;
   discountAmount: number;
+  subtotalAfterProductDiscount: number;
   finalAmount: number;
   isReferralDiscountApplied: boolean;
   orderStatus: string;
@@ -435,6 +437,10 @@ export interface Offer {
   minQuantity: number;
   maxDiscountPercent: number;
   maxDiscountAmount: number; // Add this field
+  buyQuantity?: number; // For BUY_GET_FREE
+  getQuantity?: number; // For BUY_GET_FREE
+  getProductId?: number | null; // For BUY_GET_FREE
+  getSize?: string | null; // For BUY_GET_FREE
   validFrom: string;
   validTo: string;
   products: {
@@ -450,6 +456,10 @@ export interface CreateOfferPayload {
   productIds: number[];
   maxDiscountPercent: number;
   maxDiscountAmount: number; // Add this field
+  buyQuantity?: number; // For BUY_GET_FREE
+  getQuantity?: number; // For BUY_GET_FREE
+  getProductId?: number | null; // For BUY_GET_FREE
+  getSize?: string | null; // For BUY_GET_FREE
   slabs: OfferSlab[];
   validFrom: string;
   validTo: string;
@@ -464,6 +474,8 @@ export interface OfferSlab {
 export interface ApplyOfferRequest {
   userId: number;
   offerCode: string;
+  offerType: string;
+  message: string;
   totalAmount: number;
   discount: number;
   discountPercentage: number;

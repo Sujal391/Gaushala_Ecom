@@ -17,6 +17,7 @@ import type {
   Banner as ImportedBanner,
 } from "../../types/index";
 import NewProducts from "@/src/components/NewProducts";
+import BannerSlider from "@/src/components/BannerSlider";
 
 // Guest cart constants
 const GUEST_CART_KEY = "guest_cart";
@@ -74,36 +75,18 @@ function ShopContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
-  const [currentBannerIndex, setCurrentBannerIndex] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [bannersLoading, setBannersLoading] = useState(true);
+  const [hasNewProducts, setHasNewProducts] = useState(true);
   const [addingToCart, setAddingToCart] = useState<number | null>(null);
 
-  // Refs for auto-slide and horizontal scroll
-  const bannerIntervalRef = useRef<NodeJS.Timeout>();
+  // Refs for horizontal scroll
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadProducts();
     loadBanners();
   }, []);
-
-  // Auto-slide for banners
-  useEffect(() => {
-    if (banners.length > 1) {
-      bannerIntervalRef.current = setInterval(() => {
-        setCurrentBannerIndex((prevIndex) =>
-          prevIndex === banners.length - 1 ? 0 : prevIndex + 1
-        );
-      }, 4000);
-
-      return () => {
-        if (bannerIntervalRef.current) {
-          clearInterval(bannerIntervalRef.current);
-        }
-      };
-    }
-  }, [banners.length]);
 
   // Filter products when search params change
   useEffect(() => {
@@ -143,18 +126,6 @@ function ShopContent() {
     } finally {
       setBannersLoading(false);
     }
-  };
-
-  const goToNextBanner = () => {
-    setCurrentBannerIndex((prevIndex) =>
-      prevIndex === banners.length - 1 ? 0 : prevIndex + 1
-    );
-  };
-
-  const goToPreviousBanner = () => {
-    setCurrentBannerIndex((prevIndex) =>
-      prevIndex === 0 ? banners.length - 1 : prevIndex - 1
-    );
   };
 
   const getFullImageUrl = (imageUrl: string): string => {
@@ -498,6 +469,13 @@ function ShopContent() {
     return null;
   };
 
+  const getShortDescription = (description: string): string => {
+    if (!description) return '';
+    const words = description.split(' ');
+    if (words.length <= 7) return description;
+    return words.slice(0, 7).join(' ') + '...';
+  };
+
   const handleScroll = (direction: "left" | "right") => {
     if (scrollContainerRef.current) {
       const scrollAmount = 300;
@@ -518,75 +496,20 @@ function ShopContent() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Banner Carousel - 30vh on mobile and desktop */}
+      {/* Banner Carousel - Using BannerSlider component */}
       <section className="h-[30vh] bg-gray-100 relative overflow-hidden">
         {bannersLoading ? (
           <div className="w-full h-full flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : banners.length > 0 ? (
-          <div className="relative w-full h-full">
-            {/* Images */}
-            <div
-              className="flex h-full transition-transform duration-500 ease-out"
-              style={{ transform: `translateX(-${currentBannerIndex * 100}%)` }}
-            >
-              {banners.map((banner) => (
-                <div
-                  key={banner.id}
-                  className="flex-shrink-0 w-full h-full flex items-center justify-center bg-gray-100"
-                >
-                  <img
-                    src={getFullImageUrl(banner.imageUrl)}
-                    alt={`Banner ${banner.id}`}
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = "/placeholder-banner.jpg";
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-
-            {/* Navigation Arrows */}
-            {banners.length > 1 && (
-              <>
-                <button
-                  onClick={goToPreviousBanner}
-                  className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 md:p-2 rounded-full transition-all z-10 backdrop-blur-sm"
-                  aria-label="Previous banner"
-                >
-                  <ChevronLeft size={20} className="md:w-6 md:h-6" />
-                </button>
-                <button
-                  onClick={goToNextBanner}
-                  className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 md:p-2 rounded-full transition-all z-10 backdrop-blur-sm"
-                  aria-label="Next banner"
-                >
-                  <ChevronRight size={20} className="md:w-6 md:h-6" />
-                </button>
-              </>
-            )}
-
-            {/* Dots Indicator */}
-            {banners.length > 1 && (
-              <div className="absolute bottom-2 md:bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-1.5 md:space-x-2 bg-black/20 backdrop-blur-sm px-2 md:px-3 py-1 md:py-1.5 rounded-full z-10">
-                {banners.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentBannerIndex(index)}
-                    className={`transition-all duration-200 ${
-                      index === currentBannerIndex
-                        ? "w-4 md:w-6 h-1.5 md:h-2 bg-white rounded-full"
-                        : "w-1.5 md:w-2 h-1.5 md:h-2 bg-white/50 hover:bg-white/75 rounded-full"
-                    }`}
-                    aria-label={`Go to slide ${index + 1}`}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          <BannerSlider 
+            banners={banners.map(banner => ({
+              id: banner.id,
+              imageUrl: getFullImageUrl(banner.imageUrl)
+            }))}
+            autoSlideInterval={4000}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-primary/10 to-primary/5">
             <p className="text-gray-500">No banners available</p>
@@ -595,74 +518,80 @@ function ShopContent() {
       </section>
 
       {/* New Arrivals Section - Horizontal Scroll with View All */}
-      <section className="h-[18vh] md:h-[30vh] bg-white border-b overflow-hidden">
-        <div className="h-full container mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-4">
-          <div className="flex items-center justify-between mb-1 md:mb-2">
-            <h2 className="text-base md:text-lg lg:text-xl font-bold">
-              New Arrivals
-            </h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs md:text-sm text-primary hover:text-primary/80"
-              onClick={() => router.push("/new-products")}
-            >
-              View All
-              <ChevronRight className="h-3 w-3 md:h-4 md:w-4 ml-1" />
-            </Button>
-          </div>
-
-          <div className="h-[calc(100%-2rem)] md:h-[calc(100%-2.5rem)] relative group">
-            {/* Scroll Buttons */}
-            <button
-              onClick={() => handleScroll("left")}
-              className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 disabled:opacity-0"
-              aria-label="Scroll left"
-              disabled={
-                !scrollContainerRef.current ||
-                scrollContainerRef.current.scrollLeft <= 0
-              }
-            >
-              <ChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
-            </button>
-
-            <button
-              onClick={() => handleScroll("right")}
-              className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-              aria-label="Scroll right"
-            >
-              <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
-            </button>
-
-            {/* Horizontal Scroll Container */}
-            <div
-              ref={scrollContainerRef}
-              className="overflow-x-auto scrollbar-hide h-full flex gap-2 md:gap-4 pb-2"
-              style={{
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-                WebkitOverflowScrolling: "touch",
-              }}
-            >
-              <Suspense
-                fallback={
-                  <div className="flex items-center justify-center w-full h-full">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  </div>
-                }
+      {hasNewProducts && (
+        <section className="h-[18vh] md:h-[30vh] bg-white border-b overflow-hidden">
+          <div className="h-full container mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-4">
+            <div className="flex items-center justify-between mb-1 md:mb-2">
+              <h2 className="text-base md:text-lg lg:text-xl font-bold">
+                New Arrivals
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs md:text-sm text-primary hover:text-primary/80"
+                onClick={() => router.push("/new-products")}
               >
-                <div className="flex gap-2 md:gap-4 min-w-max pb-1">
-                  <NewProducts limit={10} showViewAll={false} />
-                </div>
-              </Suspense>
+                View All
+                <ChevronRight className="h-3 w-3 md:h-4 md:w-4 ml-1" />
+              </Button>
             </div>
 
-            {/* Gradient fade indicators */}
-            <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-white to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-            <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+            <div className="h-[calc(100%-2rem)] md:h-[calc(100%-2.5rem)] relative group">
+              {/* Scroll Buttons - Hidden on mobile, visible on desktop hover */}
+              <button
+                onClick={() => handleScroll("left")}
+                className="hidden md:block absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 disabled:opacity-0"
+                aria-label="Scroll left"
+                disabled={
+                  !scrollContainerRef.current ||
+                  scrollContainerRef.current.scrollLeft <= 0
+                }
+              >
+                <ChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
+              </button>
+
+              <button
+                onClick={() => handleScroll("right")}
+                className="hidden md:block absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                aria-label="Scroll right"
+              >
+                <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
+              </button>
+
+              {/* Horizontal Scroll Container - Native scroll on mobile, smooth scroll on desktop */}
+              <div
+                ref={scrollContainerRef}
+                className="overflow-x-auto scrollbar-hide h-full flex gap-2 md:gap-4 pb-2"
+                style={{
+                  scrollbarWidth: "none",
+                  msOverflowStyle: "none",
+                  WebkitOverflowScrolling: "touch",
+                }}
+              >
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center w-full h-full">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  }
+                >
+                  <div className="flex gap-2 md:gap-4 min-w-max pb-1">
+                    <NewProducts 
+                      limit={10} 
+                      showViewAll={false} 
+                      onEmpty={() => setHasNewProducts(false)}
+                    />
+                  </div>
+                </Suspense>
+              </div>
+
+              {/* Gradient fade indicators - Hidden on mobile */}
+              <div className="hidden md:block absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-white to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+              <div className="hidden md:block absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Shop Products Section - Remaining height */}
       <section className="flex-1 overflow-y-auto bg-gray-50">
@@ -698,18 +627,19 @@ function ShopContent() {
                 const displayPrice = getDisplayPrice(product);
                 const originalPrice = getOriginalPrice(product);
                 const productHasDiscount = hasDiscount(product);
+                const shortDescription = getShortDescription(product.description || '');
 
                 return (
                   <Card
                     key={product.id}
-                    className="overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow"
+                    className="overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow h-full flex flex-col"
                     onClick={() => router.push(`/products/${product.id}`)}
                   >
-                    <div className="relative aspect-square overflow-hidden bg-muted">
+                    <div className="relative aspect-square overflow-hidden bg-muted flex-shrink-0">
                       <img
                         src={getProductImage(product)}
                         alt={product.name || "Product image"}
-                        className="object-contain w-full h-full transition-transform group-hover:scale-105"
+                        className="object-cover w-full h-full transition-transform group-hover:scale-105"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src =
                             "/placeholder-product.jpg";
@@ -731,20 +661,18 @@ function ShopContent() {
                         </span>
                       )}
                     </div>
-                    <CardContent className="p-2 md:p-4">
+                    <CardContent className="p-2 md:p-4 flex-1">
                       <h3 className="font-semibold text-xs md:text-sm lg:text-base mb-1 line-clamp-1">
                         {product.name || "Unnamed Product"}
                       </h3>
 
-                      {product.description && (
-                        <p className="text-[10px] md:text-xs text-muted-foreground mb-2 line-clamp-2">
-                          {product.description}
-                        </p>
-                      )}
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-2 line-clamp-2 min-h-[2rem] md:min-h-[2.5rem]">
+                        {shortDescription || 'No description available'}
+                      </p>
 
-                      {/* Size Options - Simplified for mobile */}
+                      {/* Size Options */}
                       {product.sizes && product.sizes.length > 0 && (
-                        <div className="mb-1 md:mb-2">
+                        <div className="mb-1 md:mb-2 min-h-[1.5rem] md:min-h-[2rem]">
                           <div className="flex flex-wrap gap-1">
                             {product.sizes.slice(0, 3).map((size) => {
                               const discountPercentage =
@@ -779,8 +707,8 @@ function ShopContent() {
                         </div>
                       )}
 
-                      {/* Price Display - Compact for mobile */}
-                      <div className="flex items-baseline gap-1 md:gap-2">
+                      {/* Price Display */}
+                      <div className="flex items-baseline gap-1 md:gap-2 mt-auto">
                         <p className="text-sm md:text-lg lg:text-xl font-bold text-primary">
                           {displayPrice}
                         </p>
@@ -791,11 +719,11 @@ function ShopContent() {
                         )}
                       </div>
                     </CardContent>
-                    <CardFooter className="p-2 md:p-4 pt-0 md:pt-0">
+                    <CardFooter className="p-2 md:p-4 pt-0 md:pt-0 flex-shrink-0">
                       {hasStock && availableSizes.length > 0 ? (
                         <Button
                           size="sm"
-                          className="w-full text-xs md:text-sm py-1 md:py-2 h-auto"
+                          className="w-full text-xs md:text-sm py-1 md:py-2 h-auto min-h-[2rem] md:min-h-[2.5rem]"
                           disabled={addingToCart === product.id}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -805,23 +733,24 @@ function ShopContent() {
                           {addingToCart === product.id ? (
                             <>
                               <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                              <span className="hidden md:inline">
-                                Adding...
-                              </span>
+                              <span className="hidden md:inline">Adding...</span>
                               <span className="md:hidden">Adding...</span>
                             </>
                           ) : (
-                            `Add to Cart ${
-                              availableSizes.length > 1
-                                ? `(${availableSizes[0].size})`
-                                : ""
-                            }`
+                            <>
+                              <span className="hidden sm:inline">
+                                Add to Cart {availableSizes.length > 1 ? `(${availableSizes[0].size})` : ''}
+                              </span>
+                              <span className="sm:hidden">
+                                Add {availableSizes.length > 1 ? `(${availableSizes[0].size})` : ''}
+                              </span>
+                            </>
                           )}
                         </Button>
                       ) : (
                         <Button
                           size="sm"
-                          className="w-full text-xs md:text-sm py-1 md:py-2 h-auto"
+                          className="w-full text-xs md:text-sm py-1 md:py-2 h-auto min-h-[2rem] md:min-h-[2.5rem]"
                           disabled
                         >
                           Out of Stock
@@ -833,7 +762,7 @@ function ShopContent() {
               })}
             </div>
           ) : (
-            /* Empty State - Compact */
+            /* Empty State */
             <div className="text-center py-6 md:py-8">
               <ShoppingBag className="h-10 w-10 md:h-12 md:w-12 mx-auto text-muted-foreground mb-2" />
               <h3 className="text-base md:text-lg font-semibold mb-1">

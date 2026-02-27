@@ -94,6 +94,7 @@ interface Order {
   totalAmount: number;
   productLevelDiscount: number;
   discountAmount: number;
+  subtotalAfterProductDiscount: number;
   finalAmount: number;
   isReferralDiscountApplied: boolean;
   discountSource?: string;
@@ -185,6 +186,7 @@ export default function MyOrdersPage() {
         discountAmount: order.discountAmount || 0,
         offerDiscount: order.offerDiscount || 0,
         productLevelDiscount: order.productLevelDiscount || 0,
+        subtotalAfterProductDiscount: order.subtotalAfterProductDiscount || 0,
         finalAmount: order.finalAmount || 0,
         isReferralDiscountApplied: order.isReferralDiscountApplied || false,
         discountSource: order.discountSource,
@@ -556,7 +558,7 @@ export default function MyOrdersPage() {
                             </div>
                           )}
                           <div className="flex items-center gap-1 font-bold text-lg text-primary">
-                            ₹ {order.finalAmount.toFixed(2)}
+                            ₹ {order.subtotalAfterProductDiscount.toFixed(2)}
                           </div>
                         </div>
                       </div>
@@ -829,7 +831,7 @@ export default function MyOrdersPage() {
                                     </div>
                                   )} */}
                                   <span className="text-lg font-bold text-primary">
-                                    ₹{order.finalAmount.toFixed(2)}
+                                    ₹{order.subtotalAfterProductDiscount.toFixed(2)}
                                   </span>
                                 </div>
                               </div>

@@ -10,6 +10,7 @@ import {
   Percent,
   X,
   Package,
+  Gift,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,14 @@ import {
 } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Offer, CreateOfferPayload } from "@/src/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Offer, CreateOfferPayload, OfferSlab } from "@/src/types";
 import { toast } from "sonner";
 import AdminGuard from "../../../components/guards/AdminGuard";
 import AdminLayout from "../../../components/layout/AdminLayout";
@@ -46,6 +54,14 @@ import {
 interface ProductOption {
   id: number;
   name: string;
+  sizes: Array<{
+    id: number;
+    size: string;
+    price: number;
+    discountedPrice: number;
+    stockQty: number;
+    inStock: boolean;
+  }>;
 }
 
 interface Slab {
@@ -54,15 +70,22 @@ interface Slab {
   discountPercent: number;
 }
 
+// Extended Offer type for display purposes
+interface DisplayOffer extends Offer {
+  getProductName?: string | null;
+  slabs?: OfferSlab[];
+}
+
 export default function AdminOffersPage() {
   const router = useRouter();
 
-  const [offers, setOffers] = useState<Offer[]>([]);
+  const [offers, setOffers] = useState<DisplayOffer[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedGetProduct, setSelectedGetProduct] = useState<ProductOption | null>(null);
 
   const [formData, setFormData] = useState<CreateOfferPayload>({
     offerCode: "",
@@ -71,7 +94,11 @@ export default function AdminOffersPage() {
     minQuantity: 1,
     productIds: [],
     maxDiscountPercent: 0,
-    maxDiscountAmount: 0, // Add this field
+    maxDiscountAmount: 0,
+    buyQuantity: 1,
+    getQuantity: 1,
+    getProductId: null,
+    getSize: null,
     slabs: [],
     validFrom: "",
     validTo: "",
@@ -87,18 +114,37 @@ export default function AdminOffersPage() {
     }
   }, [isCreateDialogOpen]);
 
+  useEffect(() => {
+    // Update selected product when getProductId changes
+    if (formData.getProductId) {
+      const product = products.find(p => p.id === formData.getProductId) || null;
+      setSelectedGetProduct(product);
+    } else {
+      setSelectedGetProduct(null);
+    }
+  }, [formData.getProductId, products]);
+
   const fetchOffers = async () => {
     setIsLoading(true);
     try {
       const response = await getAllOffers();
       console.log("Offers API response:", response);
 
-      let data: Offer[] = [];
+      let data: DisplayOffer[] = [];
 
       if (response?.success && response.data) {
-        data = response.data;
+        data = response.data.map((offer: any) => ({
+          ...offer,
+          // Map any additional fields if needed
+          getProductName: offer.getProductName || null,
+          slabs: offer.slabs || [],
+        }));
       } else if (Array.isArray(response)) {
-        data = response;
+        data = response.map((offer: any) => ({
+          ...offer,
+          getProductName: offer.getProductName || null,
+          slabs: offer.slabs || [],
+        }));
       }
 
       const sorted = data.sort(
@@ -134,6 +180,7 @@ export default function AdminOffersPage() {
       const productOptions = data.map((p) => ({
         id: p.id || p.productId,
         name: p.name || p.productName,
+        sizes: p.sizes || [],
       }));
 
       setProducts(productOptions);
@@ -145,11 +192,6 @@ export default function AdminOffersPage() {
     }
   };
 
-  const toISOStringUTC = (localDate: string) => {
-    if (!localDate) return "";
-    return `${localDate}T00:00:00`;
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
@@ -159,10 +201,20 @@ export default function AdminOffersPage() {
         "discountPercent", 
         "minQuantity", 
         "maxDiscountPercent",
-        "maxDiscountAmount" // Add this
+        "maxDiscountAmount",
+        "buyQuantity",
+        "getQuantity",
+        "getProductId"
       ].includes(name)
-        ? Number(value)
+        ? value === "" ? "" : Number(value)
         : value,
+    }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "getProductId" ? (value ? Number(value) : null) : value,
     }));
   };
 
@@ -179,11 +231,15 @@ export default function AdminOffersPage() {
     setFormData((prev) => ({
       ...prev,
       offerType: newType,
-      discountPercent: newType === "FLAT" ? 0 : prev.discountPercent,
-      minQuantity: newType === "FLAT" ? 1 : 0,
-      maxDiscountPercent: newType === "UPTO" ? 0 : prev.maxDiscountPercent,
-      maxDiscountAmount: newType === "MAX_LIMIT" ? 0 : prev.maxDiscountAmount,
-      slabs: newType === "UPTO" ? [] : prev.slabs,
+      discountPercent: newType === "FLAT" || newType === "MAX_LIMIT" ? prev.discountPercent : 0,
+      minQuantity: newType === "FLAT" || newType === "MAX_LIMIT" || newType === "BUY_GET_FREE" ? prev.minQuantity : 1,
+      maxDiscountPercent: newType === "UPTO" ? prev.maxDiscountPercent : 0,
+      maxDiscountAmount: newType === "MAX_LIMIT" ? prev.maxDiscountAmount : 0,
+      buyQuantity: newType === "BUY_GET_FREE" ? 1 : undefined,
+      getQuantity: newType === "BUY_GET_FREE" ? 1 : undefined,
+      getProductId: newType === "BUY_GET_FREE" ? null : undefined,
+      getSize: newType === "BUY_GET_FREE" ? null : undefined,
+      slabs: newType === "UPTO" ? prev.slabs : [],
     }));
   };
 
@@ -221,11 +277,16 @@ export default function AdminOffersPage() {
       minQuantity: 1,
       productIds: [],
       maxDiscountPercent: 0,
-      maxDiscountAmount: 0, // Add this field
+      maxDiscountAmount: 0,
+      buyQuantity: 1,
+      getQuantity: 1,
+      getProductId: null,
+      getSize: null,
       slabs: [],
       validFrom: "",
       validTo: "",
     });
+    setSelectedGetProduct(null);
   };
 
   const handleCreateOffer = async () => {
@@ -234,6 +295,7 @@ export default function AdminOffersPage() {
       return;
     }
 
+    // Validation based on offer type
     if (formData.offerType === "FLAT") {
       if (formData.discountPercent <= 0 || formData.discountPercent > 100) {
         toast.error("Discount percentage must be between 1 and 100");
@@ -282,6 +344,21 @@ export default function AdminOffersPage() {
       }
     }
 
+    if (formData.offerType === "BUY_GET_FREE") {
+      if (!formData.buyQuantity || formData.buyQuantity < 1) {
+        toast.error("Buy quantity must be at least 1");
+        return;
+      }
+      if (!formData.getQuantity || formData.getQuantity < 1) {
+        toast.error("Get quantity must be at least 1");
+        return;
+      }
+      if (!formData.minQuantity || formData.minQuantity < 1) {
+        toast.error("Minimum quantity must be at least 1");
+        return;
+      }
+    }
+
     if (formData.productIds.length === 0) {
       toast.error("Please select at least one product");
       return;
@@ -302,8 +379,8 @@ export default function AdminOffersPage() {
           offerType: formData.offerType,
           discountPercent: formData.discountPercent,
           minQuantity: formData.minQuantity,
-          validFrom: toISOStringUTC(formData.validFrom),
-          validTo: `${formData.validTo}T23:59:59`,
+          validFrom: formData.validFrom,
+          validTo: formData.validTo,
           productIds: formData.productIds,
         };
       } else if (formData.offerType === "UPTO") {
@@ -312,21 +389,34 @@ export default function AdminOffersPage() {
           offerType: formData.offerType,
           maxDiscountPercent: formData.maxDiscountPercent,
           minQuantity: 1,
-          validFrom: toISOStringUTC(formData.validFrom),
-          validTo: `${formData.validTo}T23:59:59`,
+          validFrom: formData.validFrom,
+          validTo: formData.validTo,
           slabs: formData.slabs,
           productIds: formData.productIds,
         };
-      } else if (formData.offerType === "MAX_LIMIT") { // Add this case
+      } else if (formData.offerType === "MAX_LIMIT") {
         payload = {
           offerCode: formData.offerCode,
           offerType: formData.offerType,
           discountPercent: formData.discountPercent,
           maxDiscountAmount: formData.maxDiscountAmount,
           minQuantity: formData.minQuantity,
-          validFrom: toISOStringUTC(formData.validFrom),
-          validTo: `${formData.validTo}T23:59:59`,
+          validFrom: formData.validFrom,
+          validTo: formData.validTo,
           productIds: formData.productIds,
+        };
+      } else if (formData.offerType === "BUY_GET_FREE") {
+        payload = {
+          offerCode: formData.offerCode,
+          offerType: formData.offerType,
+          buyQuantity: formData.buyQuantity,
+          getQuantity: formData.getQuantity,
+          minQuantity: formData.minQuantity,
+          validFrom: formData.validFrom,
+          validTo: formData.validTo,
+          productIds: formData.productIds,
+          getProductId: formData.getProductId,
+          getSize: formData.getSize,
         };
       }
 
@@ -374,11 +464,56 @@ export default function AdminOffersPage() {
       minute: "2-digit",
     });
 
-  const isOfferActive = (offer: Offer) => {
+  const isOfferActive = (offer: DisplayOffer) => {
     const now = new Date();
     const start = new Date(offer.validFrom);
     const end = new Date(offer.validTo);
     return now >= start && now <= end;
+  };
+
+  const getOfferDescription = (offer: DisplayOffer) => {
+    if (offer.offerType === "FLAT") {
+      return `${offer.discountPercent}% OFF`;
+    } else if (offer.offerType === "UPTO") {
+      return `Up to ${offer.maxDiscountPercent}% OFF`;
+    } else if (offer.offerType === "MAX_LIMIT") {
+      return `${offer.discountPercent}% OFF (Max ₹${offer.maxDiscountAmount})`;
+    } else if (offer.offerType === "BUY_GET_FREE") {
+      let description = `Buy ${offer.buyQuantity} Get ${offer.getQuantity} Free`;
+      if (offer.getProductName) {
+        description += ` (Get: ${offer.getProductName}`;
+        if (offer.getSize) {
+          description += ` - ${offer.getSize}`;
+        }
+        description += ")";
+      } else if (offer.getSize) {
+        description += ` (Size: ${offer.getSize})`;
+      }
+      return description;
+    }
+    return "";
+  };
+
+  const getOfferDetails = (offer: DisplayOffer) => {
+    if (offer.offerType === "UPTO" && offer.slabs && offer.slabs.length > 0) {
+      return (
+        <div className="text-xs space-y-1">
+          {offer.slabs.map((slab: OfferSlab, index: number) => (
+            <div key={index}>
+              ₹{slab.minAmount} - ₹{slab.maxAmount}: {slab.discountPercent}% OFF
+            </div>
+          ))}
+        </div>
+      );
+    } else if (offer.offerType === "BUY_GET_FREE" && offer.getProductName) {
+      return (
+        <div className="text-xs">
+          Get: {offer.getProductName}
+          {offer.getSize && ` (${offer.getSize})`}
+        </div>
+      );
+    }
+    return null;
   };
 
   const headerAction = (
@@ -429,6 +564,7 @@ export default function AdminOffersPage() {
                   <option value="FLAT">Quantity Based</option>
                   <option value="UPTO">Price Based (Slabs)</option>
                   <option value="MAX_LIMIT">Max Limit</option>
+                  <option value="BUY_GET_FREE">Buy Get Free</option>
                 </select>
               </div>
             </div>
@@ -624,6 +760,105 @@ export default function AdminOffersPage() {
                     onChange={handleInputChange}
                     placeholder="50"
                   />
+                </div>
+              </>
+            )}
+
+            {formData.offerType === "BUY_GET_FREE" && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="buyQuantity">Buy Quantity *</Label>
+                    <Input
+                      id="buyQuantity"
+                      name="buyQuantity"
+                      type="number"
+                      min="1"
+                      value={formData.buyQuantity || ""}
+                      onChange={handleInputChange}
+                      placeholder="1"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="getQuantity">Get Quantity *</Label>
+                    <Input
+                      id="getQuantity"
+                      name="getQuantity"
+                      type="number"
+                      min="1"
+                      value={formData.getQuantity || ""}
+                      onChange={handleInputChange}
+                      placeholder="1"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="minQuantity">Minimum Quantity *</Label>
+                  <Input
+                    id="minQuantity"
+                    name="minQuantity"
+                    type="number"
+                    min="1"
+                    value={formData.minQuantity || ""}
+                    onChange={handleInputChange}
+                    placeholder="1"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Minimum quantity required to apply this offer
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="getProductId">Get Product Name (Optional)</Label>
+                    <Select
+                      value={formData.getProductId?.toString() || "none"}
+                      onValueChange={(value) => handleSelectChange("getProductId", value === "none" ? "" : value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a product" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Same as purchased product</SelectItem>
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id.toString()}>
+                            {product.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Select a product or leave empty to use same product
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="getSize">Get Size (Optional)</Label>
+                    <Select
+                      value={formData.getSize || "none"}
+                      onValueChange={(value) => handleSelectChange("getSize", value === "none" ? "" : value)}
+                      disabled={!selectedGetProduct}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={selectedGetProduct ? "Select a size" : "Select a product first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No specific size</SelectItem>
+                        {selectedGetProduct?.sizes.map((size) => (
+                          <SelectItem key={size.id} value={size.size}>
+                            {size.size} - ₹{size.discountedPrice}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedGetProduct 
+                        ? `Available sizes for ${selectedGetProduct.name}` 
+                        : "Select a product to see available sizes"}
+                    </p>
+                  </div>
                 </div>
               </>
             )}
@@ -844,12 +1079,14 @@ export default function AdminOffersPage() {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <Badge variant="secondary" className="text-xs">
-                                  {offer.offerType === "FLAT" 
-                                    ? `${offer.discountPercent}% OFF`
-                                    : `Up to ${offer.maxDiscountPercent}% OFF`
-                                  }
-                                </Badge>
+                                <div>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {getOfferDescription(offer)}
+                                  </Badge>
+                                  <div className="mt-1">
+                                    {getOfferDetails(offer)}
+                                  </div>
+                                </div>
                                 <div className="text-xs text-muted-foreground sm:hidden mt-1">
                                   Min Qty: {offer.minQuantity}
                                 </div>
@@ -865,7 +1102,7 @@ export default function AdminOffersPage() {
                               </TableCell>
                               <TableCell className="hidden lg:table-cell">
                                 <div className="flex flex-wrap gap-1">
-                                  {offer.products.slice(0, 2).map((p) => (
+                                  {offer.products?.slice(0, 2).map((p) => (
                                     <Badge
                                       key={p.productId}
                                       variant="outline"
@@ -874,7 +1111,7 @@ export default function AdminOffersPage() {
                                       {p.productName}
                                     </Badge>
                                   ))}
-                                  {offer.products.length > 2 && (
+                                  {offer.products?.length > 2 && (
                                     <Badge
                                       variant="outline"
                                       className="text-xs"
@@ -905,7 +1142,7 @@ export default function AdminOffersPage() {
                                   {formatDate(offer.validFrom)} -{" "}
                                   {formatDate(offer.validTo)}
                                 </div>
-                                {offer.products.length > 0 && (
+                                {offer.products?.length > 0 && (
                                   <div className="text-xs text-muted-foreground mt-1 lg:hidden">
                                     {offer.products.length} product(s)
                                   </div>

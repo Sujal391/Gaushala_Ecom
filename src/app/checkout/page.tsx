@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, Loader2, MapPin, ArrowLeft, Tag, X, MessageSquare, CreditCard } from 'lucide-react';
+import { ShoppingCart, Loader2, MapPin, ArrowLeft, Tag, X, MessageSquare, CreditCard, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -31,8 +31,10 @@ declare global {
   }
 }
 
-// Cache key for localStorage
+// Cache keys for localStorage
 const CART_CACHE_KEY = 'cart_updates_cache';
+const CHECKOUT_FORM_KEY = 'checkout_form_data';
+const APPLIED_OFFER_KEY = 'applied_offer_data';
 
 interface CartUpdate {
   productId: number;
@@ -53,6 +55,12 @@ interface AppliedOffer {
   offerCode: string;
   discount: number;
   discountPercentage?: number;
+  offerType?: 'BUY_GET' | 'PERCENTAGE' | 'FLAT';
+  freeItems?: Array<{
+    productId: number;
+    productName: string;
+    quantity: number;
+  }>;
 }
 
 interface PaymentConfig {
@@ -88,6 +96,11 @@ interface CreatePaymentOrderResponse {
   message?: string;
 }
 
+// Helper to detect free items in cart
+const detectFreeItems = (cart: CartItem[]): CartItem[] => {
+  return cart.filter(item => item.isFreeItem || (item.discountedPrice === 0 && item.price === 0));
+};
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { fetchCart: refreshGlobalCart } = useCart();
@@ -113,6 +126,7 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<Partial<AddressForm>>({});
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
 
+  // Load saved form data and applied offer on mount
   useEffect(() => {
     if (!isAuthenticated()) {
       toast.error('Please login to checkout');
@@ -120,19 +134,110 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Load saved form data
+    loadSavedFormData();
+    
+    // Load saved offer
+    loadSavedOffer();
+
     loadCart();
     loadPaymentConfig();
   }, []);
+
+  // Save form data whenever it changes
+  useEffect(() => {
+    if (!loading && Object.values(address).some(value => value !== '')) {
+      saveFormData();
+    }
+  }, [address, loading]);
+
+  // Save offer whenever it changes
+  useEffect(() => {
+    if (appliedOffer) {
+      saveOfferData(appliedOffer);
+    } else {
+      clearSavedOffer();
+    }
+  }, [appliedOffer]);
 
   useEffect(() => {
     if (!showSuccessAnimation) return;
 
     const timer = setTimeout(() => {
+      // Clear all saved data on successful order
+      clearAllSavedData();
       router.replace('/my-orders');
     }, 2800);
 
     return () => clearTimeout(timer);
   }, [showSuccessAnimation, router]);
+
+  // Load saved form data from localStorage
+  const loadSavedFormData = () => {
+    try {
+      const saved = localStorage.getItem(CHECKOUT_FORM_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setAddress(prev => ({
+          ...prev,
+          ...parsed
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading saved form data:', error);
+    }
+  };
+
+  // Save form data to localStorage
+  const saveFormData = () => {
+    try {
+      localStorage.setItem(CHECKOUT_FORM_KEY, JSON.stringify(address));
+    } catch (error) {
+      console.error('Error saving form data:', error);
+    }
+  };
+
+  // Load saved offer from localStorage
+  const loadSavedOffer = () => {
+    try {
+      const saved = localStorage.getItem(APPLIED_OFFER_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setAppliedOffer(parsed);
+      }
+    } catch (error) {
+      console.error('Error loading saved offer:', error);
+    }
+  };
+
+  // Save offer to localStorage
+  const saveOfferData = (offer: AppliedOffer) => {
+    try {
+      localStorage.setItem(APPLIED_OFFER_KEY, JSON.stringify(offer));
+    } catch (error) {
+      console.error('Error saving offer data:', error);
+    }
+  };
+
+  // Clear saved offer
+  const clearSavedOffer = () => {
+    try {
+      localStorage.removeItem(APPLIED_OFFER_KEY);
+    } catch (error) {
+      console.error('Error clearing saved offer:', error);
+    }
+  };
+
+  // Clear all saved data
+  const clearAllSavedData = () => {
+    try {
+      localStorage.removeItem(CHECKOUT_FORM_KEY);
+      localStorage.removeItem(APPLIED_OFFER_KEY);
+      localStorage.removeItem(CART_CACHE_KEY);
+    } catch (error) {
+      console.error('Error clearing saved data:', error);
+    }
+  };
 
   // Load payment configuration
   const loadPaymentConfig = async () => {
@@ -223,7 +328,8 @@ export default function CheckoutPage() {
         images: item.images,
         selectedSize: item.selectedSize,
         sizePrices: item.sizePrices,
-        sizeDiscountedPrices: item.sizeDiscountedPrices
+        sizeDiscountedPrices: item.sizeDiscountedPrices,
+        isFreeItem: item.price === 0 || item.discountedPrice === 0 // Mark free items
       }));
 
       // Apply cached updates
@@ -250,6 +356,21 @@ export default function CheckoutPage() {
       }
 
       setCart(mappedCart);
+
+      // After loading cart, check for free items and update offer if needed
+      const freeItems = detectFreeItems(mappedCart);
+      if (freeItems.length > 0 && appliedOffer) {
+        // Update applied offer with free items info
+        setAppliedOffer(prev => prev ? {
+          ...prev,
+          offerType: 'BUY_GET',
+          freeItems: freeItems.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity
+          }))
+        } : null);
+      }
     } catch (error) {
       console.error('Error loading cart:', error);
       toast.error('Failed to load cart');
@@ -261,7 +382,6 @@ export default function CheckoutPage() {
 
   const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
-      // Check if script is already loaded
       if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
         resolve(true);
         return;
@@ -300,16 +420,27 @@ export default function CheckoutPage() {
       if (response.success && response.data) {
         const discount = response.data.discount || 0;
         const discountPercentage = response.data.discountPercentage;
+        
+        // Check if this is a Buy Get Free offer (you may need to adjust this logic based on your API response)
+        const isBuyGetOffer = response.data.offerType === 'BUY_GET' || 
+                             (response.data.message && response.data.message.includes('free'));
+
+        // Refresh cart to get free items
+        await loadCart();
 
         setAppliedOffer({
           offerCode: offerCode.trim(),
           discount,
-          discountPercentage
+          discountPercentage,
+          offerType: isBuyGetOffer ? 'BUY_GET' : (discountPercentage ? 'PERCENTAGE' : 'FLAT')
         });
 
         toast.success('Offer applied successfully!', {
-          description: `You saved ₹${discount.toFixed(2)}`,
+          description: isBuyGetOffer 
+            ? 'Free items have been added to your cart!' 
+            : `You saved ₹${discount.toFixed(2)}`,
         });
+        
         setOfferCode('');
       } else {
         toast.error('Invalid offer code', {
@@ -326,9 +457,18 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleRemoveOffer = () => {
-    setAppliedOffer(null);
-    toast.info('Offer code removed');
+  const handleRemoveOffer = async () => {
+    try {
+      setAppliedOffer(null);
+      
+      // Refresh cart to remove free items
+      await loadCart();
+      
+      toast.info('Offer code removed');
+    } catch (error) {
+      console.error('Error removing offer:', error);
+      toast.error('Failed to remove offer');
+    }
   };
 
   const validateForm = (): boolean => {
@@ -368,39 +508,28 @@ export default function CheckoutPage() {
       const rawUserId = getUserId();
       const token = getAuthToken();
 
-      console.log('=== DEBUG: createTemporaryOrder ===');
-      console.log('1. Raw userId:', rawUserId);
-      console.log('2. Raw userId type:', typeof rawUserId);
-      console.log('3. Token exists:', !!token);
-
       if (!rawUserId || !token) {
         toast.error('User not found');
         return null;
       }
 
-      // Convert userId to number
       let userId: number;
       if (typeof rawUserId === 'string') {
         userId = parseInt(rawUserId, 10);
-        console.log('4. Parsed userId from string:', userId);
       } else if (typeof rawUserId === 'number') {
         userId = rawUserId;
-        console.log('4. userId is already number:', userId);
       } else {
-        console.error('5. Invalid userId type:', typeof rawUserId);
         toast.error('Invalid user ID format');
         return null;
       }
 
       if (isNaN(userId)) {
-        console.error('6. userId is NaN after parsing');
         toast.error('Invalid user ID format');
         return null;
       }
 
-      // Build payload with CAMELCASE as shown in Swagger documentation
       const payload = {
-        userId: userId,  // camelCase number
+        userId: userId,
         houseNo: String(address.houseNo || '').trim(),
         street: String(address.street || '').trim(),
         landmark: String(address.landmark || '').trim() || "Not provided",
@@ -411,57 +540,29 @@ export default function CheckoutPage() {
         customerRemark: address.customerRemark ? String(address.customerRemark).trim() : ""
       };
 
-      console.log('7. Final camelCase payload:', JSON.stringify(payload, null, 2));
-      console.log('8. Payload userId type:', typeof payload.userId);
-      console.log('9. Token (first 20 chars):', token.substring(0, 20) + '...');
-
-      try {
-        const response = await createTempOrder(payload, token) as CreateTempOrderResponse;
-        console.log('10. Response received:', response);
-        
-        if (response.success && response.data?.orderId) {
-          console.log('11. Order created successfully with ID:', response.data.orderId);
-          setDraftOrderId(response.data.orderId);
-          toast.success('Order created successfully');
-          return response.data.orderId;
+      const response = await createTempOrder(payload, token) as CreateTempOrderResponse;
+      
+      if (response.success && response.data?.orderId) {
+        setDraftOrderId(response.data.orderId);
+        toast.success('Order created successfully');
+        return response.data.orderId;
+      } else {
+        if (response.errors) {
+          Object.entries(response.errors).forEach(([field, message]) => {
+            toast.error(`${field}: ${message}`);
+          });
         } else {
-          console.error('11. Order creation failed:', response.message);
-          
-          // Check if there are validation errors in the response
-          if (response.errors) {
-            console.error('12. Validation errors:', response.errors);
-            Object.entries(response.errors).forEach(([field, message]) => {
-              toast.error(`${field}: ${message}`);
-            });
-          } else {
-            toast.error(response.message || 'Failed to create order');
-          }
-          return null;
+          toast.error(response.message || 'Failed to create order');
         }
-      } catch (apiError) {
-        console.error('10. API call error:', apiError);
-        if (apiError instanceof Error) {
-          console.error('   - Error name:', apiError.name);
-          console.error('   - Error message:', apiError.message);
-          console.error('   - Error stack:', apiError.stack);
-        }
-        toast.error('Failed to create order: ' + (apiError instanceof Error ? apiError.message : 'Unknown error'));
         return null;
       }
     } catch (error) {
-      console.error('=== ERROR in createTemporaryOrder ===');
-      console.error('Error:', error);
-      if (error instanceof Error) {
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-      }
+      console.error('Error in createTemporaryOrder:', error);
       toast.error('Failed to create order');
       return null;
     }
   };
 
-  // Step 2: Create Razorpay payment order
   const createRazorpayPaymentOrder = async (orderId: number): Promise<CreatePaymentOrderResponse | null> => {
     try {
       const token = getAuthToken();
@@ -470,10 +571,7 @@ export default function CheckoutPage() {
         return null;
       }
 
-      console.log('Creating payment order for orderId:', orderId);
       const response = await createPaymentOrder(orderId, token) as CreatePaymentOrderResponse;
-      console.log('Create payment order response:', response);
-      
       return response;
     } catch (error) {
       console.error('Error creating payment order:', error);
@@ -482,7 +580,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // Step 3: Confirm payment after successful Razorpay payment
   const handlePaymentSuccess = async (response: any, orderData: any) => {
     try {
       const token = getAuthToken();
@@ -492,8 +589,6 @@ export default function CheckoutPage() {
         return;
       }
 
-      console.log('Payment successful, confirming...', response);
-
       const confirmPayload = {
         orderId: orderData.orderId,
         razorpayPaymentId: response.razorpay_payment_id,
@@ -502,11 +597,10 @@ export default function CheckoutPage() {
       };
 
       const confirmResponse = await confirmPayment(confirmPayload, token);
-      console.log('Confirm payment response:', confirmResponse);
 
       if (confirmResponse.success) {
-        // Clear cart cache and state
-        localStorage.removeItem(CART_CACHE_KEY);
+        // Clear all saved data on successful payment
+        clearAllSavedData();
         setAppliedOffer(null);
         
         // Refresh global cart
@@ -525,7 +619,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // Initialize Razorpay payment
   const initializeRazorpayPayment = async (orderData: any) => {
     try {
       const token = getAuthToken();
@@ -536,13 +629,11 @@ export default function CheckoutPage() {
       }
 
       if (!paymentConfig || !paymentConfig.keyId) {
-        console.error('Payment config missing:', paymentConfig);
         toast.error('Payment configuration not loaded properly');
         setPlacing(false);
         return;
       }
 
-      // Load Razorpay script
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) {
         toast.error('Failed to load payment gateway');
@@ -551,7 +642,6 @@ export default function CheckoutPage() {
       }
 
       if (typeof window.Razorpay === 'undefined') {
-        console.error('Razorpay not available after script load');
         toast.error('Payment gateway initialization failed');
         setPlacing(false);
         return;
@@ -576,19 +666,15 @@ export default function CheckoutPage() {
         theme: paymentConfig.theme || { color: '#F97316' },
         modal: {
           ondismiss: () => {
-            console.log('Payment modal dismissed');
             setPlacing(false);
             toast.info('Payment cancelled');
           }
         }
       };
 
-      console.log('Razorpay options:', options);
-
       const razorpay = new window.Razorpay(options);
       
       razorpay.on('payment.failed', (response: any) => {
-        console.error('Payment failed:', response.error);
         toast.error('Payment failed: ' + (response.error?.description || 'Unknown error'));
         setPlacing(false);
       });
@@ -601,7 +687,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // Main place order function
   const placeOrder = async () => {
     if (!validateForm()) {
       toast.error('Please fill all required fields correctly');
@@ -616,8 +701,6 @@ export default function CheckoutPage() {
     try {
       setPlacing(true);
       
-      // Step 1: Create temporary order (DRAFT)
-      console.log('Step 1: Creating temporary order...');
       const orderId = await createTemporaryOrder();
       
       if (!orderId) {
@@ -625,8 +708,6 @@ export default function CheckoutPage() {
         return;
       }
       
-      // Step 2: Create Razorpay payment order
-      console.log('Step 2: Creating Razorpay payment order...');
       const paymentOrder = await createRazorpayPaymentOrder(orderId);
       
       if (!paymentOrder || !paymentOrder.success) {
@@ -635,8 +716,6 @@ export default function CheckoutPage() {
         return;
       }
       
-      // Step 3: Initialize Razorpay payment
-      console.log('Step 3: Initializing Razorpay payment...');
       await initializeRazorpayPayment({
         orderId: paymentOrder.data.orderId,
         razorpayOrderId: paymentOrder.data.razorpayOrderId,
@@ -653,6 +732,8 @@ export default function CheckoutPage() {
 
   const getSubtotal = () => {
     return cart.reduce((total, item) => {
+      // Don't include free items in subtotal
+      if (item.isFreeItem) return total;
       const itemTotal = item.totalPrice;
       return total + itemTotal;
     }, 0);
@@ -660,7 +741,7 @@ export default function CheckoutPage() {
 
   const getTotalSavings = () => {
     return cart.reduce((total, item) => {
-      if (item.discountedPrice) {
+      if (item.discountedPrice && !item.isFreeItem) {
         const originalTotal = item.price * item.quantity;
         const discountedTotal = (item.discountedPrice || item.price) * item.quantity;
         return total + (originalTotal - discountedTotal);
@@ -678,6 +759,10 @@ export default function CheckoutPage() {
     const totalSavings = getTotalSavings();
     const discount = getDiscount();
     return subtotal - totalSavings - discount;
+  };
+
+  const getFreeItems = () => {
+    return cart.filter(item => item.isFreeItem);
   };
 
   const getItemDisplayPrice = (item: CartItem) => {
@@ -759,6 +844,7 @@ export default function CheckoutPage() {
   }
 
   const totalSavings = getTotalSavings();
+  const freeItems = getFreeItems();
 
   return (
     <UserGuard>
@@ -907,11 +993,12 @@ export default function CheckoutPage() {
                       const itemTotal = getItemTotal(item);
                       const originalTotal = getItemOriginalTotal(item);
                       const hasDiscount = item.discountedPrice && item.discountedPrice < item.price;
+                      const isFree = item.isFreeItem || item.price === 0;
                       
                       return (
                         <div
                           key={item.cartItemId}
-                          className="flex items-center justify-between py-3 border-b last:border-b-0"
+                          className={`flex items-center justify-between py-3 border-b last:border-b-0 ${isFree ? 'bg-green-50/50 rounded-lg px-3' : ''}`}
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-16 h-16 bg-muted rounded-md overflow-hidden">
@@ -930,10 +1017,20 @@ export default function CheckoutPage() {
                               />
                             </div>
                             <div>
-                              <p className="font-medium">{item.productName}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">{item.productName}</p>
+                                {isFree && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                    <Gift className="h-3 w-3 mr-1" />
+                                    FREE
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-sm text-muted-foreground">{item.selectedSize}</p>
                               <div className="flex items-center gap-2 text-sm">
-                                {hasDiscount ? (
+                                {isFree ? (
+                                  <span className="text-green-600 font-medium">FREE</span>
+                                ) : hasDiscount ? (
                                   <>
                                     <span className="text-primary font-medium">
                                       ₹{displayPrice.toFixed(2)}
@@ -954,19 +1051,42 @@ export default function CheckoutPage() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-semibold text-primary">
-                              ₹{itemTotal.toFixed(2)}
-                            </p>
-                            {hasDiscount && originalTotal > itemTotal && (
-                              <p className="text-xs text-muted-foreground line-through">
-                                ₹{originalTotal.toFixed(2)}
-                              </p>
+                            {isFree ? (
+                              <p className="font-semibold text-green-600">FREE</p>
+                            ) : (
+                              <>
+                                <p className="font-semibold text-primary">
+                                  ₹{itemTotal.toFixed(2)}
+                                </p>
+                                {hasDiscount && originalTotal > itemTotal && (
+                                  <p className="text-xs text-muted-foreground line-through">
+                                    ₹{originalTotal.toFixed(2)}
+                                  </p>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
                       );
                     })}
                   </div>
+                  
+                  {/* Free Items Summary */}
+                  {freeItems.length > 0 && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                      <p className="text-sm text-green-700 font-medium flex items-center gap-2 mb-2">
+                        <Gift className="h-4 w-4" />
+                        Free Items Added to Your Order!
+                      </p>
+                      <div className="space-y-1">
+                        {freeItems.map((item, index) => (
+                          <p key={index} className="text-xs text-green-600">
+                            • {item.quantity}x {item.productName} (FREE)
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Total Savings Banner */}
                   {totalSavings > 0 && (
@@ -997,26 +1117,46 @@ export default function CheckoutPage() {
                       </Label>
                       
                       {appliedOffer ? (
-                        <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-md">
-                          <div className="flex items-center gap-2">
-                            <Tag className="h-4 w-4 text-green-600" />
-                            <div>
-                              <p className="text-sm font-medium text-green-900">
-                                {appliedOffer.offerCode}
-                              </p>
-                              <p className="text-xs text-green-700">
-                                Saved ₹{appliedOffer.discount.toFixed(2)}
-                              </p>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-md">
+                            <div className="flex items-center gap-2">
+                              <Tag className="h-4 w-4 text-green-600" />
+                              <div>
+                                <p className="text-sm font-medium text-green-900">
+                                  {appliedOffer.offerCode}
+                                </p>
+                                {appliedOffer.offerType === 'BUY_GET' ? (
+                                  <p className="text-xs text-green-700">
+                                    Buy Get Free offer applied
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-green-700">
+                                    Saved ₹{appliedOffer.discount.toFixed(2)}
+                                  </p>
+                                )}
+                              </div>
                             </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleRemoveOffer}
+                              className="h-8 w-8 p-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleRemoveOffer}
-                            className="h-8 w-8 p-0"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                          
+                          {/* Show free items in offer section */}
+                          {appliedOffer.freeItems && appliedOffer.freeItems.length > 0 && (
+                            <div className="p-2 bg-green-50 rounded-md text-xs">
+                              <p className="font-medium text-green-800 mb-1">You get:</p>
+                              {appliedOffer.freeItems.map((item, idx) => (
+                                <p key={idx} className="text-green-600">
+                                  • {item.quantity}x {item.productName} FREE
+                                </p>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="flex gap-2">
@@ -1065,7 +1205,7 @@ export default function CheckoutPage() {
                       )}
                       
                       {/* Offer Code Discount */}
-                      {appliedOffer && (
+                      {appliedOffer && appliedOffer.discount > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-green-600">Offer Discount</span>
                           <span className="font-medium text-green-600">
@@ -1086,6 +1226,18 @@ export default function CheckoutPage() {
                             ₹{getTotal().toFixed(2)}
                           </span>
                         </div>
+                        
+                        {/* Free Items Value */}
+                        {freeItems.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs text-green-600 font-medium">
+                              You get {freeItems.length} free item(s) worth ₹
+                              {freeItems.reduce((total, item) => 
+                                total + (item.price * item.quantity), 0
+                              ).toFixed(2)}
+                            </p>
+                          </div>
+                        )}
                         
                         {/* Total Savings Summary */}
                         {(totalSavings > 0 || appliedOffer) && (
