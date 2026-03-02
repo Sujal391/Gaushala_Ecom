@@ -789,7 +789,7 @@ export default function CartPage() {
                               : '/placeholder-product.jpg'
                           }
                           alt={item.productName}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = '/placeholder-product.jpg';
                           }}

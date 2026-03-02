@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Upload,
@@ -13,10 +13,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { updateBanner } from '../../../../../lib/api/auth';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { updateBanner, getBannerById } from '../../../../../lib/api/auth';
+import { API_BASE_URL } from '../../../../../lib/api/config'; // Import API_BASE_URL
 import { toast } from 'sonner';
 import AdminGuard from '../../../../../components/guards/AdminGuard';
 import AdminLayout from '../../../../../components/layout/AdminLayout';
+
+// Define Banner type based on API response
+interface Banner {
+  id: number;
+  imageUrl: string;
+  deviceType: string; // Comes as "DESKTOP", "MOBILE", "TABLET" (uppercase)
+  createdAt: string;
+}
 
 export default function EditBannerPage() {
   const router = useRouter();
@@ -24,9 +34,85 @@ export default function EditBannerPage() {
   const bannerId = Number(params.id);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [currentBanner, setCurrentBanner] = useState<Banner | null>(null);
+  const [deviceType, setDeviceType] = useState<string>('');
+  const [imageError, setImageError] = useState(false);
+
+  // Device options for dropdown (lowercase values for API)
+  const deviceOptions = [
+    { value: 'desktop', label: 'Desktop' },
+    { value: 'mobile', label: 'Mobile' },
+    { value: 'tablet', label: 'Tablet' },
+  ];
+
+  // Helper function to get full image URL - matching the list page pattern
+  const getFullImageUrl = (imageUrl: string): string => {
+    if (!imageUrl) return '';
+    
+    // If it's already a full URL, return as is
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    
+    // If it's a data URL (from file upload), return as is
+    if (imageUrl.startsWith('data:')) {
+      return imageUrl;
+    }
+    
+    // Use the same pattern as the list page
+    return `${API_BASE_URL}${imageUrl}`;
+  };
+
+  // Helper function to convert API deviceType (uppercase) to form value (lowercase)
+  const apiToFormDeviceType = (apiDeviceType: string): string => {
+    if (!apiDeviceType) return '';
+    return apiDeviceType.toLowerCase();
+  };
+
+  // Helper function to convert form value (lowercase) to API deviceType (uppercase)
+  const formToApiDeviceType = (formDeviceType: string): string | undefined => {
+    if (!formDeviceType || formDeviceType === ' ') return undefined;
+    return formDeviceType.toUpperCase();
+  };
+
+  // Fetch banner data on component mount
+  useEffect(() => {
+    fetchBannerData();
+  }, [bannerId]);
+
+  const fetchBannerData = async () => {
+    setIsLoading(true);
+    try {
+      const response = await getBannerById(bannerId);
+      
+      if (response.success && response.data) {
+        setCurrentBanner(response.data);
+        // Set the current image preview from the API
+        if (response.data.imageUrl) {
+          const fullImageUrl = getFullImageUrl(response.data.imageUrl);
+          console.log('Setting image preview to:', fullImageUrl);
+          setImagePreview(fullImageUrl);
+        }
+        // Set the current device type (convert from uppercase to lowercase for dropdown)
+        if (response.data.deviceType) {
+          setDeviceType(apiToFormDeviceType(response.data.deviceType));
+        }
+      } else {
+        toast.error(response.message || 'Failed to load banner data');
+        router.push('/admin/banner');
+      }
+    } catch (error) {
+      console.error('Error fetching banner:', error);
+      toast.error('Failed to load banner data');
+      router.push('/admin/banner');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -44,6 +130,7 @@ export default function EditBannerPage() {
       }
 
       setImageFile(file);
+      setImageError(false); // Reset error state when new image is selected
       
       // Create preview
       const reader = new FileReader();
@@ -56,7 +143,14 @@ export default function EditBannerPage() {
 
   const removeImage = () => {
     setImageFile(null);
-    setImagePreview(null);
+    setImageError(false);
+    // If we have a current banner, revert to its image
+    if (currentBanner?.imageUrl) {
+      const fullImageUrl = getFullImageUrl(currentBanner.imageUrl);
+      setImagePreview(fullImageUrl);
+    } else {
+      setImagePreview(null);
+    }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -67,10 +161,7 @@ export default function EditBannerPage() {
   };
 
   const validateForm = () => {
-    if (!imageFile) {
-      toast.error('Please select a new banner image');
-      return false;
-    }
+    // Form is valid even without a new image (can update only device type)
     return true;
   };
 
@@ -84,8 +175,12 @@ export default function EditBannerPage() {
     setIsSubmitting(true);
 
     try {
-      // Update banner with new image
-      const response = await updateBanner(bannerId, imageFile as File);
+      // Only pass imageFile if a new image was selected
+      const response = await updateBanner(
+        bannerId, 
+        imageFile as File, // This will be undefined if no new image
+        formToApiDeviceType(deviceType) // Convert to uppercase for API
+      );
 
       if (response.success) {
         toast.success('Banner updated successfully!');
@@ -101,6 +196,11 @@ export default function EditBannerPage() {
     }
   };
 
+  const handleImageError = () => {
+    setImageError(true);
+    console.error('Failed to load image:', imagePreview);
+  };
+
   const headerAction = (
     <Button
       variant="outline"
@@ -114,12 +214,31 @@ export default function EditBannerPage() {
     </Button>
   );
 
+  if (isLoading) {
+    return (
+      <AdminGuard>
+        <AdminLayout title="Edit Banner" headerAction={headerAction}>
+          <Card className="max-w-4xl mx-auto">
+            <CardContent className="flex items-center justify-center min-h-[400px]">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </AdminLayout>
+      </AdminGuard>
+    );
+  }
+
   return (
     <AdminGuard>
       <AdminLayout title="Edit Banner" headerAction={headerAction}>
         <Card className="max-w-4xl mx-auto">
           <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
             <CardTitle className="text-xl sm:text-2xl">Update Banner #{bannerId}</CardTitle>
+            {currentBanner?.createdAt && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Created: {new Date(currentBanner.createdAt).toLocaleString()}
+              </p>
+            )}
           </CardHeader>
           <CardContent className="px-4 sm:px-6 pb-6">
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -135,16 +254,27 @@ export default function EditBannerPage() {
 
               {/* Banner Image Upload */}
               <div>
-                <Label className="text-base">New Banner Image *</Label>
+                <Label className="text-base">Banner Image</Label>
                 <div className="border-2 border-dashed rounded-lg p-4 sm:p-6 text-center mt-2">
                   {imagePreview ? (
                     <div className="space-y-4">
                       <div className="relative">
-                        <img
-                          src={imagePreview}
-                          alt="New banner preview"
-                          className="w-full max-h-[300px] object-contain rounded-lg border"
-                        />
+                        {imageError ? (
+                          <div className="w-full h-[200px] flex items-center justify-center bg-gray-100 rounded-lg border">
+                            <div className="text-center">
+                              <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                              <p className="text-sm text-muted-foreground">Failed to load image</p>
+                              <p className="text-xs text-muted-foreground mt-1 break-all px-4">{imagePreview}</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <img
+                            src={imagePreview}
+                            alt="Banner preview"
+                            className="w-full max-h-[300px] object-contain rounded-lg border"
+                            onError={handleImageError}
+                          />
+                        )}
                         <Button
                           type="button"
                           variant="destructive"
@@ -165,18 +295,20 @@ export default function EditBannerPage() {
                           disabled={isSubmitting}
                         >
                           <Upload className="h-4 w-4 mr-2" />
-                          Select Different Image
+                          {imageFile ? 'Change Image' : 'Replace Image'}
                         </Button>
                       </div>
+                      {!imageFile && (
+                        <p className="text-xs text-muted-foreground">
+                          Current image shown. Click "Replace Image" to upload a new one.
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div>
                       <ImageIcon className="h-10 w-10 sm:h-12 sm:w-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
                       <p className="text-sm text-muted-foreground mb-3 sm:mb-4">
-                        Click to select new banner image
-                      </p>
-                      <p className="text-xs text-muted-foreground mb-4">
-                        This will replace the existing banner
+                        No image available
                       </p>
                       <Button
                         type="button"
@@ -186,13 +318,40 @@ export default function EditBannerPage() {
                         disabled={isSubmitting}
                       >
                         <Upload className="h-4 w-4 mr-2" />
-                        Select New Image
+                        Select Image
                       </Button>
                     </div>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   Supported formats: JPG, PNG, GIF. Max size: 5MB
+                </p>
+              </div>
+
+              {/* Device Type Dropdown */}
+              <div>
+                <Label htmlFor="deviceType" className="text-base">
+                  Device Type (Optional)
+                </Label>
+                <Select
+                  value={deviceType}
+                  onValueChange={setDeviceType}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full mt-2">
+                    <SelectValue placeholder="Select device type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value=" ">None</SelectItem>
+                    {deviceOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Select the target device type for this banner (optional)
                 </p>
               </div>
 
@@ -210,7 +369,7 @@ export default function EditBannerPage() {
                 <Button
                   type="submit"
                   className="flex-1 py-3 sm:py-2"
-                  disabled={isSubmitting || !imageFile}
+                  disabled={isSubmitting}
                 >
                   {isSubmitting ? (
                     <>

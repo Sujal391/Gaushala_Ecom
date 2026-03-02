@@ -85,6 +85,7 @@ export interface Banner {
   image: string;
   createdAt: string;
   imageUrl: string;
+  deviceType: string;
 }
 
 // ==================== REFERRAL TYPES ====================

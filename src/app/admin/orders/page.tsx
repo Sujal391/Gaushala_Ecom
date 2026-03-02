@@ -765,7 +765,7 @@ export default function AdminOrdersPage() {
                                                   : '/placeholder-product.jpg')
                                               }
                                               alt={item.productName}
-                                              className="w-full h-full object-cover"
+                                              className="w-full h-full object-contain"
                                               onError={() => {
                                                 setImageErrors(prev => new Set(prev).add(item.productId));
                                               }}

@@ -359,7 +359,7 @@ export default function NewProductsPage() {
                     <img
                       src={getProductImage(product)}
                       alt={product.name || 'Product image'}
-                      className="object-cover w-full h-full transition-transform group-hover:scale-105"
+                      className="object-contain w-full h-full transition-transform group-hover:scale-105"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = "/placeholder-product.jpg";
                       }}

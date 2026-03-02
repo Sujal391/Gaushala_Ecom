@@ -79,13 +79,43 @@ function ShopContent() {
   const [bannersLoading, setBannersLoading] = useState(true);
   const [hasNewProducts, setHasNewProducts] = useState(true);
   const [addingToCart, setAddingToCart] = useState<number | null>(null);
+  const [deviceType, setDeviceType] = useState<string>('DESKTOP');
 
   // Refs for horizontal scroll
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Function to get device type based on screen width
+  const getDeviceType = (): string => {
+    if (typeof window === 'undefined') return 'DESKTOP'; // Default for SSR
+    
+    const width = window.innerWidth;
+    if (width < 640) return 'MOBILE';
+    if (width >= 640 && width < 1024) return 'TABLET';
+    return 'DESKTOP';
+  };
+
   useEffect(() => {
     loadProducts();
-    loadBanners();
+    
+    // Set initial device type and load banners
+    const initialDeviceType = getDeviceType();
+    setDeviceType(initialDeviceType);
+    loadBanners(initialDeviceType);
+
+    // Handle window resize to update banners when device type changes
+    const handleResize = () => {
+      const newDeviceType = getDeviceType();
+      if (newDeviceType !== deviceType) {
+        setDeviceType(newDeviceType);
+        loadBanners(newDeviceType);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   // Filter products when search params change
@@ -105,10 +135,10 @@ function ShopContent() {
     }
   }, [searchParams, products]);
 
-  const loadBanners = async () => {
+  const loadBanners = async (deviceType: string = 'DESKTOP') => {
     try {
       setBannersLoading(true);
-      const response = await getAllBanners();
+      const response = await getAllBanners(deviceType);
 
       if (response.success && response.data && response.data.length > 0) {
         // Map the response data to match local Banner interface
@@ -120,9 +150,30 @@ function ShopContent() {
           })
         );
         setBanners(bannerData);
+      } else {
+        // If no banners for current device type, try desktop as fallback
+        if (deviceType !== 'DESKTOP') {
+          console.log(`No ${deviceType} banners found, trying desktop...`);
+          const desktopResponse = await getAllBanners('DESKTOP');
+          if (desktopResponse.success && desktopResponse.data && desktopResponse.data.length > 0) {
+            const bannerData: Banner[] = desktopResponse.data.map(
+              (item: ImportedBanner) => ({
+                id: item.id,
+                imageUrl: item.imageUrl,
+                createdAt: item.createdAt || new Date().toISOString(),
+              })
+            );
+            setBanners(bannerData);
+          } else {
+            setBanners([]);
+          }
+        } else {
+          setBanners([]);
+        }
       }
     } catch (error) {
       console.error("Error loading banners:", error);
+      setBanners([]);
     } finally {
       setBannersLoading(false);
     }
@@ -512,7 +563,17 @@ function ShopContent() {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-primary/10 to-primary/5">
-            <p className="text-gray-500">No banners available</p>
+            <div className="text-center">
+              <p className="text-gray-500 mb-2">No banners available for {deviceType.toLowerCase()} device</p>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => loadBanners(deviceType)}
+                className="text-xs"
+              >
+                Retry
+              </Button>
+            </div>
           </div>
         )}
       </section>
@@ -639,7 +700,7 @@ function ShopContent() {
                       <img
                         src={getProductImage(product)}
                         alt={product.name || "Product image"}
-                        className="object-cover w-full h-full transition-transform group-hover:scale-105"
+                        className="object-contain w-full h-full transition-transform group-hover:scale-105"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src =
                             "/placeholder-product.jpg";
@@ -790,7 +851,10 @@ function ShopContent() {
                   size="sm"
                   variant="outline"
                   className="text-xs"
-                  onClick={loadProducts}
+                  onClick={() => {
+                    loadProducts();
+                    loadBanners(deviceType);
+                  }}
                 >
                   Refresh
                 </Button>

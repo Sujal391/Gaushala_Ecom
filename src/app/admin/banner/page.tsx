@@ -58,6 +58,11 @@ interface DeleteBannerResponse {
   message?: string;
 }
 
+// Device type options from backend
+type DeviceType = 'Desktop' | 'Mobile' | 'Tablet';
+
+const DEVICE_TYPES: DeviceType[] = ['Desktop', 'Mobile', 'Tablet'];
+
 export default function AdminBannersPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -65,19 +70,20 @@ export default function AdminBannersPage() {
   const [deleteBannerData, setDeleteBannerData] = useState<{ id: number; imageUrl: string } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [deviceType, setDeviceType] = useState<DeviceType>('Desktop'); // Default to 'Desktop'
 
   useEffect(() => {
     fetchBanners();
-  }, []);
+  }, [deviceType]); // Re-fetch when deviceType changes
 
   const fetchBanners = async (): Promise<void> => {
     setIsLoading(true);
     try {
-      const response = await getAllBanners() as GetBannersResponse;
+      const response = await getAllBanners(deviceType) as GetBannersResponse;
       
       if (response.success && Array.isArray(response.data)) {
         setBanners(response.data);
-        toast.success(`Loaded ${response.count} banners`);
+        toast.success(`Loaded ${response.count} banners for ${deviceType}`);
       } else {
         console.error('Failed to fetch banners:', response);
         toast.error('Failed to load banners: Invalid response format');
@@ -127,6 +133,10 @@ export default function AdminBannersPage() {
     router.push(`/admin/banner/edit/${banner.id}`);
   };
 
+  const handleDeviceTypeChange = (type: DeviceType) => {
+    setDeviceType(type);
+  };
+
   const filteredBanners = banners.filter((banner: Banner) =>
     banner.imageUrl?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -146,9 +156,12 @@ export default function AdminBannersPage() {
   };
 
   const headerAction = (
-    <Button onClick={() => router.push('/admin/banner/add')} className="gap-2">
+    <Button 
+      onClick={() => router.push(`/admin/banner/add?deviceType=${deviceType}`)} 
+      className="gap-2"
+    >
       <Plus className="h-4 w-4" />
-      <span className="hidden sm:inline">Add Banner</span>
+      <span className="hidden sm:inline">Add {deviceType} Banner</span>
       <span className="sm:hidden">Add</span>
     </Button>
   );
@@ -162,7 +175,7 @@ export default function AdminBannersPage() {
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Total Banners</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Total {deviceType} Banners</p>
                   <p className="text-xl sm:text-2xl font-bold">{banners.length}</p>
                 </div>
                 <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
@@ -211,29 +224,52 @@ export default function AdminBannersPage() {
           </Card>
         </div>
 
-        {/* Search and Filter */}
+        {/* Device Type Filter and Search */}
         <Card className="mb-6">
           <CardContent className="p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="relative flex-1 w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search banners by filename..."
-                  value={searchQuery}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+            <div className="flex flex-col gap-4">
+              {/* Device Type Tabs */}
+              <div className="flex items-center gap-2 border-b pb-2">
+                {DEVICE_TYPES.map((type) => (
+                  <Button
+                    key={type}
+                    variant={deviceType === type ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => handleDeviceTypeChange(type)}
+                    className={`rounded-none border-b-2 ${
+                      deviceType === type 
+                        ? 'border-primary' 
+                        : 'border-transparent'
+                    }`}
+                  >
+                    {type}
+                  </Button>
+                ))}
               </div>
-              <Button 
-                onClick={fetchBanners} 
-                variant="outline" 
-                size="sm"
-                className="gap-2 w-full sm:w-auto"
-              >
-                <Loader2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button>
+
+              {/* Search and Refresh */}
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="relative flex-1 w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search banners by filename..."
+                    value={searchQuery}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Button 
+                  onClick={fetchBanners} 
+                  variant="outline" 
+                  size="sm"
+                  className="gap-2 w-full sm:w-auto"
+                  disabled={isLoading}
+                >
+                  <Loader2 className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Refresh</span>
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -242,7 +278,7 @@ export default function AdminBannersPage() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Loading banners...</p>
+            <p className="text-muted-foreground">Loading {deviceType} banners...</p>
           </div>
         ) : (
           <>
@@ -254,7 +290,6 @@ export default function AdminBannersPage() {
                     <TableRow>
                       <TableHead className="w-[100px]">Preview</TableHead>
                       <TableHead>Filename</TableHead>
-                      {/* <TableHead className="hidden md:table-cell">URL Path</TableHead> */}
                       <TableHead className="hidden sm:table-cell">Uploaded</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -267,18 +302,15 @@ export default function AdminBannersPage() {
                             <img
                               src={`${API_BASE_URL}${banner.imageUrl}`}
                               alt={`Banner ${banner.id}`}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain"
                               onError={(e) => {
                                 (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400?text=Error+Loading+Image';
                               }}
                             />
                           </div>
                         </TableCell>
-                        {/* <TableCell className="font-medium">
+                        <TableCell className="font-medium">
                           {extractFilename(banner.imageUrl)}
-                        </TableCell> */}
-                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                          {banner.imageUrl}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
                           {formatDate(banner.createdAt)}
@@ -333,13 +365,16 @@ export default function AdminBannersPage() {
             {filteredBanners.length === 0 && !isLoading && (
               <div className="text-center py-8 sm:py-12">
                 <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No banners found</h3>
+                <h3 className="text-lg font-semibold mb-2">No {deviceType} banners found</h3>
                 <p className="text-muted-foreground mb-6">
-                  {searchQuery ? 'Try adjusting your search query' : 'Get started by uploading your first banner'}
+                  {searchQuery ? 'Try adjusting your search query' : `Get started by uploading your first ${deviceType} banner`}
                 </p>
-                <Button onClick={() => router.push('/admin/banner/add')} className="gap-2">
+                <Button 
+                  onClick={() => router.push(`/admin/banner/add?deviceType=${deviceType}`)} 
+                  className="gap-2"
+                >
                   <Plus className="h-4 w-4" />
-                  Upload Banner
+                  Upload {deviceType} Banner
                 </Button>
               </div>
             )}
@@ -347,7 +382,7 @@ export default function AdminBannersPage() {
             {/* Results Summary */}
             {filteredBanners.length > 0 && (
               <div className="mt-4 text-center text-sm text-muted-foreground">
-                Showing {filteredBanners.length} of {banners.length} banners
+                Showing {filteredBanners.length} of {banners.length} {deviceType} banners
               </div>
             )}
           </>
