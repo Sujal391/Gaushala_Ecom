@@ -66,7 +66,8 @@ export const API_ENDPOINTS = {
     GET: '/api/feedback/product/{productId}',
   },
   BANNER: {
-    GET: '/api/banners',
+    GET: (deviceType: string) => `/api/banners/${deviceType}`,
+    GET_BY_ID: (id: number) => `/api/banners/${id}`,
     CREATE: '/api/banners',
     UPDATE: (id: number) => `/api/banners/${id}`,
     DELETE: (id: number) => `/api/banners/${id}`,

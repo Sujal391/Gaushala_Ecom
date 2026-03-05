@@ -1294,16 +1294,15 @@ export async function applyOffer(userId: number, offerCode: string): Promise<Api
 
 // ==================== BANNER APIs ====================
 
-export async function getAllBanners(): Promise<ApiResponse<Banner[]>> {
+export async function getAllBanners(deviceType: string): Promise<ApiResponse<Banner[]>> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}${API_ENDPOINTS.BANNER.GET}`,
+      `${API_BASE_URL}/api/banners?deviceType=${deviceType}`,
       {
         method: 'GET',
         headers: getHeaders(true),
       }
     );
-
     return handleResponse<Banner[]>(response);
   } catch (error) {
     console.error('Get banners error:', error);
@@ -1315,13 +1314,41 @@ export async function getAllBanners(): Promise<ApiResponse<Banner[]>> {
   }
 }
 
-export async function createBanner(imageFile: File): Promise<ApiResponse<{ id: number }>> {
+export async function getBannerById(id: number): Promise<ApiResponse<Banner>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.BANNER.GET_BY_ID(id)}`,
+      {
+        method: 'GET',
+        headers: getHeaders(true),
+      }
+    );
+
+    return handleResponse<Banner>(response);
+  } catch (error) {
+    console.error('Get banner error:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch banner',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function createBanner(
+  imageFile: File, 
+  deviceType: string = 'DESKTOP' // Default to DESKTOP
+): Promise<ApiResponse<{ id: number }>> {
   try {
     const formData = new FormData();
     formData.append('image', imageFile); // Parameter name must match backend 'image'
 
+    // Add deviceType as query parameter
+    const url = new URL(`${API_BASE_URL}${API_ENDPOINTS.BANNER.CREATE}`);
+    url.searchParams.append('deviceType', deviceType);
+
     const response = await fetch(
-      `${API_BASE_URL}${API_ENDPOINTS.BANNER.CREATE}`,
+      url.toString(),
       {
         method: 'POST',
         headers: {
@@ -1367,13 +1394,21 @@ export async function createBanner(imageFile: File): Promise<ApiResponse<{ id: n
   }
 }
 
-export async function updateBanner(id: number, imageFile: File): Promise<ApiResponse> {
+export async function updateBanner(id: number, imageFile: File, deviceType?: string): Promise<ApiResponse> {
   try {
     const formData = new FormData();
     formData.append('image', imageFile); // Parameter name must match backend 'image'
 
+    // Build URL with query parameters
+    let url = `${API_BASE_URL}${API_ENDPOINTS.BANNER.UPDATE(id)}`;
+    
+    // Add deviceType as query parameter if provided
+    if (deviceType) {
+      url += `?deviceType=${encodeURIComponent(deviceType)}`;
+    }
+
     const response = await fetch(
-      `${API_BASE_URL}${API_ENDPOINTS.BANNER.UPDATE(id)}`,
+      url,
       {
         method: 'PUT',
         headers: {
@@ -1584,6 +1619,7 @@ export default {
 
   // Banners
   getAllBanners,
+  getBannerById,
   createBanner,
   updateBanner,
   deleteBanner,

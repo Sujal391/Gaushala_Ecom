@@ -55,19 +55,19 @@ export default function NewProductsPage() {
     }
   };
 
-  // Helper functions (same as shop page)
+  // Helper functions
   const getProductImage = (product: Product): string => {
-  if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-    const firstImage = product.images[0];
-    if (typeof firstImage === 'object' && firstImage !== null && 'imageUrl' in firstImage) {
-      return `${API_BASE_URL}${firstImage.imageUrl}`;
+    if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+      const firstImage = product.images[0];
+      if (typeof firstImage === 'object' && firstImage !== null && 'imageUrl' in firstImage) {
+        return `${API_BASE_URL}${firstImage.imageUrl}`;
+      }
+      if (typeof firstImage === 'string') {
+        return `${API_BASE_URL}${firstImage}`;
+      }
     }
-    if (typeof firstImage === 'string') {
-      return `${API_BASE_URL}${firstImage}`;
-    }
-  }
-  return "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400";
-};
+    return "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400";
+  };
 
   const getAvailableSizes = (product: Product): ProductSize[] => {
     return product.sizes?.filter((size): size is ProductSize => 
@@ -126,67 +126,72 @@ export default function NewProductsPage() {
     }, 0);
   };
 
-  // Cart functions (same as shop page)
+  // Get short description - limit to 7 words
+  const getShortDescription = (description: string): string => {
+    if (!description) return '';
+    const words = description.split(' ');
+    if (words.length <= 7) return description;
+    return words.slice(0, 7).join(' ') + '...';
+  };
+
+  // Cart functions
   const getGuestCart = (): GuestCartItem[] => {
-  try {
-    const cart = localStorage.getItem(GUEST_CART_KEY);
-    if (!cart) return [];
-    
-    const parsedCart = JSON.parse(cart);
-    
-    // Handle legacy cart formats
-    if (Array.isArray(parsedCart)) {
-      if (parsedCart.length > 0 && 'id' in parsedCart[0]) {
-        // Migrate old format to new format
-        const migratedCart = parsedCart.map((item: any) => ({
-          productId: item.productId,
-          productName: item.productName,
-          description: item.description || '',
-          price: item.price,
-          quantity: item.quantity,
-          // Transform images to ensure they're strings
-          images: Array.isArray(item.images) 
-            ? item.images.map((img: any) => {
-                if (typeof img === 'string') return img;
-                if (img && typeof img === 'object' && 'imageUrl' in img) {
-                  return img.imageUrl;
-                }
-                return '';
-              }).filter((url: string) => url !== '')
-            : (item.image ? [item.image] : []),
-          selectedSize: item.selectedSize || 'Default',
-          addedAt: typeof item.addedAt === 'string' ? Date.now() : (item.addedAt || Date.now())
-        }));
+    try {
+      const cart = localStorage.getItem(GUEST_CART_KEY);
+      if (!cart) return [];
+      
+      const parsedCart = JSON.parse(cart);
+      
+      if (Array.isArray(parsedCart)) {
+        if (parsedCart.length > 0 && 'id' in parsedCart[0]) {
+          const migratedCart = parsedCart.map((item: any) => ({
+            productId: item.productId,
+            productName: item.productName,
+            description: item.description || '',
+            price: item.price,
+            quantity: item.quantity,
+            images: Array.isArray(item.images) 
+              ? item.images.map((img: any) => {
+                  if (typeof img === 'string') return img;
+                  if (img && typeof img === 'object' && 'imageUrl' in img) {
+                    return img.imageUrl;
+                  }
+                  return '';
+                }).filter((url: string) => url !== '')
+              : (item.image ? [item.image] : []),
+            selectedSize: item.selectedSize || 'Default',
+            addedAt: typeof item.addedAt === 'string' ? Date.now() : (item.addedAt || Date.now())
+          }));
+          
+          localStorage.setItem(GUEST_CART_KEY, JSON.stringify(migratedCart));
+          return migratedCart;
+        }
         
-        localStorage.setItem(GUEST_CART_KEY, JSON.stringify(migratedCart));
-        return migratedCart;
+        if (parsedCart.length > 0 && 'image' in parsedCart[0]) {
+          const migratedCart = parsedCart.map((item: any) => ({
+            productId: item.productId,
+            productName: item.productName,
+            description: item.description || '',
+            price: item.price,
+            quantity: item.quantity,
+            images: item.image ? [item.image] : [],
+            selectedSize: item.selectedSize || 'Default',
+            addedAt: item.addedAt || Date.now()
+          }));
+          
+          localStorage.setItem(GUEST_CART_KEY, JSON.stringify(migratedCart));
+          return migratedCart;
+        }
+        
+        return parsedCart;
       }
       
-      if (parsedCart.length > 0 && 'image' in parsedCart[0]) {
-        const migratedCart = parsedCart.map((item: any) => ({
-          productId: item.productId,
-          productName: item.productName,
-          description: item.description || '',
-          price: item.price,
-          quantity: item.quantity,
-          images: item.image ? [item.image] : [],
-          selectedSize: item.selectedSize || 'Default',
-          addedAt: item.addedAt || Date.now()
-        }));
-        
-        localStorage.setItem(GUEST_CART_KEY, JSON.stringify(migratedCart));
-        return migratedCart;
-      }
-      
-      return parsedCart;
+      return [];
+    } catch (error) {
+      console.error('Error loading guest cart:', error);
+      return [];
     }
-    
-    return [];
-  } catch (error) {
-    console.error('Error loading guest cart:', error);
-    return [];
-  }
-};
+  };
 
   const saveGuestCart = (items: GuestCartItem[]) => {
     try {
@@ -197,44 +202,43 @@ export default function NewProductsPage() {
   };
 
   const addToGuestCart = (product: Product, size: ProductSize) => {
-  const guestCart = getGuestCart();
-  
-  const existingItem = guestCart.find(
-    item => item.productId === product.id && item.selectedSize === size.size
-  );
-
-  // Transform images to string array
-  const transformImages = (images: any): string[] => {
-    if (!images || !Array.isArray(images)) return [];
+    const guestCart = getGuestCart();
     
-    return images.map(img => {
-      if (typeof img === 'string') return img;
-      if (img && typeof img === 'object' && 'imageUrl' in img) {
-        return img.imageUrl;
-      }
-      return '';
-    }).filter(url => url !== '');
+    const existingItem = guestCart.find(
+      item => item.productId === product.id && item.selectedSize === size.size
+    );
+
+    const transformImages = (images: any): string[] => {
+      if (!images || !Array.isArray(images)) return [];
+      
+      return images.map(img => {
+        if (typeof img === 'string') return img;
+        if (img && typeof img === 'object' && 'imageUrl' in img) {
+          return img.imageUrl;
+        }
+        return '';
+      }).filter(url => url !== '');
+    };
+
+    if (existingItem) {
+      existingItem.quantity += 1;
+      existingItem.addedAt = Date.now();
+    } else {
+      guestCart.push({
+        productId: product.id,
+        productName: product.name || 'Unnamed Product',
+        description: product.description || '',
+        price: size.discountedPrice || size.price,
+        quantity: 1,
+        images: transformImages(product.images),
+        selectedSize: size.size,
+        addedAt: Date.now()
+      });
+    }
+
+    saveGuestCart(guestCart);
+    return guestCart;
   };
-
-  if (existingItem) {
-    existingItem.quantity += 1;
-    existingItem.addedAt = Date.now();
-  } else {
-    guestCart.push({
-      productId: product.id,
-      productName: product.name || 'Unnamed Product',
-      description: product.description || '',
-      price: size.discountedPrice || size.price,
-      quantity: 1,
-      images: transformImages(product.images),
-      selectedSize: size.size,
-      addedAt: Date.now()
-    });
-  }
-
-  saveGuestCart(guestCart);
-  return guestCart;
-};
 
   const handleAddToCart = async (product: Product, size: ProductSize): Promise<void> => {
     if (!isAuthenticated()) {
@@ -328,30 +332,14 @@ export default function NewProductsPage() {
           </div>
         </div>
 
-        {/* Guest Mode Banner */}
-        {!isAuthenticated() && (
-          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-blue-800 text-sm">
-              🛒 You're shopping as a guest. Items will be saved to your browser.
-              <Button
-                variant="link"
-                className="text-blue-600 hover:text-blue-800 px-2"
-                onClick={() => router.push('/login')}
-              >
-                Login to save your cart permanently
-              </Button>
-            </p>
-          </div>
-        )}
-
         {/* Loading State */}
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : products.length > 0 ? (
-          /* Products Grid - Exactly like shop page */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+          /* Products Grid - Same layout as shop page */
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
             {products.map((product) => {
               const totalStockQty = getTotalStockQty(product);
               const availableSizes = getAvailableSizes(product);
@@ -359,61 +347,63 @@ export default function NewProductsPage() {
               const displayPrice = getDisplayPrice(product);
               const originalPrice = getOriginalPrice(product);
               const productHasDiscount = hasDiscount(product);
+              const shortDescription = getShortDescription(product.description || '');
 
               return (
                 <Card
                   key={product.id}
-                  className="overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow"
+                  className="overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow h-full flex flex-col"
                   onClick={() => router.push(`/products/${product.id}`)}
                 >
-                  <div className="relative aspect-square overflow-hidden bg-muted">
+                  <div className="relative aspect-square overflow-hidden bg-muted flex-shrink-0">
                     <img
                       src={getProductImage(product)}
                       alt={product.name || 'Product image'}
-                      className="object-cover w-full h-full transition-transform group-hover:scale-105"
+                      className="object-contain w-full h-full transition-transform group-hover:scale-105"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = "/placeholder-product.jpg";
                       }}
                     />
-                    <span className="absolute top-2 left-2 bg-primary text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
+                    <span className="absolute top-2 left-2 bg-primary text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full flex items-center gap-0.5 sm:gap-1 z-10">
+                      <Sparkles className="h-2 w-2 sm:h-3 sm:w-3" />
                       New
                     </span>
                     {productHasDiscount && (
-                      <span className="absolute top-2 left-2 ml-16 bg-green-500 text-white text-xs px-2 py-1 rounded">
+                      <span className="absolute top-2 left-16 sm:left-20 bg-green-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded z-10">
                         Sale
                       </span>
                     )}
                     {hasStock && totalStockQty < 10 && (
-                      <span className="absolute top-2 right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded">
+                      <span className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded z-10">
                         Only {totalStockQty} left
                       </span>
                     )}
                     {!hasStock && (
-                      <span className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                      <span className="absolute top-2 right-2 bg-red-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded z-10">
                         Out of Stock
                       </span>
                     )}
                   </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold text-base sm:text-lg mb-1 line-clamp-1">
+                  <CardContent className="p-2 sm:p-3 lg:p-4 flex-1">
+                    <h3 className="font-semibold text-xs sm:text-sm lg:text-base mb-0.5 sm:mb-1 line-clamp-1">
                       {product.name || 'Unnamed Product'}
                     </h3>
-                    <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                      {product.description || 'No description available'}
+                    
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 sm:mb-2 line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem]">
+                      {shortDescription || 'No description available'}
                     </p>
                     
                     {/* Size Options */}
                     {product.sizes && product.sizes.length > 0 && (
-                      <div className="mb-3">
-                        <div className="flex flex-wrap gap-1.5">
-                          {product.sizes.map((size) => {
+                      <div className="mb-1 sm:mb-3 min-h-[1.5rem] sm:min-h-[2rem]">
+                        <div className="flex flex-wrap gap-0.5 sm:gap-1.5">
+                          {product.sizes.slice(0, 3).map((size) => {
                             const discountPercentage = getDiscountPercentage(size);
                             return (
                               <span
                                 key={size.id}
                                 className={`
-                                  inline-flex items-center px-2 py-1 rounded text-xs font-medium
+                                  inline-flex items-center px-1 sm:px-2 py-0.5 sm:py-1 rounded text-[8px] sm:text-xs font-medium
                                   ${size.inStock && size.stockQty > 0
                                     ? 'bg-primary/10 text-primary border border-primary/30' 
                                     : 'bg-muted text-muted-foreground line-through'
@@ -422,41 +412,40 @@ export default function NewProductsPage() {
                               >
                                 {size.size}
                                 {discountPercentage && size.inStock && (
-                                  <span className="ml-1 text-green-600 font-bold">
+                                  <span className="ml-0.5 sm:ml-1 text-green-600 font-bold">
                                     -{discountPercentage}%
                                   </span>
                                 )}
                               </span>
                             );
                           })}
+                          {product.sizes.length > 3 && (
+                            <span className="text-[8px] sm:text-xs text-muted-foreground">
+                              +{product.sizes.length - 3}
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
 
                     {/* Price Display */}
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-xl sm:text-2xl font-bold text-primary">
+                    <div className="flex items-baseline gap-1 sm:gap-2 flex-wrap mt-auto">
+                      <p className="text-sm sm:text-lg lg:text-xl xl:text-2xl font-bold text-primary">
                         {displayPrice}
                       </p>
                       {originalPrice && productHasDiscount && (
-                        <p className="text-sm text-muted-foreground line-through">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground line-through">
                           {originalPrice}
                         </p>
                       )}
                     </div>
-                    
-                    {/* Starting from text if multiple sizes */}
-                    {availableSizes.length > 1 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Starting from {displayPrice}
-                      </p>
-                    )}
                   </CardContent>
-                  <CardFooter className="p-4 pt-0">
+                  <CardFooter className="p-2 sm:p-3 lg:p-4 pt-0 sm:pt-0 flex-shrink-0">
                     {hasStock && availableSizes.length > 0 ? (
-                      <div className="w-full space-y-2">
+                      <div className="w-full">
                         <Button
-                          className="w-full"
+                          className="w-full text-[10px] sm:text-sm h-7 sm:h-9 lg:h-10 min-h-[2rem] sm:min-h-[2.5rem]"
+                          size="sm"
                           disabled={addingToCart === product.id}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -465,21 +454,28 @@ export default function NewProductsPage() {
                         >
                           {addingToCart === product.id ? (
                             <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Adding...
+                              <Loader2 className="h-2 w-2 sm:h-3 sm:w-3 mr-1 animate-spin" />
+                              <span className="hidden sm:inline">Adding...</span>
+                              <span className="sm:hidden">...</span>
                             </>
                           ) : (
-                            `Add to Cart ${availableSizes.length > 1 ? `(${availableSizes[0].size})` : ''}`
+                            <>
+                              <span className="hidden sm:inline">
+                                Add to Cart {availableSizes.length > 1 ? `(${availableSizes[0].size})` : ''}
+                              </span>
+                              <span className="sm:hidden">
+                                Add {availableSizes.length > 1 ? `(${availableSizes[0].size})` : ''}
+                              </span>
+                            </>
                           )}
                         </Button>
-                        {availableSizes.length > 1 && (
-                          <p className="text-xs text-center text-muted-foreground">
-                            More sizes available • Click to select
-                          </p>
-                        )}
                       </div>
                     ) : (
-                      <Button className="w-full" disabled>
+                      <Button 
+                        className="w-full text-[10px] sm:text-sm h-7 sm:h-9 lg:h-10 min-h-[2rem] sm:min-h-[2.5rem]" 
+                        size="sm"
+                        disabled
+                      >
                         Out of Stock
                       </Button>
                     )}

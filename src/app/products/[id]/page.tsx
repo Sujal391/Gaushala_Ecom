@@ -660,7 +660,7 @@ export default function ProductDetailPage() {
                     <img
                       src={getImageUrl(image)}
                       alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = '/placeholder-product.jpg';
                       }}
