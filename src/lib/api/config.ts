@@ -30,6 +30,7 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string | number) => `/api/products/${id}`,
     DELETE: (id: string | number) => `/api/products/${id}`,
     UPLOAD_IMAGE: (id: string | number) => `/api/products/${id}/images`,
+    UPLOAD_IMAGE_BASE64: (id: string | number) => `/api/products/${id}/images/base64`,
     DELETE_IMAGES: (id: string | number) => `/api/products/${id}/images`,
     NEW_PRODUCTS: '/api/products/new',
   },

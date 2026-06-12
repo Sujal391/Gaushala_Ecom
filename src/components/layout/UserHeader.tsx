@@ -73,7 +73,7 @@ export const UserHeader = memo(function UserHeader({
   const router = useRouter();
   const pathName = usePathname();
   const searchParams = useSearchParams();
-  
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
@@ -89,7 +89,7 @@ export const UserHeader = memo(function UserHeader({
 
   const handleSearch = useCallback((e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    
+
     if (searchQuery.trim()) {
       const params = new URLSearchParams();
       params.set("search", searchQuery.trim());
@@ -97,7 +97,7 @@ export const UserHeader = memo(function UserHeader({
     } else {
       router.push("/shop");
     }
-    
+
     setShowMobileSearch(false);
     setIsMobileMenuOpen(false);
   }, [searchQuery, router]);
@@ -223,6 +223,23 @@ export const UserHeader = memo(function UserHeader({
                   </Button>
                 )
             )}
+            <Button
+              variant={pathName === "/about" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => router.push("/about")}
+              className="flex items-center gap-2"
+            >
+              About Us
+            </Button>
+
+            <Button
+              variant={pathName === "/contact" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => router.push("/contact")}
+              className="flex items-center gap-2"
+            >
+              Contact Us
+            </Button>
           </div>
 
           {/* Right Actions */}

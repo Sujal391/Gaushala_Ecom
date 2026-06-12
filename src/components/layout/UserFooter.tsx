@@ -1,3 +1,4 @@
+
 // components/layout/Footer.tsx
 "use client";
 
@@ -10,7 +11,6 @@ import {
   Instagram,
   Linkedin,
   ExternalLink,
-  Leaf,
   ChevronRight,
   Sprout,
   Building,
@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 
 export const Footer = () => {
   const currentYear = new Date().getFullYear();
-  
+
   const footerLinks = [
     {
       title: "Shop",
@@ -34,36 +34,37 @@ export const Footer = () => {
     {
       title: "Help",
       links: [
-        { label: "Contact Us", href: "#" },
-        { label: "Shipping Policy", href: "#" },
-        { label: "Returns & Refunds", href: "#" },
+        { label: "Contact Us", href: "/contact" },
+        { label: "Shipping Policy", href: "/shipping-policy" },
+        { label: "Returns & Refunds", href: "/refund-policy" },
         { label: "FAQ", href: "/faq" },
       ],
     },
     {
       title: "Company",
       links: [
-        { label: "About Us", href: "#" },
-        { label: "Sustainability", href: "#" },
-        { label: "Careers", href: "#" },
-        { label: "Press", href: "#" },
+        { label: "About Us", href: "/about" },
+        { label: "Sustainability", href: "/about" },
+        { label: "Careers", href: "/contact" },
+        { label: "Press", href: "/contact" },
       ],
     },
     {
       title: "Legal",
       links: [
-        { label: "Privacy Policy", href: "#" },
-        { label: "Terms of Service", href: "#" },
-        { label: "Cookie Policy", href: "#" },
+        { label: "Privacy Policy", href: "/privacy-policy" },
+        { label: "Terms of Service", href: "/terms" },
+        { label: "Refund Policy", href: "/refund-policy" },
+        { label: "Cancellation Policy", href: "/cancellation-policy" },
       ],
     },
   ];
 
   return (
-    <footer className="relative bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 border-t border-slate-200 dark:border-slate-800 mt-20">
+    <footer className="relative bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 border-t border-slate-200 dark:border-slate-800 mt-10">
       {/* Decorative top wave */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400"></div>
-      
+
       {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-200/20 dark:bg-emerald-500/5 rounded-full blur-3xl"></div>
@@ -90,7 +91,7 @@ export const Footer = () => {
           {/* <p className="text-lg text-slate-600 dark:text-slate-400 mb-6">
             Discover the purest essentials for a natural lifestyle. Join our community of nature lovers.
           </p> */}
-          
+
           {/* Newsletter Form - Enhanced styling */}
           {/* <div className="max-w-md mx-auto">
             <form className="flex flex-col sm:flex-row gap-3">
@@ -116,19 +117,19 @@ export const Footer = () => {
           {/* Animated gradient background */}
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 animate-gradient-x opacity-90"></div>
           <div className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"></div>
-          
+
           {/* Decorative patterns */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full blur-3xl"></div>
             <div className="absolute bottom-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl"></div>
           </div>
-          
+
           <div className="relative p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 border border-white/20">
             <div className="flex items-center gap-4 text-white">
               <div className="hidden md:flex h-16 w-16 rounded-full bg-white/20 backdrop-blur items-center justify-center">
                 <Building2Icon className="h-8 w-8" />
               </div>
-              
+
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Building className="h-5 w-5" />
@@ -137,13 +138,13 @@ export const Footer = () => {
                   </h3>
                 </div>
                 <p className="text-white/90 max-w-2xl">
-                  Discover <span className="font-semibold">Karnavati Kamdhenu Gaushala, Sanoda</span> - 
-                  Where we rescue, protect, and nurture cows while promoting sustainable living and traditional practices.
+                  Discover <span className="font-semibold">Karnavati Kamdhenu Gaushala, Mota Vas, sanoda</span> -
+                  Where we care for and nurture indigenous Gir cows while promoting sustainable, natural living and traditional Vedic practices.
                 </p>
-                
+
                 {/* Quick highlights with white styling */}
                 <div className="flex flex-wrap gap-2 mt-3">
-                  {["Cow Protection", "Panchgavya Products", "Sustainable Farming", "Traditional Values"].map((item) => (
+                  {["Gir Cow Care", "Panchgavya Products", "Sustainable Farming", "Traditional Values"].map((item) => (
                     <span key={item} className="inline-flex items-center gap-1 text-xs bg-white/20 backdrop-blur px-3 py-1 rounded-full">
                       <span className="w-1 h-1 rounded-full bg-white"></span>
                       {item}
@@ -152,7 +153,7 @@ export const Footer = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Enhanced CTA Button */}
             <a
               href="https://geercow.com"
@@ -174,12 +175,12 @@ export const Footer = () => {
               Contact Details
               <span className="absolute -bottom-1 left-0 w-12 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"></span>
             </h3>
-            
+
             <div className="space-y-3">
               {[
                 { icon: Mail, text: "info@untappednature.com", href: "mailto:info@untappednature.com" },
-                { icon: Phone, text: "+91 98240 97037", href: "tel:+919824097037" },
-                { icon: MapPin, text: "Karnavati kamdhenu gaushala, Sanoda, Gujarat", href: null }
+                { icon: Phone, text: "+91 70967 12340", href: "tel:+917096712340" },
+                { icon: MapPin, text: "Karnavati Kamdhenu Gaushala, Mota Vas, sanoda, Gandhinagar, Gujarat, India", href: null }
               ].map((item, index) => (
                 <div key={index} className="flex items-center gap-3 group">
                   <item.icon className="h-4 w-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
@@ -197,7 +198,7 @@ export const Footer = () => {
                   )}
                 </div>
               ))}
-              
+
               {/* Social Icons - Enhanced */}
               <div className="flex items-center gap-3 pt-2">
                 {[
@@ -249,19 +250,23 @@ export const Footer = () => {
             <div className="text-sm text-slate-600 dark:text-slate-400">
               © {currentYear} Untapped Nature. All rights reserved.
             </div>
-            
+
             <div className="flex items-center gap-6 text-sm">
-              {["Privacy Policy", "Terms of Service", "Cookie Policy"].map((item) => (
+              {[
+                { label: "Privacy Policy", href: "/privacy-policy" },
+                { label: "Terms of Service", href: "/terms" },
+                { label: "Cookie Policy", href: "/cookie-policy" },
+              ].map((item) => (
                 <a
-                  key={item}
-                  href="#"
+                  key={item.label}
+                  href={item.href}
                   className="text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                 >
-                  {item}
+                  {item.label}
                 </a>
               ))}
             </div>
-            
+
             <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
               <span>Made with</span>
               <Heart className="h-4 w-4 text-rose-500 fill-current animate-pulse" />
@@ -292,7 +297,7 @@ export const MobileFooter = () => {
     <footer className="border-t border-slate-200 dark:border-slate-800 bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 md:hidden relative">
       {/* Decorative top line */}
       <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400"></div>
-      
+
       <div className="container mx-auto px-4 py-6 relative">
         <div className="text-center">
           {/* Logo and Brand */}
@@ -308,7 +313,7 @@ export const MobileFooter = () => {
               Untapped Nature
             </span>
           </div>
-          
+
           {/* Newsletter Section */}
           {/* <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/30">
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
@@ -338,7 +343,7 @@ export const MobileFooter = () => {
                 <h3 className="font-semibold text-base">Our Gaushala</h3>
               </div>
               <p className="text-xs text-white/90">
-                Visit Karnavati Kamdhenu Gaushala - Protecting and nurturing cows since 2010
+                Visit Karnavati Kamdhenu Gaushala - Caring for and nurturing indigenous Gir cows since 2010
               </p>
               <a
                 href="https://geercow.com"
@@ -356,27 +361,27 @@ export const MobileFooter = () => {
           <div className="mb-6">
             <h3 className="font-medium mb-3 text-slate-900 dark:text-slate-100">Contact</h3>
             <div className="space-y-2">
-              <a 
-                href="mailto:info@untappednature.com" 
+              <a
+                href="mailto:info@untappednature.com"
                 className="text-xs text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 block"
               >
                 <Mail className="inline-block h-3 w-3 mr-1" />
                 info@untappednature.com
               </a>
-              <a 
-                href="tel:+919824097037" 
+              <a
+                href="tel:+917096712340"
                 className="text-xs text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 block"
               >
                 <Phone className="inline-block h-3 w-3 mr-1" />
-                +91 98240 97037
+                +91 70967 12340
               </a>
               <div className="text-xs text-slate-600 dark:text-slate-400">
                 <MapPin className="inline-block h-3 w-3 mr-1" />
-                Karnavati kamdhenu gaushala, Sanoda
+                Karnavati Kamdhenu Gaushala, Mota Vas, sanoda, Gandhinagar, Gujarat, India
               </div>
             </div>
           </div>
-          
+
           {/* Footer Links */}
           <div className="flex justify-center gap-4 mb-4">
             <a href="#" className="text-xs text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400">
@@ -389,7 +394,7 @@ export const MobileFooter = () => {
               Contact
             </a>
           </div>
-          
+
           {/* Copyright */}
           <p className="text-xs text-slate-600 dark:text-slate-400">
             © {currentYear} Untapped Nature. All rights reserved.

@@ -21,10 +21,11 @@ import { API_BASE_URL, getAuthToken } from '@/src/lib/api/config';
 
 // Import auth helpers from config
 import {
-  getProductById,  // Add this import
+  getProductById,
   deleteProductImages,
   uploadProductImages
 } from '../../../../../lib/api/auth';
+import { compressImages } from '../../../../../lib/compressImage';
 
 // Types
 interface ProductSize {
@@ -318,9 +319,18 @@ export default function EditProductPage() {
 
       // STEP 2: Upload new images if any
       if (newImageFiles.length > 0) {
-        console.log('Uploading new images:', newImageFiles.length);
+        console.log('Compressing and uploading new images:', newImageFiles.length);
+        toast.info('Compressing images...');
+
+        // Compress images client-side before upload to stay within nginx's body size limit
+        const compressed = await compressImages(newImageFiles);
+        console.log(
+          'Compressed sizes:',
+          compressed.map((f) => `${f.name}: ${(f.size / 1024).toFixed(1)} KB`)
+        );
+
         const uploadFormData = new FormData();
-        newImageFiles.forEach((file) => {
+        compressed.forEach((file) => {
           uploadFormData.append('images', file);
         });
 

@@ -468,66 +468,152 @@ export async function createProduct(productData: CreateProductPayload): Promise<
   }
 }
 
+/**
+ * Uploads product images using multipart FormData with automatic compression.
+ * 
+ * APPROACH:
+ * - Compresses each image client-side to reduce total request size
+ * - Sends all compressed images in a single multipart request for efficiency
+ * - Includes proper authorization header with token
+ * 
+ * Benefits:
+ * - Single request for all images (more efficient than batch requests)
+ * - Reduced payload size through compression
+ * - Proper error handling with detailed responses
+ */
 export async function uploadProductImages(
   productId: string | number,
   formData: FormData
 ): Promise<ApiResponse<any>> {
+  const { compressImage } = await import('../compressImage');
+
+  const base = API_BASE_URL.replace(/\/$/, '');
+  const token = getAuthToken();
+  const uploadUrl = `${base}${API_ENDPOINTS.PRODUCTS.UPLOAD_IMAGE(productId.toString())}`;
+
+  // Extract files from the FormData passed by the caller
+  const imageFiles = formData.getAll('images') as File[];
+
+  if (imageFiles.length === 0) {
+    return { success: false, message: 'No images provided', error: 'No images', data: null };
+  }
+
+  console.log(`=== UPLOADING ${imageFiles.length} image(s) for product ${productId} ===`);
+  console.log(`Upload URL: ${uploadUrl}`);
+
+  // Prepare FormData with compressed images
+  const uploadFormData = new FormData();
+  const uploadErrors: string[] = [];
+
+  for (let i = 0; i < imageFiles.length; i++) {
+    const file = imageFiles[i];
+    try {
+      console.log(`Compressing image ${i + 1}/${imageFiles.length}: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+      const compressedFile = await compressImage(file);
+      console.log(`  ✓ Compressed to ${(compressedFile.size / 1024).toFixed(1)} KB`);
+      uploadFormData.append('images', compressedFile);
+    } catch (compressErr) {
+      const msg = compressErr instanceof Error ? compressErr.message : 'Compression failed';
+      console.error(`Failed to compress image ${i + 1}:`, compressErr);
+      uploadErrors.push(`Image ${i + 1} (${file.name}): ${msg}`);
+    }
+  }
+
+  // If all images failed to compress, return error
+  if (uploadErrors.length === imageFiles.length) {
+    return {
+      success: false,
+      message: `Failed to compress all images: ${uploadErrors.join('; ')}`,
+      error: 'Compression failed for all images',
+      data: null,
+    };
+  }
+
+  // Set up headers with authorization
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // Log request details for debugging
+  const fileEntries = Array.from(uploadFormData.entries());
+  const totalSize = fileEntries.reduce((sum, [_, file]) => {
+    return sum + (file instanceof File ? file.size : 0);
+  }, 0);
+
+  console.log(`📤 Request Details:`);
+  console.log(`   URL: ${uploadUrl}`);
+  console.log(`   Files: ${fileEntries.length}`);
+  console.log(`   Total Size: ${(totalSize / 1024).toFixed(2)} KB`);
+  console.log(`   Token: ${token ? 'Present' : 'Missing'}`);
+
   try {
-    // Since UPLOAD_IMAGE is a function, call it with productId
-    const endpoint = API_ENDPOINTS.PRODUCTS.UPLOAD_IMAGE(productId.toString());
-    const url = `${API_BASE_URL}${endpoint}`;
-    
-    console.log('=== UPLOAD PRODUCT IMAGES API CALL ===');
-    console.log('URL:', url);
-    console.log('Product ID:', productId);
-    
-    const response = await fetch(url, {
+    const response = await fetch(uploadUrl, {
       method: 'POST',
-      body: formData,
+      headers,
+      body: uploadFormData,
     });
 
-    console.log('Response status:', response.status);
-    
+    console.log(`Response Status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Upload failed with status:', response.status);
-      console.error('Error response:', errorText);
+      const errorText = await response.text().catch(() => '');
+      let errorMsg = `Upload failed with status ${response.status}`;
       
-      let errorData;
       try {
-        errorData = errorText ? JSON.parse(errorText) : {};
-      } catch (e) {
-        errorData = { message: errorText };
+        const parsed = JSON.parse(errorText);
+        errorMsg = parsed.message || parsed.error || errorMsg;
+      } catch {
+        if (errorText) {
+          errorMsg = `${response.status}: ${errorText.substring(0, 200)}`;
+        }
       }
-      
+
+      console.error(`❌ Upload Error: ${errorMsg}`);
+      console.error(`Response Headers:`, {
+        'content-type': response.headers.get('content-type'),
+        'content-length': response.headers.get('content-length'),
+      });
+
       return {
         success: false,
-        message: errorData.message || `Upload failed with status ${response.status}`,
-        error: errorData,
-        data: null
+        message: errorMsg,
+        error: errorMsg,
+        data: null,
       };
     }
 
-    const responseData = await response.json();
-    console.log('Upload successful! Response:', responseData);
+    const responseData = await response.json().catch(() => ({}));
+    const successMsg = `${imageFiles.length} image(s) uploaded successfully`;
     
+    console.log(`✅ Upload Successful: ${successMsg}`);
     return {
       success: true,
-      message: 'Images uploaded successfully',
+      message: successMsg,
       data: responseData,
-      error: null
+      error: null,
     };
+
+  } catch (fetchError) {
+    const msg = fetchError instanceof Error ? fetchError.message : 'Unknown network error';
+    console.error('❌ Network Error during upload:', fetchError);
+    console.error('Stack:', fetchError instanceof Error ? fetchError.stack : 'N/A');
     
-  } catch (error) {
-    console.error('Fetch error in uploadProductImages:', error);
+    // CORS or connection error - provide better diagnostic message
+    const isCorsError = msg.includes('Failed to fetch') || msg.includes('blocked by CORS');
+    const diagnosticMsg = isCorsError
+      ? `Connection blocked. This could be due to: (1) Backend returning 500 without CORS headers, (2) Network connectivity issue, or (3) Backend server is down. Check browser console for details.`
+      : msg;
+
     return {
       success: false,
-      message: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      data: null
+      message: `Network error: ${diagnosticMsg}`,
+      error: msg,
+      data: null,
     };
   }
 }
+
 
 export async function updateProduct(
   id: string | number, 

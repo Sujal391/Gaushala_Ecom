@@ -15,11 +15,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { createProduct, uploadProductImages } from '../../../../lib/api/auth'; // Add uploadProductImages import
+import { createProduct, uploadProductImages } from '../../../../lib/api/auth';
+import { compressImages } from '../../../../lib/compressImage';
 import { toast } from 'sonner';
 import AdminGuard from '../../../../components/guards/AdminGuard';
 import AdminLayout from '../../../../components/layout/AdminLayout';
-import { API_BASE_URL, API_ENDPOINTS } from '../../../../lib/api/config';
 
 interface SizeItem {
   size: string;
@@ -140,62 +140,44 @@ export default function AddProductPage() {
   };
 
   const uploadImages = async (productId: string | number) => {
-  if (imageFiles.length === 0) {
-    console.log('No images to upload');
-    return true;
-  }
-
-  try {
-    const formDataToSend = new FormData();
-    
-    // Add images
-    imageFiles.forEach((file) => {
-      formDataToSend.append('images', file);
-    });
-
-    console.log('=== IMAGE UPLOAD DEBUG INFO ===');
-    console.log('Product ID:', productId);
-    console.log('Number of images:', imageFiles.length);
-    
-    // Debug the API endpoint
-    console.log('API_ENDPOINTS.PRODUCTS.UPLOAD_IMAGE is a function');
-    
-    // Since UPLOAD_IMAGE is a function, call it with the product ID
-    const uploadEndpoint = API_ENDPOINTS.PRODUCTS.UPLOAD_IMAGE;
-    
-    if (typeof uploadEndpoint === 'function') {
-      const endpoint = uploadEndpoint(productId.toString());
-      console.log('Generated endpoint:', endpoint);
-    } else {
-      console.error('UPLOAD_IMAGE is not a function:', uploadEndpoint);
-      toast.error('Image upload configuration error');
-      return false;
-    }
-    
-    // Call the API utility function
-    console.log('Calling uploadProductImages API...');
-    const response = await uploadProductImages(productId, formDataToSend);
-    
-    console.log('Image upload API response:', response);
-    
-    if (response.success) {
-      toast.success('Images uploaded successfully!');
+    if (imageFiles.length === 0) {
+      console.log('No images to upload');
       return true;
-    } else {
-      console.error('Image upload failed:', response);
-      toast.error(response.message || 'Failed to upload images');
+    }
+
+    try {
+      // ── Compress images client-side before upload ──
+      // Each image is resized to max 800×800 px and encoded as JPEG at 75% quality.
+      // This keeps individual files under ~200 KB, well within nginx's body limit.
+      toast.info('Compressing images...');
+      console.log('Compressing', imageFiles.length, 'image(s)...');
+      const compressed = await compressImages(imageFiles);
+      console.log(
+        'Compressed sizes:',
+        compressed.map((f) => `${f.name}: ${(f.size / 1024).toFixed(1)} KB`)
+      );
+
+      const formDataToSend = new FormData();
+      compressed.forEach((file) => {
+        formDataToSend.append('images', file);
+      });
+
+      console.log('Uploading to product ID:', productId);
+      const response = await uploadProductImages(productId, formDataToSend);
+
+      if (response.success) {
+        return true;
+      } else {
+        console.error('Image upload failed:', response);
+        toast.error(response.message || 'Failed to upload images');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      toast.error(`Failed to upload images: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return false;
     }
-  } catch (error) {
-    console.error('Error uploading images:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
-    toast.error('Failed to upload product images');
-    return false;
-  }
-};
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -254,15 +236,17 @@ if (!productId) {
 
     // Step 2: Upload images if any
     if (imageFiles.length > 0) {
-      toast.info('Uploading images...');
+      toast.info(`Uploading ${imageFiles.length} image(s)...`);
       const uploadSuccess = await uploadImages(productId);
       if (!uploadSuccess) {
-        // Even if image upload fails, product was created successfully
-        toast.warning('Product created but image upload failed');
+        // Product was created — warn but still navigate so the user can add images later
+        toast.warning('Product created but image upload failed. You can add images from the Edit page.');
+        router.push('/admin/products');
+        return;
       }
     }
 
-    // Success message
+    // Success
     toast.success('Product created successfully!');
     router.push('/admin/products');
     

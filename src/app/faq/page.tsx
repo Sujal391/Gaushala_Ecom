@@ -2,19 +2,21 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  HelpCircle, 
-  Truck, 
-  RefreshCw, 
-  CreditCard, 
-  Shield, 
+import {
+  ChevronDown,
+  ChevronUp,
+  HelpCircle,
+  Truck,
+  RefreshCw,
+  CreditCard,
+  Shield,
   Package,
   Leaf,
   MessageSquare,
   Clock,
-  Search
+  Search,
+  Phone,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,71 +28,40 @@ const FAQPage = () => {
 
   const faqCategories = [
     {
+      id: "general",
+      title: "General Questions",
+      icon: HelpCircle,
+      questions: [
+        {
+          q: "What is Untapped Nature?",
+          a: "Untapped Nature is committed to offering high-quality natural and organic products made from carefully selected ingredients. We believe in promoting healthier lifestyles through nature-inspired solutions."
+        },
+        {
+          q: "Are your products 100% natural?",
+          a: "Yes. Our products are made using carefully sourced natural ingredients and are free from harmful chemicals, artificial colors, and unnecessary additives whenever possible. Each product page provides detailed ingredient information."
+        },
+        {
+          q: "Are your products safe for daily use?",
+          a: "Our products are formulated using natural ingredients and are generally safe when used as directed. If you have allergies, sensitive skin, or any medical condition, please review the ingredient list and consult your healthcare professional before use."
+        }
+      ]
+    },
+    {
       id: "orders",
       title: "Orders & Shipping",
       icon: Package,
       questions: [
         {
-          q: "How long does shipping take?",
-          a: "Standard shipping takes 3-5 business days. Express shipping is available for 1-2 business day delivery. International shipping typically takes 7-14 business days depending on the destination."
-        },
-        {
-          q: "Do you ship internationally?",
-          a: "Yes, we ship to over 50 countries worldwide. Shipping rates and delivery times vary by location. You can see the exact shipping cost at checkout before completing your purchase."
+          q: "How long does delivery take?",
+          a: "Orders are typically delivered within 3–7 business days across India. Delivery times may vary depending on your location. Once your order is shipped, you'll receive a tracking link via SMS or email."
         },
         {
           q: "How can I track my order?",
-          a: "Once your order ships, you'll receive a tracking number via email. You can also track your order by logging into your account and visiting the 'My Orders' section."
+          a: "After your order is dispatched, you'll receive a tracking link via email or SMS. You can also log in to your account and track your order anytime from the My Orders section."
         },
         {
-          q: "What shipping carriers do you use?",
-          a: "We work with multiple carriers including UPS, FedEx, and USPS for domestic orders, and DHL for international shipments. The carrier is selected based on the most efficient and eco-friendly option for your location."
-        }
-      ]
-    },
-    {
-      id: "returns",
-      title: "Returns & Refunds",
-      icon: RefreshCw,
-      questions: [
-        {
-          q: "What is your return policy?",
-          a: "We offer a 30-day return policy for unopened and unused products. Items must be in their original packaging with all seals intact. Returns are free within the US."
-        },
-        {
-          q: "How do I initiate a return?",
-          a: "Log into your account, go to 'My Orders', select the order you want to return, and click 'Return Item'. Follow the instructions to print your return label and schedule a pickup or drop off."
-        },
-        {
-          q: "How long does it take to process a refund?",
-          a: "Once we receive your return, it takes 3-5 business days to inspect the items and process your refund. You'll receive an email confirmation once your refund has been issued."
-        },
-        {
-          q: "Do you offer exchanges?",
-          a: "Yes, we offer exchanges for different products or sizes. Please initiate a return for the original item and place a new order for the item you want. For expedited exchanges, contact our customer service team."
-        }
-      ]
-    },
-    {
-      id: "products",
-      title: "Products & Ingredients",
-      icon: Leaf,
-      questions: [
-        {
-          q: "Are your products cruelty-free?",
-          a: "Absolutely! All Untapped Nature products are 100% cruelty-free. We never test on animals and all our ingredients are ethically sourced."
-        },
-        {
-          q: "Are your products vegan?",
-          a: "Most of our products are vegan. Products containing animal-derived ingredients are clearly marked on the product page. We're constantly working to make our entire line 100% vegan."
-        },
-        {
-          q: "Where are your ingredients sourced from?",
-          a: "We source our ingredients from sustainable farms around the world, prioritizing organic and fair-trade suppliers. Each product page details the origin of key ingredients."
-        },
-        {
-          q: "Do you use synthetic fragrances?",
-          a: "No, all our fragrances come from natural essential oils and botanical extracts. We never use synthetic fragrances, parabens, sulfates, or phthalates in any of our products."
+          q: "Can I cancel or modify my order?",
+          a: "Yes. You can request to cancel or modify your order before it has been shipped. Once the order has been dispatched, cancellations or modifications may no longer be possible. If you need assistance, please contact our customer support team as soon as possible."
         }
       ]
     },
@@ -101,79 +72,32 @@ const FAQPage = () => {
       questions: [
         {
           q: "What payment methods do you accept?",
-          a: "We accept all major credit cards (Visa, Mastercard, American Express, Discover), PayPal, Apple Pay, Google Pay, and Shop Pay for your convenience."
-        },
-        {
-          q: "Is my payment information secure?",
-          a: "Yes, we use industry-standard SSL encryption to protect your payment information. We never store complete credit card numbers on our servers."
-        },
-        {
-          q: "Do you offer gift cards?",
-          a: "Yes! You can purchase digital gift cards in any amount from $25 to $500. They're delivered instantly via email and never expire."
-        },
-        {
-          q: "Can I split my payment between two methods?",
-          a: "Currently, we only accept one payment method per order. However, you can use gift cards combined with another payment method."
+          a: "We accept UPI, Credit Cards, Debit Cards, Net Banking, and Digital Wallets. Cash on Delivery (COD) is currently not available. All payments are processed through secure and encrypted payment gateways."
         }
       ]
     },
     {
-      id: "account",
-      title: "Account & Subscription",
-      icon: Shield,
+      id: "support",
+      title: "Customer Support",
+      icon: MessageSquare,
       questions: [
         {
-          q: "How do I reset my password?",
-          a: "Click 'Forgot Password' on the login page. Enter your email address and we'll send you a password reset link. The link expires in 24 hours for security."
-        },
-        {
-          q: "Can I change my subscription frequency?",
-          a: "Yes, you can modify your subscription at any time. Log into your account, go to 'My Subscriptions', and adjust the frequency, products, or skip a delivery."
-        },
-        {
-          q: "How do I cancel my subscription?",
-          a: "You can cancel your subscription at any time without penalty. Log into your account, go to 'My Subscriptions', and click 'Cancel Subscription'. You'll continue to receive shipments until the end of your current billing cycle."
-        },
-        {
-          q: "Is there a loyalty program?",
-          a: "Yes! Our Nature Points program rewards you for purchases, reviews, and referrals. Earn points that can be redeemed for discounts on future orders."
-        }
-      ]
-    },
-    {
-      id: "general",
-      title: "General Questions",
-      icon: HelpCircle,
-      questions: [
-        {
-          q: "What makes Untapped Nature different?",
-          a: "We're committed to 100% natural ingredients, sustainable packaging, and ethical sourcing. Our products are developed with environmental scientists and dermatologists to ensure effectiveness without compromise."
-        },
-        {
-          q: "Are your packaging materials eco-friendly?",
-          a: "Yes, all our packaging is 100% recyclable or compostable. We use post-consumer recycled materials and minimize plastic use whenever possible."
-        },
-        {
-          q: "Do you offer wholesale or bulk orders?",
-          a: "Yes, we have a wholesale program for retailers and bulk orders for corporate gifting. Contact our business team at wholesale@untappednature.com for pricing and minimums."
-        },
-        {
-          q: "How can I contact customer service?",
-          a: "You can reach us via email at info@untappednature.com, chat with us on our website during business hours, or call us at 1-800-UNTAPPED (868-2773). Our team is available Monday-Friday, 9am-6pm EST."
+          q: "How can I contact Untapped Nature's customer support?",
+          a: "You can reach our customer support team through the Contact Us page, email at info@untappednature.com, or call us at +91 70967 12340. We're here to assist you with product inquiries, orders, returns, and any other questions you may have."
         }
       ]
     }
   ];
 
   // Filter questions based on search query
-  const filteredCategories = searchQuery 
+  const filteredCategories = searchQuery
     ? faqCategories.map(category => ({
-        ...category,
-        questions: category.questions.filter(q => 
-          q.q.toLowerCase().includes(searchQuery.toLowerCase()) || 
-          q.a.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      })).filter(category => category.questions.length > 0)
+      ...category,
+      questions: category.questions.filter(q =>
+        q.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        q.a.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    })).filter(category => category.questions.length > 0)
     : faqCategories;
 
   const toggleQuestion = (index: number) => {
@@ -213,7 +137,7 @@ const FAQPage = () => {
         {/* Quick Links */}
         <div className="mb-12">
           <h2 className="text-2xl font-bold mb-6">Browse by Category</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {faqCategories.map((category) => (
               <a
                 key={category.id}
@@ -236,12 +160,12 @@ const FAQPage = () => {
                   <category.icon className="h-6 w-6 text-primary" />
                   <h2 className="text-2xl font-bold">{category.title}</h2>
                 </div>
-                
+
                 <div className="space-y-4">
                   {category.questions.map((item, index) => {
                     const globalIndex = categoryIndex * 100 + index;
                     const isOpen = openIndex === globalIndex;
-                    
+
                     return (
                       <div
                         key={index}
@@ -260,7 +184,7 @@ const FAQPage = () => {
                             )}
                           </div>
                         </button>
-                        
+
                         {isOpen && (
                           <div className="p-4 md:p-6 pt-0 bg-background">
                             <div className="pl-0 md:pl-4 border-l-2 border-primary">
@@ -298,17 +222,17 @@ const FAQPage = () => {
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
-                  <MessageSquare className="h-5 w-5 text-primary" />
+                  <Mail className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-medium">Live Chat</p>
-                    <p className="text-sm text-muted-foreground">Available 9am-6pm EST</p>
+                    <p className="font-medium">Email Us</p>
+                    <p className="text-sm text-muted-foreground">info@untappednature.com</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Clock className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-medium">Response Time</p>
-                    <p className="text-sm text-muted-foreground">Within 24 hours</p>
+                    <p className="font-medium">Working Hours</p>
+                    <p className="text-sm text-muted-foreground">Mon–Sat, 9am–6pm IST</p>
                   </div>
                 </div>
               </div>
@@ -320,7 +244,7 @@ const FAQPage = () => {
                 </a>
               </Button>
               <Button asChild variant="outline" size="lg">
-                <a href="tel:1-800-UNTAPPED">
+                <a href="tel:+917096712340">
                   Call Us
                 </a>
               </Button>
@@ -333,9 +257,9 @@ const FAQPage = () => {
           <h3 className="text-xl font-bold mb-6">Popular Topics</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              { title: "Shipping Information", icon: Truck, href: "#orders" },
-              { title: "Return Instructions", icon: RefreshCw, href: "#returns" },
-              { title: "Product Ingredients", icon: Leaf, href: "#products" },
+              { title: "Track My Order", icon: Truck, href: "#orders" },
+              { title: "Cancel or Modify Order", icon: RefreshCw, href: "#orders" },
+              { title: "Natural Ingredients", icon: Leaf, href: "#products" },
               { title: "Payment Methods", icon: CreditCard, href: "#payment" },
             ].map((topic, index) => (
               <a

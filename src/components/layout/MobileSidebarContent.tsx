@@ -48,7 +48,7 @@ export const MobileSidebarContent = memo(function MobileSidebarContent({
 
   const handleLocalSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    
+
     if (localSearchQuery.trim()) {
       const params = new URLSearchParams();
       params.set("search", localSearchQuery.trim());
@@ -56,7 +56,7 @@ export const MobileSidebarContent = memo(function MobileSidebarContent({
     } else {
       window.location.href = "/shop";
     }
-    
+
     setIsMobileMenuOpen(false);
   };
 
@@ -105,6 +105,22 @@ export const MobileSidebarContent = memo(function MobileSidebarContent({
                 </Button>
               )
           )}
+
+          <Button
+            variant={pathName === "/about" ? "secondary" : "ghost"}
+            onClick={() => navigateTo("/about")}
+            className="w-full justify-start gap-3"
+          >
+            About Us
+          </Button>
+
+          <Button
+            variant={pathName === "/contact" ? "secondary" : "ghost"}
+            onClick={() => navigateTo("/contact")}
+            className="w-full justify-start gap-3"
+          >
+            Contact Us
+          </Button>
 
           {/* Profile Section - Integrated with navigation */}
           {user ? (
@@ -160,19 +176,19 @@ export const MobileSidebarContent = memo(function MobileSidebarContent({
       {/* Footer in Sidebar */}
       <div className="p-4 border-t">
         <div className="space-y-2 mb-3">
-          <a 
-            href="mailto:info@untappednature.com" 
+          <a
+            href="mailto:info@untappednature.com"
             className="text-xs text-muted-foreground hover:text-primary flex items-center gap-2"
           >
             <Mail className="h-3 w-3" />
             info@untappednature.com
           </a>
-          <a 
-            href="tel:+919824097037" 
+          <a
+            href="tel:+917096712340"
             className="text-xs text-muted-foreground hover:text-primary flex items-center gap-2"
           >
             <Phone className="h-3 w-3" />
-            +91 98240 97037
+            +91 70967 12340
           </a>
         </div>
         <p className="text-xs text-muted-foreground text-center">

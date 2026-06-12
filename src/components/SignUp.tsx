@@ -482,14 +482,14 @@ export default function SignUp({
                     </p>
                     <div className="grid grid-cols-2 gap-2">
                       <a
-                        href="tel:+919824097037"
+                        href="tel:+917096712340"
                         className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
                       >
                         <Phone className="h-4 w-4" />
                         Call Now
                       </a>
                       <a
-                        href="https://wa.me/919824097037"
+                        href="https://wa.me/917096712340"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
