@@ -129,8 +129,10 @@ export default function NewProductsPage() {
   // Get short description - limit to 7 words
   const getShortDescription = (description: string): string => {
     if (!description) return '';
-    const words = description.split(' ');
-    if (words.length <= 7) return description;
+    // Strip HTML tags using regex
+    const plainText = description.replace(/<[^>]*>/g, '');
+    const words = plainText.split(/\s+/);
+    if (words.length <= 7) return plainText;
     return words.slice(0, 7).join(' ') + '...';
   };
 
@@ -385,7 +387,7 @@ export default function NewProductsPage() {
                     )}
                   </div>
                   <CardContent className="p-2 sm:p-3 lg:p-4 flex-1">
-                    <h3 className="font-semibold text-xs sm:text-sm lg:text-base mb-0.5 sm:mb-1 line-clamp-1">
+                    <h3 className="font-bold text-sm sm:text-base md:text-lg lg:text-xl mb-0.5 sm:mb-1 line-clamp-1 text-foreground">
                       {product.name || 'Unnamed Product'}
                     </h3>
                     

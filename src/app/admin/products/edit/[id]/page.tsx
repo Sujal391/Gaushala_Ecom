@@ -13,8 +13,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 import AdminGuard from '../../../../../components/guards/AdminGuard';
 import AdminLayout from '../../../../../components/layout/AdminLayout';
 import { API_BASE_URL, getAuthToken } from '@/src/lib/api/config';
@@ -664,14 +664,11 @@ export default function EditProductPage() {
                 <label htmlFor="description" className="block text-sm font-medium mb-2">
                   Description
                 </label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                <RichTextEditor
+                  value={formData.description || ''}
+                  onChange={(val) => setFormData({ ...formData, description: val })}
                   placeholder="Enter product description"
-                  rows={4}
                   disabled={submitting}
-                  className="text-sm sm:text-base resize-none"
                 />
               </div>
 

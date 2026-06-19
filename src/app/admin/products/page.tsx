@@ -414,9 +414,10 @@ export default function AdminProductsPage() {
                     <h3 className="font-semibold text-base sm:text-lg mb-1 truncate">{product.name}</h3>
                     {/* Scrollable Description Container with preserved formatting */}
                     <div className="mb-2">
-                      <div className="max-h-[80px] overflow-y-auto pr-1 text-xs sm:text-sm text-muted-foreground scrollbar-thin scrollbar-thumb-gray-300 hover:scrollbar-thumb-gray-400 whitespace-pre-wrap break-words">
-                        {product.description || 'No description available'}
-                      </div>
+                      <div 
+                        className="max-h-[80px] overflow-y-auto pr-1 text-xs sm:text-sm text-muted-foreground scrollbar-thin scrollbar-thumb-gray-300 hover:scrollbar-thumb-gray-400 whitespace-pre-wrap break-words"
+                        dangerouslySetInnerHTML={{ __html: product.description || 'No description available' }}
+                      />
                     </div>
                     <p className="text-xs sm:text-sm text-muted-foreground mb-2 min-h-[40px]">
                       {getAvailableSizes(product)}

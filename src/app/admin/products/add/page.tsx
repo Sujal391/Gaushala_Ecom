@@ -13,8 +13,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 import { createProduct, uploadProductImages } from '../../../../lib/api/auth';
 import { compressImages } from '../../../../lib/compressImage';
 import { toast } from 'sonner';
@@ -494,15 +494,14 @@ if (!productId) {
                 <Label htmlFor="description">
                   Description
                 </Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Enter product description"
-                  rows={4}
-                  disabled={isSubmitting}
-                  className="text-sm sm:text-base resize-none mt-2"
-                />
+                <div className="mt-2">
+                  <RichTextEditor
+                    value={formData.description}
+                    onChange={(val) => setFormData({ ...formData, description: val })}
+                    placeholder="Enter product description"
+                    disabled={isSubmitting}
+                  />
+                </div>
               </div>
 
               {/* Action Buttons */}

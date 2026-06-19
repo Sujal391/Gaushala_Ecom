@@ -391,7 +391,20 @@ export async function getAllProducts(): Promise<ApiResponse<Product[]>> {
       headers: getHeaders(),
     });
 
-    return handleResponse<Product[]>(response);
+    const result = await handleResponse<Product[]>(response);
+    
+    // Sort products newest first (by id descending)
+    if (result) {
+      if (Array.isArray(result)) {
+        result.sort((a, b) => b.id - a.id);
+      } else if (result.data && Array.isArray(result.data)) {
+        result.data.sort((a, b) => b.id - a.id);
+      } else if (result.items && Array.isArray(result.items)) {
+        result.items.sort((a, b) => b.id - a.id);
+      }
+    }
+
+    return result;
   } catch (error) {
     console.error('Get products error:', error);
     return {
@@ -699,15 +712,20 @@ export const getNewProducts = async (): Promise<Product[]> => {
     console.log('New products data:', data);
     
     // The API might return the array directly or wrapped in a response object
+    let productsList: Product[] = [];
     if (Array.isArray(data)) {
-      return data;
+      productsList = data;
     } else if (data && Array.isArray(data.data)) {
-      return data.data;
-    } else if (data && Array.isArray(data)) {
-      return data;
+      productsList = data.data;
+    } else if (data && Array.isArray((data as any).items)) {
+      productsList = (data as any).items;
     }
     
-    return [];
+    // Sort newest first by id descending
+    if (Array.isArray(productsList)) {
+      productsList.sort((a, b) => b.id - a.id);
+    }
+    return productsList;
   } catch (error) {
     console.error('Error fetching new products:', error);
     throw error;

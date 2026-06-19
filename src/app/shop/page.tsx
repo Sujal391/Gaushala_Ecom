@@ -522,8 +522,10 @@ function ShopContent() {
 
   const getShortDescription = (description: string): string => {
     if (!description) return '';
-    const words = description.split(' ');
-    if (words.length <= 7) return description;
+    // Strip HTML tags using regex
+    const plainText = description.replace(/<[^>]*>/g, '');
+    const words = plainText.split(/\s+/);
+    if (words.length <= 7) return plainText;
     return words.slice(0, 7).join(' ') + '...';
   };
 
@@ -723,7 +725,7 @@ function ShopContent() {
                       )}
                     </div>
                     <CardContent className="p-2 md:p-4 flex-1">
-                      <h3 className="font-semibold text-xs md:text-sm lg:text-base mb-1 line-clamp-1">
+                      <h3 className="font-bold text-sm sm:text-base md:text-lg lg:text-xl mb-1 line-clamp-1 text-foreground">
                         {product.name || "Unnamed Product"}
                       </h3>
 
