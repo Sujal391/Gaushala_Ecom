@@ -494,20 +494,23 @@ export default function ProductDetailPage() {
 
   const getCurrentPrice = () => {
     if (selectedSize) {
-      return selectedSize.discountedPrice || selectedSize.price;
+      if (selectedSize.discountedPrice && selectedSize.discountedPrice < selectedSize.price) {
+        return selectedSize.discountedPrice;
+      }
+      return selectedSize.price;
     }
     return product?.basePrice || 0;
   };
 
   const getOriginalPrice = () => {
-    if (selectedSize && selectedSize.discountedPrice) {
+    if (selectedSize && selectedSize.discountedPrice && selectedSize.discountedPrice < selectedSize.price) {
       return selectedSize.price;
     }
     return null;
   };
 
   const getDiscountPercentage = () => {
-    if (selectedSize && selectedSize.discountedPrice) {
+    if (selectedSize && selectedSize.discountedPrice && selectedSize.discountedPrice < selectedSize.price) {
       return Math.round(((selectedSize.price - selectedSize.discountedPrice) / selectedSize.price) * 100);
     }
     return null;
@@ -755,7 +758,7 @@ export default function ProductDetailPage() {
                       disabled={!size.inStock}
                     >
                       {size.size}
-                      {size.discountedPrice && (
+                      {size.discountedPrice && size.discountedPrice < size.price && (
                         <span className="absolute -top-2 -right-2 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full">
                           Sale
                         </span>
@@ -763,7 +766,7 @@ export default function ProductDetailPage() {
                     </Button>
                   ))}
                 </div>
-                {selectedSize && selectedSize.discountedPrice && (
+                {selectedSize && selectedSize.discountedPrice && selectedSize.discountedPrice < selectedSize.price && (
                   <p className="text-sm text-green-600">
                     You save: ₹ {(selectedSize.price - selectedSize.discountedPrice).toFixed(2)} ({discountPercentage}% off)
                   </p>
