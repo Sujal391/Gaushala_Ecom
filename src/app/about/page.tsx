@@ -193,82 +193,103 @@ export default function AboutPage() {
                     `}</style>
                 </section>
 
-                {/* ── WHO WE ARE (MATCHED TO REFERENCE IMAGE) ──────────────────── */}
-                <section className="py-10 bg-white flex items-center justify-center">
-                    <div className="w-full mx-auto max-w-[1250px] px-6 md:px-12 grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-start">
+                {/* ── WHO WE ARE ──────────────────── */}
+                <section className="py-12 sm:py-16 md:py-20 bg-white relative overflow-hidden">
+                    {/* Subtle background pattern */}
+                    <div className="absolute inset-0 opacity-[0.03]"
+                        style={{ backgroundImage: 'radial-gradient(circle, #2d6a1f 1px, transparent 1px)', backgroundSize: '40px 40px' }}
+                    />
 
-                        {/* Left Side: Image Container */}
-                        <div className="md:col-span-5 relative w-full aspect-[3/2] sm:aspect-[4/3] rounded-2xl overflow-hidden shadow-sm">
-                            <Image
-                                src="/aboutus1.jpeg"
-                                alt="Who We Are - Natural Alchemy"
-                                fill
-                                className="object-cover bg-[#edf4ea]"
-                            />
-                        </div>
+                    <div className="w-full mx-auto max-w-[1250px] px-4 sm:px-6 md:px-12 relative z-10">
 
-                        {/* Right Side: Copy & Pillars */}
-                        <div className="md:col-span-7 flex flex-col justify-top space-y-4">
-                            <div>
-                                <span className="inline-block bg-[#eaf2e6] text-[#3b602c] text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3">
-                                    Who We Are
-                                </span>
-                                <h2 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight mb-4">
-                                    Who We Are
-                                </h2>
-                                <p className="text-gray-600 text-sm md:text-[15px] leading-relaxed font-medium">
-                                    At Untapped Nature, we believe that nature provides everything needed for a healthy, sustainable, and meaningful lifestyle. Our mission is to bring the purity of traditional Indian products to every home through carefully crafted, natural, and eco-friendly offerings.
-                                </p>
-                                <p className="text-gray-600 text-sm md:text-[15px] leading-relaxed font-medium mt-3">
-                                    From A2 Desi Cow Ghee, Cow Dung (Gomaya) products, and Panchgavya-based essentials to organic and herbal products, every item is made with authenticity, quality, and respect for our rich cultural heritage. We work closely with trusted Gaushalas and traditional practices to ensure that every product is pure, safe, and naturally beneficial.
-                                </p>
-                                <p className="text-gray-600 text-sm md:text-[15px] leading-relaxed font-medium mt-3">
-                                    More than just an online store, Untapped Nature is committed to promoting a healthier lifestyle, supporting sustainable living, and preserving the timeless wisdom of Indian traditions for future generations.
-                                </p>
-                                <p className="text-[#3b602c] text-sm md:text-[15px] leading-relaxed font-semibold mt-4 italic border-l-4 border-[#3b602c] pl-3">
-                                    Pure from Nature &nbsp;•&nbsp; Rooted in Tradition &nbsp;•&nbsp; Crafted for a Better Tomorrow
-                                </p>
+                        {/* Content Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16 items-center">
+
+                            {/* Left Side: Image with decorative elements — Desktop */}
+                            <div className="hidden md:block relative">
+                                {/* Decorative green block behind image */}
+                                <div className="absolute -top-4 -left-4 w-full h-full rounded-2xl bg-[#e8f5e2] border border-[#c8dea8]" />
+
+                                {/* Main image */}
+                                <div className="relative w-full rounded-2xl overflow-hidden shadow-lg" style={{ aspectRatio: '1/1' }}>
+                                    <img
+                                        src="/aboutus3.png"
+                                        alt="Who We Are - Natural Products"
+                                        className="w-full h-full object-fill rounded-2xl"
+                                    />
+                                </div>
                             </div>
 
-                            {/* 3 Value Pillars (With Border Splitters) */}
-                            <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-6 border-t border-gray-100">
+                            {/* Mobile image */}
+                            <div className="block md:hidden w-full">
+                                <div className="relative w-full rounded-2xl overflow-hidden shadow-md" style={{ aspectRatio: '1/1' }}>
+                                    <img
+                                        src="/aboutus3.png"
+                                        alt="Who We Are - Natural Products"
+                                        className="w-full h-full object-fill rounded-2xl"
+                                    />
+                                </div>
+                            </div>
 
-                                {/* Pillar 1 */}
-                                <div className="flex flex-row items-start gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-[#f4faf1] flex items-center justify-center flex-shrink-0 border border-emerald-50 text-lg leading-none">
-                                        🌿
-                                    </div>
-                                    <div className="flex flex-col space-y-0.5">
-                                        <h4 className="font-bold text-gray-900 text-sm">100% Natural Products</h4>
-                                        <p className="text-xs text-gray-500 font-medium leading-tight">Premium A2 Ghee, Cow Dung &amp; Organic Essentials</p>
-                                    </div>
+                            {/* Right Side: Text Content */}
+                            <div className="flex flex-col gap-4 sm:gap-5">
+
+                                {/* Section badge + heading */}
+                                <div>
+                                    <span className="inline-flex items-center gap-2 bg-[#eaf2e6] text-[#3b602c] text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] px-3 sm:px-4 py-1.5 sm:py-2 rounded-full mb-3 border border-[#c8dea8]/60">
+                                        <Leaf className="h-3 w-3 sm:h-3.5 sm:w-3.5" strokeWidth={2} />
+                                        Who We Are
+                                    </span>
+                                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1a3d10] tracking-tight leading-tight">
+                                        Rooted in Nature,{" "}
+                                        <span className="text-[#3b7a2a]">Crafted with Care</span>
+                                    </h2>
                                 </div>
 
-                                {/* Pillar 2 */}
-                                <div className="flex flex-row items-start gap-3 sm:border-l sm:border-gray-100 sm:pl-4">
-                                    <div className="h-10 w-10 rounded-full bg-[#f4faf1] flex items-center justify-center flex-shrink-0 border border-emerald-50 text-lg leading-none">
-                                        🐄
-                                    </div>
-                                    <div className="flex flex-col space-y-0.5">
-                                        <h4 className="font-bold text-gray-900 text-sm">Gaushala Based</h4>
-                                        <p className="text-xs text-gray-500 font-medium leading-tight">Made using ethically sourced indigenous cow products</p>
-                                    </div>
+                                <p className="text-gray-600 text-[13px] sm:text-[15px] leading-[1.8] sm:leading-[1.85] font-medium">
+                                    At Untapped Nature, we believe that nature provides everything needed for a healthy, sustainable, and meaningful lifestyle. Our mission is to bring the purity of traditional Indian products to every home through carefully crafted, natural, and eco-friendly offerings.
+                                </p>
+
+                                <p className="text-gray-600 text-[13px] sm:text-[15px] leading-[1.8] sm:leading-[1.85] font-medium">
+                                    From A2 Desi Cow Ghee, Cow Dung (Gomaya) products, and Panchgavya-based essentials to organic and herbal products, every item is made with authenticity, quality, and respect for our rich cultural heritage.
+                                </p>
+
+                                <p className="text-gray-600 text-[13px] sm:text-[15px] leading-[1.8] sm:leading-[1.85] font-medium">
+                                    More than just an online store, Untapped Nature is committed to promoting a healthier lifestyle, supporting sustainable living, and preserving the timeless wisdom of Indian traditions for future generations.
+                                </p>
+
+                                {/* Quote block */}
+                                <div className="bg-[#f0f7ec] rounded-xl px-4 sm:px-5 py-3 sm:py-4 border-l-4 border-[#3b7a2a]">
+                                    <p className="text-[#2a5e1e] text-[13px] sm:text-[14px] font-semibold italic leading-relaxed">
+                                        &ldquo;Pure from Nature &nbsp;•&nbsp; Rooted in Tradition &nbsp;•&nbsp; Crafted for a Better Tomorrow&rdquo;
+                                    </p>
                                 </div>
 
-                                {/* Pillar 3 */}
-                                <div className="flex flex-row items-start gap-3 sm:border-l sm:border-gray-100 sm:pl-4">
-                                    <div className="h-10 w-10 rounded-full bg-[#f4faf1] flex items-center justify-center flex-shrink-0 border border-emerald-50 text-lg leading-none">
-                                        ♻️
-                                    </div>
-                                    <div className="flex flex-col space-y-0.5">
-                                        <h4 className="font-bold text-gray-900 text-sm">Sustainable Living</h4>
-                                        <p className="text-xs text-gray-500 font-medium leading-tight">Eco-friendly products inspired by Indian traditions</p>
-                                    </div>
+                                {/* Value Pillars */}
+                                <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-1">
+                                    {[
+                                        { emoji: "🌿", title: "100% Natural", bg: "bg-[#f0f7ec]", border: "border-[#d4edca]" },
+                                        { emoji: "🐄", title: "Gaushala Based", bg: "bg-[#fef9e7]", border: "border-[#f5e6b8]" },
+                                        { emoji: "♻️", title: "Sustainable", bg: "bg-[#eef6fb]", border: "border-[#b8d9ea]" },
+                                    ].map(({ emoji, title, bg, border }) => (
+                                        <div key={title} className={`flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl ${bg} border ${border} hover:shadow-md transition-all duration-300 group text-center`}>
+                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white flex items-center justify-center text-lg sm:text-xl shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                                {emoji}
+                                            </div>
+                                            <h4 className="font-bold text-gray-900 text-[11px] sm:text-[13px]">{title}</h4>
+                                        </div>
+                                    ))}
                                 </div>
-
                             </div>
                         </div>
                     </div>
+
+                    <style jsx>{`
+                        @keyframes badgeFloat {
+                            0%, 100% { transform: translateY(0px); }
+                            50%      { transform: translateY(-8px); }
+                        }
+                    `}</style>
                 </section>
 
                 {/* ── OUR MISSION ────────────────── */}
@@ -483,7 +504,7 @@ export default function AboutPage() {
                             </h2>
                             <p className="text-gray-500 text-sm mt-2">We are a registered business committed to transparency and trust.</p>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 [&>*:last-child]:sm:col-span-2 [&>*:last-child]:lg:col-span-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             {[
                                 { icon: Building2, label: "Legal Business Name", value: "Untapped Nature", color: "bg-[#eaf2e6]", iconColor: "text-[#3b7a2a]" },
                                 { icon: MapPin, label: "Business Address", value: "Karnavati Kamdhenu Gaushala, Mota Vas, Sanoda, Gandhinagar, Gujarat, India", color: "bg-[#fdecea]", iconColor: "text-[#c0392b]" },

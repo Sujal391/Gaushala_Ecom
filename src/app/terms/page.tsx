@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import UserLayout from "../../components/layout/UserLayout";
 import {
@@ -8,6 +9,8 @@ import {
   Lock, Edit, Headphones, Home, ChevronRight, Mail, Phone, MapPin,
   ExternalLink, Building2, CheckCircle2, Wifi,
 } from "lucide-react";
+
+const TEXT_LIMIT = 150;
 
 const clauses = [
   { id: 1, icon: FileText, accent: "#3b7a2a", bg: "#f0f7ec", border: "#c8dea8", title: "Introduction", text: "By accessing, browsing or using our website, you agree to be bound by these Terms & Conditions and all applicable laws." },
@@ -30,6 +33,7 @@ const clauses = [
 
 function ClauseCard({ clause }: any) {
   const Icon = clause.icon;
+
   return (
     <div
       className="group relative rounded-2xl border bg-white p-5 sm:p-6 transition-all duration-200 hover:-translate-y-0.5"
@@ -49,7 +53,16 @@ function ClauseCard({ clause }: any) {
         </span>
       </div>
       <h3 className="text-[14px] sm:text-[15px] font-black text-gray-900 mb-2 leading-snug">{clause.title}</h3>
-      <p className="text-[12px] sm:text-[13px] text-gray-500 leading-relaxed">{clause.text}</p>
+      <p 
+        className="text-[12px] sm:text-[13px] text-gray-500 leading-relaxed pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 transition-colors"
+        style={{ 
+          maxHeight: '96px', 
+          overflowY: 'auto', 
+          scrollbarWidth: 'thin'
+        }}
+      >
+        {clause.text}
+      </p>
       <div
         className="absolute left-0 top-4 bottom-4 w-[3px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
         style={{ backgroundColor: clause.accent }}
@@ -198,7 +211,7 @@ export default function TermsAndConditionsPage() {
         </section>
 
         {/* ── CLAUSES ── */}
-        <section className="py-10 sm:py-12 md:py-16 bg-white">
+        <section className="pt-10 sm:pt-12 md:pt-16 pb-5 sm:pb-6 md:pb-8 bg-white">
           <div className="w-full max-w-[1300px] mx-auto px-4 sm:px-6 md:px-12">
             <div className="max-w-[960px] mx-auto">
 

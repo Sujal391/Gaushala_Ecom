@@ -1,4 +1,3 @@
-
 // components/layout/Footer.tsx
 "use client";
 
@@ -35,7 +34,6 @@ export const Footer = () => {
       title: "Help",
       links: [
         { label: "Contact Us", href: "/contact" },
-        { label: "Shipping Policy", href: "/shipping-policy" },
         { label: "Returns & Refunds", href: "/refund-policy" },
         { label: "FAQ", href: "/faq" },
       ],
@@ -72,11 +70,11 @@ export const Footer = () => {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-100/10 dark:bg-amber-500/5 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 md:py-12 relative">
+      <div className="container mx-auto px-4 py-6 md:py-8 relative">
         {/* Newsletter Section - Enhanced with professional colors */}
-        <div className="max-w-4xl mx-auto text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="relative h-40 w-40 group">
+        <div className="max-w-4xl mx-auto text-center mb-4">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <div className="relative h-16 w-16 group">
               <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500"></div>
               <img
                 src="/logo.png"
@@ -88,28 +86,6 @@ export const Footer = () => {
               Untapped Nature
             </span>
           </div>
-          {/* <p className="text-lg text-slate-600 dark:text-slate-400 mb-6">
-            Discover the purest essentials for a natural lifestyle. Join our community of nature lovers.
-          </p> */}
-
-          {/* Newsletter Form - Enhanced styling */}
-          {/* <div className="max-w-md mx-auto">
-            <form className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 relative">
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all duration-300"
-                />
-              </div>
-              <Button 
-                type="submit" 
-                className="whitespace-nowrap bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:shadow-emerald-600/30 transition-all duration-300"
-              >
-                Subscribe
-              </Button>
-            </form>
-          </div> */}
         </div>
 
         {/* Gaushala Promotion Section - Enhanced with professional gradient */}
@@ -255,7 +231,7 @@ export const Footer = () => {
               {[
                 { label: "Privacy Policy", href: "/privacy-policy" },
                 { label: "Terms of Service", href: "/terms" },
-                { label: "Cookie Policy", href: "/cookie-policy" },
+                { label: "Cookie Policy", href: "/privacy-policy" },
               ].map((item) => (
                 <a
                   key={item.label}
@@ -298,11 +274,11 @@ export const MobileFooter = () => {
       {/* Decorative top line */}
       <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400"></div>
 
-      <div className="container mx-auto px-4 py-6 relative">
+      <div className="container mx-auto px-4 py-4 relative">
         <div className="text-center">
           {/* Logo and Brand */}
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="relative h-16 w-16">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <div className="relative h-12 w-12">
               <img
                 src="/logo.png"
                 alt="Untapped Nature Logo"
@@ -313,27 +289,6 @@ export const MobileFooter = () => {
               Untapped Nature
             </span>
           </div>
-
-          {/* Newsletter Section */}
-          {/* <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/30">
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-              Subscribe for exclusive offers
-            </p>
-            <form className="flex flex-col gap-2">
-              <input
-                type="email"
-                placeholder="Your email"
-                className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-              />
-              <Button 
-                type="submit" 
-                size="sm"
-                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white"
-              >
-                Subscribe
-              </Button>
-            </form>
-          </div> */}
 
           {/* Gaushala Promotion - Mobile Enhanced */}
           <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white">
@@ -384,13 +339,13 @@ export const MobileFooter = () => {
 
           {/* Footer Links */}
           <div className="flex justify-center gap-4 mb-4">
-            <a href="#" className="text-xs text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400">
+            <a href="/privacy-policy" className="text-xs text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400">
               Privacy
             </a>
-            <a href="#" className="text-xs text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400">
+            <a href="/terms" className="text-xs text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400">
               Terms
             </a>
-            <a href="#" className="text-xs text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400">
+            <a href="/contact" className="text-xs text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400">
               Contact
             </a>
           </div>

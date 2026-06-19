@@ -19,7 +19,7 @@ import { useCart } from "../../context/CartContext";
 
 import SignUp from "../SignUp";
 import Profile from "../MyProfile";
-import { Footer, MobileFooter } from "./UserFooter";
+import { Footer } from "./UserFooter";
 import { UserHeader } from "./UserHeader";
 
 // Separate component that uses useSearchParams
@@ -197,15 +197,8 @@ export default function UserLayout({ children }: LayoutProps) {
         {/* Main Content */}
         <main className="flex-1">{children}</main>
 
-        {/* Desktop Footer */}
-        <div className="hidden md:block">
-          <Footer />
-        </div>
-
-        {/* Mobile Footer */}
-        <div className="md:hidden">
-          <MobileFooter />
-        </div>
+        {/* Footer */}
+        <Footer />
 
         {/* Modals */}
         <SignUp

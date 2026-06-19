@@ -73,19 +73,43 @@ export const MobileSidebarContent = memo(function MobileSidebarContent({
     <div className="flex flex-col h-full">
       {/* Brand Section */}
       <div className="p-4 border-b">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="relative h-20 w-20">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="relative h-16 w-16 flex-shrink-0">
             <img
               src="/logo.png"
               alt="Untapped Nature Logo"
               className="h-full w-full object-contain"
             />
           </div>
-          <span className="text-xl font-bold">Untapped Nature</span>
+          <div className="flex flex-col font-bold text-xl leading-none">
+            <span>Untapped</span>
+            <span>Nature</span>
+          </div>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Discover the purest essentials for a natural lifestyle.
+        <p className="text-sm text-muted-foreground mb-4">
+          sanoda, Gandhinagar, Gujarat, India
         </p>
+
+        <div className="border-t pt-4 space-y-3">
+          <a
+            href="tel:+917096712340"
+            className="flex items-center gap-3 text-sm font-medium text-foreground hover:text-primary transition-colors"
+          >
+            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-[#e6f4e0] border border-[#c8dea8] text-[#3b7a2a] flex-shrink-0">
+              <Phone className="h-5 w-5" />
+            </div>
+            <span>+91 70967 12340</span>
+          </a>
+          <a
+            href="mailto:info@untappednature.com"
+            className="flex items-center gap-3 text-sm font-medium text-foreground hover:text-primary transition-colors"
+          >
+            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-[#eef6fb] border border-[#b8d9ea] text-[#2d6e8e] flex-shrink-0">
+              <Mail className="h-5 w-5" />
+            </div>
+            <span>info@untappednature.com</span>
+          </a>
+        </div>
       </div>
 
       {/* Navigation Tabs */}
@@ -174,24 +198,8 @@ export const MobileSidebarContent = memo(function MobileSidebarContent({
       </div>
 
       {/* Footer in Sidebar */}
-      <div className="p-4 border-t">
-        <div className="space-y-2 mb-3">
-          <a
-            href="mailto:info@untappednature.com"
-            className="text-xs text-muted-foreground hover:text-primary flex items-center gap-2"
-          >
-            <Mail className="h-3 w-3" />
-            info@untappednature.com
-          </a>
-          <a
-            href="tel:+917096712340"
-            className="text-xs text-muted-foreground hover:text-primary flex items-center gap-2"
-          >
-            <Phone className="h-3 w-3" />
-            +91 70967 12340
-          </a>
-        </div>
-        <p className="text-xs text-muted-foreground text-center">
+      <div className="p-4 border-t text-center">
+        <p className="text-xs text-muted-foreground">
           © {new Date().getFullYear()} Untapped Nature. All rights reserved.
         </p>
       </div>

@@ -298,7 +298,7 @@ export default function CancellationPolicyPage() {
                 </section>
 
                 {/* ══════════════ CONTENT ══════════════ */}
-                <section className="py-8 sm:py-10 md:py-14 bg-white">
+                <section className="pt-8 sm:pt-10 md:pt-14 pb-5 sm:pb-6 md:pb-8 bg-white">
                     <div className="w-full max-w-[1300px] mx-auto px-4 sm:px-6 md:px-12">
                         <div className="max-w-[860px] mx-auto">
 

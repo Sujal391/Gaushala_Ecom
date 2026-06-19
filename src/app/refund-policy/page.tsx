@@ -287,7 +287,7 @@ export default function RefundPolicyPage() {
         </section>
 
         {/* ══════════════ CONTENT ══════════════ */}
-        <section className="py-10 sm:py-12 md:py-16 bg-white">
+        <section className="pt-10 sm:pt-12 md:pt-16 pb-5 sm:pb-6 md:pb-8 bg-white">
           <div className="w-full max-w-[1300px] mx-auto px-4 sm:px-6 md:px-12">
             <div className="max-w-[860px] mx-auto">
 

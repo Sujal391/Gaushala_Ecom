@@ -123,7 +123,15 @@ export const UserHeader = memo(function UserHeader({
           {/* Logo and Mobile Menu */}
           <div className="flex items-center gap-3">
             {/* Mobile Menu Button */}
-            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+            <Sheet
+              open={isMobileMenuOpen}
+              onOpenChange={(open) => {
+                setIsMobileMenuOpen(open);
+                if (open) {
+                  setShowMobileSearch(false);
+                }
+              }}
+            >
               <SheetTrigger asChild>
                 <Button
                   variant="ghost"
@@ -160,7 +168,7 @@ export const UserHeader = memo(function UserHeader({
               className="flex items-center gap-2 cursor-pointer"
               onClick={() => router.push("/shop")}
             >
-              <div className="relative h-24 w-24 md:h-30 md:w-30">
+              <div className="relative h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 flex-shrink-0">
                 <img
                   src="/logo.png"
                   alt="Untapped Nature Logo"
@@ -170,9 +178,10 @@ export const UserHeader = memo(function UserHeader({
                   }}
                 />
               </div>
-              <span className="text-xl font-bold md:text-2xl">
-                Untapped Nature
-              </span>
+              <div className="flex flex-col md:flex-row md:gap-1.5 font-bold text-base sm:text-lg md:text-2xl leading-none md:leading-normal">
+                <span>Untapped</span>
+                <span>Nature</span>
+              </div>
             </div>
           </div>
 
@@ -249,7 +258,14 @@ export const UserHeader = memo(function UserHeader({
               variant="ghost"
               size="icon"
               className="md:hidden"
-              onClick={() => setShowMobileSearch(!showMobileSearch)}
+              onClick={() => {
+                const nextSearchState = !showMobileSearch;
+                setShowMobileSearch(nextSearchState);
+                if (nextSearchState) {
+                  setIsProfileMenuOpen(false);
+                  setIsMobileMenuOpen(false);
+                }
+              }}
             >
               <Search className="h-5 w-5" />
             </Button>
@@ -301,7 +317,15 @@ export const UserHeader = memo(function UserHeader({
 
             {/* Mobile Profile Menu (Dropdown) - Only shows Login option */}
             <div className="md:hidden">
-              <DropdownMenu open={isProfileMenuOpen} onOpenChange={setIsProfileMenuOpen}>
+              <DropdownMenu
+                open={isProfileMenuOpen}
+                onOpenChange={(open) => {
+                  setIsProfileMenuOpen(open);
+                  if (open) {
+                    setShowMobileSearch(false);
+                  }
+                }}
+              >
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
                     <UserIcon className="h-5 w-5" />
