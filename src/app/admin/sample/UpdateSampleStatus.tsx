@@ -24,7 +24,8 @@ import { toast } from "sonner";
 import { updateSampleRequestStatus } from "../../../lib/api/auth";
 
 interface SampleRequest {
-  id: number;
+  id?: number;
+  sampleRequestId?: number;
   userId: number;
   customerName: string;
   productId: number;
@@ -34,6 +35,7 @@ interface SampleRequest {
   adminRemark?: string;
   createdAt: string;
   updatedAt: string;
+  requestedAt?: string;
 }
 
 interface UpdateSampleStatusModalProps {
@@ -67,7 +69,8 @@ export default function UpdateSampleStatusModal({
       return;
     }
 
-    if (!request.id) {
+    const requestId = request.id || request.sampleRequestId;
+    if (!requestId) {
       toast.error("Invalid request ID");
       console.error("Missing id:", request);
       return;
@@ -91,12 +94,12 @@ export default function UpdateSampleStatusModal({
       };
 
       console.log("=== UPDATE REQUEST ===");
-      console.log("Request ID:", request.id);
+      console.log("Request ID:", requestId);
       console.log("Payload:", JSON.stringify(payload, null, 2));
       console.log("=====================");
 
       const response = await updateSampleRequestStatus(
-        request.id,
+        requestId,
         payload
       );
 
@@ -179,7 +182,7 @@ export default function UpdateSampleStatusModal({
                   <User className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Customer Name</p>
-                    <p className="text-sm font-medium">sujal1</p>
+                    <p className="text-sm font-medium">{request.customerName || "N/A"}</p>
                   </div>
                 </div>
 
@@ -187,7 +190,7 @@ export default function UpdateSampleStatusModal({
                   <Package className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Product</p>
-                    <p className="text-sm font-medium">pant</p>
+                    <p className="text-sm font-medium">{request.productName || "N/A"}</p>
                   </div>
                 </div>
 
@@ -195,7 +198,7 @@ export default function UpdateSampleStatusModal({
                   <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Location</p>
-                    <p className="text-sm font-medium">Ahmedabad</p>
+                    <p className="text-sm font-medium">{request.city || "N/A"}</p>
                   </div>
                 </div>
 
@@ -203,24 +206,26 @@ export default function UpdateSampleStatusModal({
                   <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Requested On</p>
-                    <p className="text-sm font-medium">Invalid Date</p>
+                    <p className="text-sm font-medium">
+                      {request.requestedAt || request.createdAt ? formatDate(request.requestedAt || request.createdAt) : "N/A"}
+                    </p>
                   </div>
                 </div>
 
                 <div className="pt-2 border-t">
                   <p className="text-xs text-muted-foreground mb-2">Current Status</p>
                   <Badge 
-                    className="bg-green-500 text-white capitalize"
+                    className={`${getStatusColor(request.status)} text-white capitalize`}
                     variant="secondary"
                   >
-                    Approved
+                    {request.status}
                   </Badge>
                 </div>
 
                 <div className="pt-2 border-t">
                   <p className="text-xs text-muted-foreground mb-1">Previous Admin Remark</p>
                   <p className="text-sm bg-muted/30 p-2 rounded border italic break-words">
-                    "trial chal rha hai"
+                    {request.adminRemark ? `"${request.adminRemark}"` : "No previous remark"}
                   </p>
                 </div>
               </div>

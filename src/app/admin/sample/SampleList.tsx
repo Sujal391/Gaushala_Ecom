@@ -18,7 +18,8 @@ import { getAllSampleRequests } from "../../../lib/api/auth";
 import UpdateSampleStatusModal from "./UpdateSampleStatus";
 
 interface SampleRequest {
-  sampleRequestId: number;
+  sampleRequestId?: number;
+  id?: number;
   customerName: string;
   productId: number;
   productName: string;
@@ -227,9 +228,9 @@ export default function AllSampleRequests() {
                   </TableHeader>
 
                   <TableBody>
-                    {requests.map((request) => (
+                    {requests.map((request, index) => (
                       <TableRow
-                        key={request.sampleRequestId}
+                        key={request.sampleRequestId || request.id || index}
                         className="hover:bg-muted/30"
                       >
                         <TableCell className="font-medium">

@@ -10,7 +10,8 @@ import { getUserId } from '../../../lib/api/config';
 import { getUserSampleRequests } from '../../../lib/api/auth';
 
 interface SampleRequest {
-  sampleRequestId: number;
+  sampleRequestId?: number;
+  id?: number;
   productId: number;
   productName: string;
   houseNo: string;
@@ -175,8 +176,8 @@ export default function MySampleRequests({ refreshTrigger }: MySampleRequestsPro
                   </tr>
                 </thead>
                 <tbody>
-                  {requests.map((request) => (
-                    <tr key={request.sampleRequestId} className="border-b hover:bg-muted/50">
+                  {requests.map((request, index) => (
+                    <tr key={request.sampleRequestId || request.id || index} className="border-b hover:bg-muted/50">
                       <td className="p-3">
                         <div className="flex items-center gap-2">
                           <Package className="h-4 w-4 text-muted-foreground" />
@@ -219,8 +220,8 @@ export default function MySampleRequests({ refreshTrigger }: MySampleRequestsPro
 
       {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
-        {requests.map((request) => (
-          <Card key={request.sampleRequestId}>
+        {requests.map((request, index) => (
+          <Card key={request.sampleRequestId || request.id || index}>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">

@@ -620,9 +620,10 @@ export default function ContactPage() {
                                     <MapPin className="h-6 w-6 text-[#c0392b]" strokeWidth={1.8} />
                                 </div>
                                 <div>
-                                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2">Our Address</p>
                                     <p className="text-lg font-black text-[#1a3d10]">Untapped Nature</p>
-                                    <p className="text-sm text-gray-500 mt-0.5">Karnavati Kamdhenu Gaushala, Mota Vas, sanoda, Gandhinagar, Gujarat, India</p>
+                                    <p className="text-[10px] text-gray-400 font-medium mt-0.5 mb-3">Legal Entity: KAMLA BHANWARLAL PORWAL</p>
+                                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2">Our Address</p>
+                                    <p className="text-sm text-gray-500">Karnavati Kamdhenu Gaushala, Mota Vas, sanoda, Gandhinagar, Gujarat, India</p>
                                 </div>
  
                                  {/* Quick contact */}

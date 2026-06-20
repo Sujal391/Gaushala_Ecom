@@ -29,10 +29,12 @@ import { compressImages } from '../../../../../lib/compressImage';
 
 // Types
 interface ProductSize {
+  id?: number;
   size: string;
   price: number;
   discountedPrice: number;
   stockQty: number;
+  inStock?: boolean;
 }
 
 interface Product {
@@ -349,7 +351,18 @@ export default function EditProductPage() {
       const updatePayload = {
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
-        sizes: sizes
+        sizes: sizes.map(size => {
+          const mappedSize: any = {
+            size: size.size.trim(),
+            price: Number(size.price),
+            discountedPrice: size.discountedPrice ? Number(size.discountedPrice) : 0,
+            stockQty: Number(size.stockQty)
+          };
+          if (size.id !== undefined && size.id !== null) {
+            mappedSize.id = Number(size.id);
+          }
+          return mappedSize;
+        })
       };
 
       const updateResponse = await fetch(`${API_BASE_URL}/api/products/${params.id}`, {

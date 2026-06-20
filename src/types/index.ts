@@ -145,10 +145,14 @@ export interface CreateProductPayload {
 
 export interface UpdateProductPayload {
   name: string;
-  price: number;
-  description: string;
-  stockQty: number;
-  images: ProductImage[] | string[];
+  description?: string;
+  sizes: Array<{
+    id?: number;
+    size: string;
+    price: number;
+    discountedPrice: number;
+    stockQty: number;
+  }>;
 }
 
 export interface ProductSize {
