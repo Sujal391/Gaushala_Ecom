@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { createBanner } from '../../../../lib/api/auth';
+import { compressImage } from '../../../../lib/compressImage';
 import { toast } from 'sonner';
 import AdminGuard from '../../../../components/guards/AdminGuard';
 import AdminLayout from '../../../../components/layout/AdminLayout';
@@ -114,7 +115,24 @@ export default function AddBannerPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await createBanner(imageFile as File, deviceType);
+      let fileToUpload = imageFile as File;
+      let maxWidth = 1920;
+      let maxHeight = 1080;
+      const normalizedDevice = (deviceType || '').trim().toUpperCase();
+      if (normalizedDevice === 'MOBILE') {
+        maxWidth = 750;
+        maxHeight = 500;
+      } else if (normalizedDevice === 'TABLET') {
+        maxWidth = 1024;
+        maxHeight = 600;
+      }
+      try {
+        fileToUpload = await compressImage(fileToUpload, maxWidth, maxHeight, 0.8);
+      } catch (err) {
+        console.error('Failed to compress image:', err);
+      }
+
+      const response = await createBanner(fileToUpload, deviceType);
 
       if (response.success) {
         toast.success('Banner uploaded successfully!');

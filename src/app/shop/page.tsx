@@ -561,7 +561,7 @@ function ShopContent() {
               id: banner.id,
               imageUrl: getFullImageUrl(banner.imageUrl)
             }))}
-            autoSlideInterval={4000}
+            autoSlideInterval={10000}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-primary/10 to-primary/5">

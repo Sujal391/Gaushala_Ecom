@@ -71,6 +71,19 @@ export default function ProductDetailPage() {
     feedbacks: []
   });
   const [loadingFeedback, setLoadingFeedback] = useState(false);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 600) {
+        setShowStickyBar(true);
+      } else {
+        setShowStickyBar(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     fetchProduct();
@@ -598,14 +611,16 @@ export default function ProductDetailPage() {
           </Alert>
         )}
 
-        <Button
-          variant="ghost"
-          onClick={() => router.push('/shop')}
-          className="mb-6 gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Shop
-        </Button>
+        <div className="sticky top-[63px] z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-3 mb-6 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <Button
+            variant="outline"
+            onClick={() => router.push('/shop')}
+            className="gap-2.5 rounded-full border-2 border-[#b5d99a] bg-white/80 backdrop-blur-xs text-[#3b7a2a] hover:text-white hover:bg-[#3b7a2a] hover:border-[#3b7a2a] shadow-sm text-sm font-bold px-5 h-10 transition-all duration-200"
+          >
+            <ArrowLeft className="h-4 w-4 stroke-[2.5] text-current" />
+            Back to Shop
+          </Button>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
           {/* Product Images Section */}
@@ -806,7 +821,7 @@ export default function ProductDetailPage() {
             <div className="flex flex-row gap-3 pt-4">
               <Button
                 size="lg"
-                className="flex-1 rounded-full"
+                className="flex-1 rounded-full h-12 text-base font-semibold"
                 disabled={isOutOfStock || availableStock === 0 || addingToCart}
                 onClick={handleAddToCart}
               >
@@ -825,7 +840,7 @@ export default function ProductDetailPage() {
               <Button
                 size="lg"
                 variant="outline"
-                className="flex-1 rounded-full"
+                className="flex-1 rounded-full bg-white text-black border border-gray-200 hover:bg-gray-50 hover:text-black font-medium text-base h-12 shadow-sm transition-all"
                 disabled={isOutOfStock || availableStock === 0 || addingToCart}
                 onClick={handleBuyNow}
               >
@@ -867,6 +882,19 @@ export default function ProductDetailPage() {
                 </p>
               </div>
             )}
+
+            {/* Bottom Buy Now Button (after reading all details) */}
+            <div className="pt-6 border-t mt-6">
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full rounded-full bg-white text-black border border-gray-200 hover:bg-gray-50 hover:text-black font-medium text-base h-12 shadow-sm transition-all"
+                disabled={isOutOfStock || availableStock === 0 || addingToCart}
+                onClick={handleBuyNow}
+              >
+                Buy Now
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -947,6 +975,52 @@ export default function ProductDetailPage() {
               </p>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Sticky Bottom Buy Now Bar */}
+      <div className={`fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 py-3 px-4 sm:px-6 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 transform ${
+        showStickyBar ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'
+      }`}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center min-w-0">
+            {images.length > 0 && (
+              <div className="h-10 w-10 flex-shrink-0 rounded-md overflow-hidden bg-muted border border-gray-100 mr-3">
+                <img
+                  src={getImageUrl(images[0])}
+                  alt={product.name}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate text-gray-800 leading-tight">
+                {product.name}
+              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-sm font-bold text-[#1a3d10]">
+                  ₹ {Number(currentPrice).toFixed(2)}
+                </span>
+                {selectedSize && (
+                  <span className="text-[11px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.25 rounded">
+                    Size: {selectedSize.size}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <Button
+              size="lg"
+              variant="outline"
+              className="rounded-full bg-white text-black border border-gray-200 hover:bg-gray-50 hover:text-black font-medium text-sm h-11 px-6 shadow-sm transition-all whitespace-nowrap"
+              disabled={isOutOfStock || availableStock === 0 || addingToCart}
+              onClick={handleBuyNow}
+            >
+              Buy Now
+            </Button>
+          </div>
         </div>
       </div>
     </UserLayout>

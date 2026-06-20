@@ -15,7 +15,7 @@ interface BannerSliderProps {
 
 const BannerSlider: React.FC<BannerSliderProps> = ({ 
   banners, 
-  autoSlideInterval = 4000 
+  autoSlideInterval = 10000 
 }) => {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const intervalRef = useRef<NodeJS.Timeout>();

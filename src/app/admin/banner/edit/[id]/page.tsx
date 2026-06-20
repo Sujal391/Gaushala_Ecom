@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { updateBanner, getBannerById } from '../../../../../lib/api/auth';
+import { compressImage } from '../../../../../lib/compressImage';
 import { API_BASE_URL } from '../../../../../lib/api/config'; // Import API_BASE_URL
 import { toast } from 'sonner';
 import AdminGuard from '../../../../../components/guards/AdminGuard';
@@ -175,10 +176,29 @@ export default function EditBannerPage() {
     setIsSubmitting(true);
 
     try {
+      let fileToUpload = imageFile as File | undefined;
+      if (fileToUpload) {
+        let maxWidth = 1920;
+        let maxHeight = 1080;
+        const normalizedDevice = (deviceType || '').trim().toLowerCase();
+        if (normalizedDevice === 'mobile') {
+          maxWidth = 750;
+          maxHeight = 500;
+        } else if (normalizedDevice === 'tablet') {
+          maxWidth = 1024;
+          maxHeight = 600;
+        }
+        try {
+          fileToUpload = await compressImage(fileToUpload, maxWidth, maxHeight, 0.8);
+        } catch (err) {
+          console.error('Failed to compress image:', err);
+        }
+      }
+
       // Only pass imageFile if a new image was selected
       const response = await updateBanner(
         bannerId, 
-        imageFile as File, // This will be undefined if no new image
+        fileToUpload as File, // This will be undefined if no new image
         formToApiDeviceType(deviceType) // Convert to uppercase for API
       );
 
