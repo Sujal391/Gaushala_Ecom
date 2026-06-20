@@ -506,12 +506,25 @@ export default function AboutPage() {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             {[
-                                { icon: Building2, label: "Legal Business Name", value: "Untapped Nature", color: "bg-[#eaf2e6]", iconColor: "text-[#3b7a2a]" },
+                                { 
+                                    icon: Building2, 
+                                    label: "Legal Business Name", 
+                                    value: "Untapped Nature", 
+                                    subValue: "Legal Entity: KAMLA BHANWARLAL PORWAL",
+                                    color: "bg-[#eaf2e6]", 
+                                    iconColor: "text-[#3b7a2a]" 
+                                },
                                 { icon: MapPin, label: "Business Address", value: "Karnavati Kamdhenu Gaushala, Mota Vas, Sanoda, Gandhinagar, Gujarat, India", color: "bg-[#fdecea]", iconColor: "text-[#c0392b]" },
                                 { icon: Mail, label: "Email Address", value: "info@untappednature.com", color: "bg-[#e8f4fd]", iconColor: "text-[#2980b9]" },
                                 { icon: Phone, label: "Phone Number", value: "+91 70967 12340", color: "bg-[#fef9e7]", iconColor: "text-[#d4a017]" },
-                                // { icon: Hash, label: "GST Number", value: "24ABCDE1234F1Z5", color: "bg-[#f4ecf7]", iconColor: "text-[#8e44ad]" },
-                            ].map(({ icon: Icon, label, value, color, iconColor }) => (
+                            ].map(({ icon: Icon, label, value, subValue, color, iconColor }: {
+                                icon: any;
+                                label: string;
+                                value: string;
+                                subValue?: string;
+                                color: string;
+                                iconColor: string;
+                            }) => (
                                 <div key={label}
                                     className="flex items-start gap-4 p-5 rounded-2xl border border-gray-100 bg-white hover:border-[#b5d99a] hover:shadow-md transition-all duration-300 group"
                                 >
@@ -521,6 +534,9 @@ export default function AboutPage() {
                                     <div className="flex flex-col min-w-0">
                                         <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">{label}</span>
                                         <span className="text-sm text-gray-800 font-bold break-words">{value}</span>
+                                        {subValue && (
+                                            <span className="text-[10px] text-gray-400 font-medium mt-0.5">{subValue}</span>
+                                        )}
                                     </div>
                                 </div>
                             ))}

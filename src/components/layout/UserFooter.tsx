@@ -20,6 +20,8 @@ import { Button } from "@/components/ui/button";
 export const Footer = () => {
   const currentYear = new Date().getFullYear();
 
+  const referralImage = "https://api.untappednature.com/banners/b213d8a1-4e27-4fde-9ba8-530af6b38728.jpg";
+
   const footerLinks = [
     {
       title: "Shop",
@@ -28,6 +30,7 @@ export const Footer = () => {
         { label: "Best Sellers", href: "/shop" },
         { label: "New Arrivals", href: "/shop" },
         { label: "Sale", href: "/shop" },
+        { label: "Referral", href: referralImage, isExternal: true },
       ],
     },
     {
@@ -204,10 +207,12 @@ export const Footer = () => {
                 <span className="absolute -bottom-1 left-0 w-8 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"></span>
               </h3>
               <ul className="space-y-2">
-                {column.links.map((link) => (
+                {column.links.map((link: any) => (
                   <li key={link.label}>
                     <a
                       href={link.href}
+                      target={link.isExternal ? "_blank" : undefined}
+                      rel={link.isExternal ? "noopener noreferrer" : undefined}
                       className="text-sm text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all duration-300 inline-flex items-center gap-1 group"
                     >
                       <ChevronRight className="h-3 w-3 opacity-0 -ml-4 group-hover:opacity-100 group-hover:ml-0 transition-all" />
