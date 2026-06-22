@@ -334,7 +334,7 @@ export async function getMyProfile(): Promise<ApiResponse<MyProfileResponse>> {
 
     return handleResponse<MyProfileResponse>(response);
   } catch (error) {
-    console.error('Get my profile error:', error);
+    console.warn('Get my profile error:', error);
     return {
       success: false,
       message: 'Failed to fetch my profile',
@@ -851,7 +851,7 @@ export async function getDashboardStats(): Promise<ApiResponse<DashboardStats>> 
 
     return apiResponse as ApiResponse<DashboardStats>;
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error);
+    console.warn('Error fetching dashboard stats:', error);
     return {
       success: false,
       message: 'Failed to fetch dashboard stats',

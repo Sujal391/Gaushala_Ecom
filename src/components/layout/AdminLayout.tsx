@@ -53,7 +53,7 @@ export default function AdminLayout({ children, title, headerAction }: AdminLayo
     <div className={`${isMobile ? 'w-full' : 'w-64'} bg-card border-r flex flex-col h-full`}>
       <div className="p-4 sm:p-6 border-b">
         <div className="flex items-center gap-1">
-          <div className="relative h-10 w-10 sm:h-25 sm:w-25">
+          <div className="relative h-10 w-10 sm:h-20 sm:w-20">
             <img
               src="/logo.png"
               alt="Untapped Nature Logo"
@@ -95,14 +95,14 @@ export default function AdminLayout({ children, title, headerAction }: AdminLayo
   );
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex flex-col lg:flex-row">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block fixed left-0 top-0 h-full z-40">
         <Sidebar />
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-64">
+      <div className="flex-1 w-full lg:w-auto ml-0 lg:ml-64 min-w-0">
         {/* Top Header */}
         <header className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
           <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3 sm:py-4">

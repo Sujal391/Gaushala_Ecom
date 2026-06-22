@@ -285,79 +285,81 @@ export default function AdminBannersPage() {
             {/* Banners Table */}
             <Card>
               <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[100px]">Preview</TableHead>
-                      <TableHead>Filename</TableHead>
-                      <TableHead className="hidden sm:table-cell">Uploaded</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredBanners.map((banner: Banner) => (
-                      <TableRow key={banner.id}>
-                        <TableCell>
-                          <div className="w-16 h-16 rounded-md overflow-hidden bg-muted">
-                            <img
-                              src={`${API_BASE_URL}${banner.imageUrl}`}
-                              alt={`Banner ${banner.id}`}
-                              className="w-full h-full object-contain"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400?text=Error+Loading+Image';
-                              }}
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {extractFilename(banner.imageUrl)}
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                          {formatDate(banner.createdAt)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => window.open(`${API_BASE_URL}${banner.imageUrl}`, '_blank')}
-                              title="View full size"
-                            >
-                              <Eye className="h-4 w-4" />
-                              <span className="sr-only">View</span>
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => handleEdit(banner)}
-                              title="Edit banner"
-                            >
-                              <Edit className="h-4 w-4" />
-                              <span className="sr-only">Edit</span>
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => setDeleteBannerData({ id: banner.id, imageUrl: banner.imageUrl })}
-                              title="Delete"
-                              disabled={isDeleting && deleteBannerData?.id === banner.id}
-                            >
-                              {isDeleting && deleteBannerData?.id === banner.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                              <span className="sr-only">Delete</span>
-                            </Button>
-                          </div>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[100px]">Preview</TableHead>
+                        <TableHead>Filename</TableHead>
+                        <TableHead className="hidden sm:table-cell">Uploaded</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredBanners.map((banner: Banner) => (
+                        <TableRow key={banner.id}>
+                          <TableCell>
+                            <div className="w-16 h-16 rounded-md overflow-hidden bg-muted">
+                              <img
+                                src={`${API_BASE_URL}${banner.imageUrl}`}
+                                alt={`Banner ${banner.id}`}
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400?text=Error+Loading+Image';
+                                }}
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {extractFilename(banner.imageUrl)}
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                            {formatDate(banner.createdAt)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => window.open(`${API_BASE_URL}${banner.imageUrl}`, '_blank')}
+                                title="View full size"
+                              >
+                                <Eye className="h-4 w-4" />
+                                <span className="sr-only">View</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleEdit(banner)}
+                                title="Edit banner"
+                              >
+                                <Edit className="h-4 w-4" />
+                                <span className="sr-only">Edit</span>
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => setDeleteBannerData({ id: banner.id, imageUrl: banner.imageUrl })}
+                                title="Delete"
+                                disabled={isDeleting && deleteBannerData?.id === banner.id}
+                              >
+                                {isDeleting && deleteBannerData?.id === banner.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                                <span className="sr-only">Delete</span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
 

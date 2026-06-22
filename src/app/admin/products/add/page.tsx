@@ -28,6 +28,29 @@ interface SizeItem {
   stockQty: string;
 }
 
+const cleanHtml = (html: string): string => {
+  if (!html) return '';
+  if (typeof window === 'undefined') return html;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Remove class, style, contenteditable attributes from all elements
+    const allElements = doc.body.getElementsByTagName('*');
+    for (let i = 0; i < allElements.length; i++) {
+      const el = allElements[i];
+      el.removeAttribute('class');
+      el.removeAttribute('style');
+      el.removeAttribute('contenteditable');
+    }
+    
+    return doc.body.innerHTML;
+  } catch (error) {
+    console.error('Error cleaning HTML:', error);
+    return html;
+  }
+};
+
 export default function AddProductPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -192,7 +215,7 @@ export default function AddProductPage() {
     // Step 1: Create the product with basic info
     const productData = {
       name: formData.name.trim(),
-      description: formData.description.trim(),
+      description: cleanHtml(formData.description).trim(),
       sizes: sizes.map(sizeItem => ({
         size: sizeItem.size.trim(),
         price: parseFloat(sizeItem.price),

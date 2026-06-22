@@ -125,7 +125,7 @@ export default function UserLayout({ children }: LayoutProps) {
         }
       }
     } catch (error) {
-      console.error("Failed to load referral code:", error);
+      console.warn("Failed to load referral code:", error);
     } finally {
       setLoading(false);
     }

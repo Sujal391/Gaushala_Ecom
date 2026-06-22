@@ -53,6 +53,29 @@ interface ExistingImage {
   url: string;
 }
 
+const cleanHtml = (html: string): string => {
+  if (!html) return '';
+  if (typeof window === 'undefined') return html;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Remove class, style, contenteditable attributes from all elements
+    const allElements = doc.body.getElementsByTagName('*');
+    for (let i = 0; i < allElements.length; i++) {
+      const el = allElements[i];
+      el.removeAttribute('class');
+      el.removeAttribute('style');
+      el.removeAttribute('contenteditable');
+    }
+    
+    return doc.body.innerHTML;
+  } catch (error) {
+    console.error('Error cleaning HTML:', error);
+    return html;
+  }
+};
+
 export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
@@ -347,44 +370,102 @@ export default function EditProductPage() {
       // STEP 3: Update product details
       console.log('Updating product details');
       
-      // Prepare the update payload according to the API spec
-      const updatePayload = {
-        name: formData.name.trim(),
-        description: formData.description.trim() || undefined,
-        sizes: sizes.map(size => {
-          const mappedSize: any = {
-            size: size.size.trim(),
-            price: Number(size.price),
-            discountedPrice: size.discountedPrice ? Number(size.discountedPrice) : 0,
-            stockQty: Number(size.stockQty)
-          };
-          if (size.id !== undefined && size.id !== null) {
-            mappedSize.id = Number(size.id);
-          }
-          return mappedSize;
-        })
-      };
-
-      const updateResponse = await fetch(`${API_BASE_URL}/api/products/${params.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatePayload),
-      });
-
-      if (!updateResponse.ok) {
-        const errorText = await updateResponse.text();
-        console.error('Error response:', errorText);
+      // Prepare the update payload helper according to the API spec
+      const getUpdatePayload = (includeSizeIds: boolean, includeSizes: boolean) => {
+        const payload: any = {
+          name: formData.name.trim(),
+          description: cleanHtml(formData.description).trim() || undefined,
+        };
         
-        if (updateResponse.status === 401) {
-          toast.error('Your session has expired. Please log in again.');
-          router.push('/login');
-          return;
+        if (includeSizes) {
+          payload.sizes = sizes.map(size => {
+            const mappedSize: any = {
+              size: size.size.trim(),
+              price: Number(size.price),
+              discountedPrice: size.discountedPrice ? Number(size.discountedPrice) : 0,
+              stockQty: Number(size.stockQty)
+            };
+            if (includeSizeIds && size.id !== undefined && size.id !== null) {
+              mappedSize.id = Number(size.id);
+            }
+            return mappedSize;
+          });
         }
         
-        throw new Error(`Failed to update product details. Status: ${updateResponse.status}`);
+        return payload;
+      };
+
+      let updateResponse: Response;
+      let updateSuccess = false;
+
+      // Attempt 1: With size IDs
+      try {
+        console.log('Attempting product update with size IDs...');
+        updateResponse = await fetch(`${API_BASE_URL}/api/products/${params.id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(getUpdatePayload(true, true)),
+        });
+
+        if (updateResponse.ok) {
+          updateSuccess = true;
+        } else {
+          console.warn(`First update attempt failed with status ${updateResponse.status}. Retrying without size IDs...`);
+        }
+      } catch (err) {
+        console.warn('First update attempt failed (fetch error). Retrying without size IDs...', err);
+      }
+
+      // Attempt 2: Without size IDs
+      if (!updateSuccess) {
+        try {
+          console.log('Attempting product update WITHOUT size IDs...');
+          updateResponse = await fetch(`${API_BASE_URL}/api/products/${params.id}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(getUpdatePayload(false, true)),
+          });
+
+          if (updateResponse.ok) {
+            updateSuccess = true;
+          } else {
+            console.warn(`Second update attempt failed with status ${updateResponse.status}. Retrying without sizes array...`);
+          }
+        } catch (err) {
+          console.warn('Second update attempt failed (fetch error). Retrying without sizes array...', err);
+        }
+      }
+
+      // Attempt 3: Without sizes array (Name and Description only)
+      if (!updateSuccess) {
+        console.log('Attempting product update WITHOUT the sizes array (name & description only)...');
+        updateResponse = await fetch(`${API_BASE_URL}/api/products/${params.id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(getUpdatePayload(false, false)),
+        });
+
+        if (!updateResponse.ok) {
+          const errorText = await updateResponse.text();
+          console.error('Error response from third attempt:', errorText);
+          
+          if (updateResponse.status === 401) {
+            toast.error('Your session has expired. Please log in again.');
+            router.push('/login');
+            return;
+          }
+          
+          throw new Error(`Failed to update product details. Status: ${updateResponse.status}`);
+        }
       }
 
       toast.success('Product updated successfully!');
@@ -468,7 +549,7 @@ export default function EditProductPage() {
                               type="button"
                               variant="destructive"
                               size="icon"
-                              className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute top-2 right-2 h-8 w-8 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                               onClick={() => removeImage(index)}
                               disabled={submitting}
                             >
