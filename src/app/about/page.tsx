@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import UserLayout from '../../components/layout/UserLayout';
 import {
     Leaf,
@@ -133,13 +132,12 @@ export default function AboutPage() {
                                 className="relative z-10 w-full max-w-[580px]"
                                 style={{ animation: 'heroFloat 4s ease-in-out infinite' }}
                             >
-                                <Image
+                                <img
                                     src="/hero-products.jpeg"
                                     alt="Untapped Nature Products"
                                     width={580}
                                     height={420}
                                     className="w-full h-auto object-cover rounded-[40%_60%_55%_45%/45%_55%_60%_40%] shadow-2xl shadow-[#1a3d10]/20"
-                                    priority
                                 />
                                 {/* Subtle green overlay tint at bottom */}
                                 <div className="absolute inset-0 rounded-[40%_60%_55%_45%/45%_55%_60%_40%] bg-gradient-to-t from-[#1a3d10]/10 via-transparent to-transparent" />
@@ -173,7 +171,7 @@ export default function AboutPage() {
                     </div>
 
                     {/* Keyframe styles */}
-                    <style jsx>{`
+                    <style dangerouslySetInnerHTML={{ __html: `
                         @keyframes heroFadeUp {
                             from { opacity: 0; transform: translateY(28px); }
                             to   { opacity: 1; transform: translateY(0); }
@@ -190,7 +188,7 @@ export default function AboutPage() {
                             0%, 100% { transform: translateY(0px); }
                             50%       { transform: translateY(-8px); }
                         }
-                    `}</style>
+                    `}} />
                 </section>
 
                 {/* ── WHO WE ARE ──────────────────── */}
@@ -284,12 +282,12 @@ export default function AboutPage() {
                         </div>
                     </div>
 
-                    <style jsx>{`
+                    <style dangerouslySetInnerHTML={{ __html: `
                         @keyframes badgeFloat {
                             0%, 100% { transform: translateY(0px); }
                             50%      { transform: translateY(-8px); }
                         }
-                    `}</style>
+                    `}} />
                 </section>
 
                 {/* ── OUR MISSION ────────────────── */}
@@ -350,11 +348,10 @@ export default function AboutPage() {
                                     className="relative w-[150px] h-[150px]"
                                     style={{ animation: 'missionFloat 4s ease-in-out infinite' }}
                                 >
-                                    <Image
+                                    <img
                                         src="/aboutus2.png"
                                         alt="Our Mission"
-                                        fill
-                                        className="object-contain drop-shadow-2xl"
+                                        className="absolute inset-0 w-full h-full object-contain drop-shadow-2xl"
                                     />
                                 </div>
                             </div>
@@ -362,12 +359,12 @@ export default function AboutPage() {
                         </div>
                     </div>
 
-                    <style jsx>{`
-        @keyframes missionFloat {
-            0%, 100% { transform: translateY(0px); }
-            50%       { transform: translateY(-10px); }
-        }
-    `}</style>
+                    <style dangerouslySetInnerHTML={{ __html: `
+                        @keyframes missionFloat {
+                            0%, 100% { transform: translateY(0px); }
+                            50%       { transform: translateY(-10px); }
+                        }
+                    `}} />
                 </section>
 
                 {/* ── WHAT WE OFFER ───────────────────────────────────────────── */}
@@ -518,6 +515,7 @@ export default function AboutPage() {
                                 { icon: Mail, label: "Email Address", value: "info@untappednature.com", color: "bg-[#e8f4fd]", iconColor: "text-[#2980b9]" },
                                 { icon: Phone, label: "Phone Number", value: "+91 70967 12340", color: "bg-[#fef9e7]", iconColor: "text-[#d4a017]" },
                             ].map(({ icon: Icon, label, value, subValue, color, iconColor }: {
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 icon: any;
                                 label: string;
                                 value: string;
@@ -556,7 +554,7 @@ export default function AboutPage() {
                                     Have questions or need more information?
                                 </p>
                                 <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900">
-                                    We'd love to hear from you!
+                                    We&apos;d love to hear from you!
                                 </h2>
                                 <Link
                                     href="/contact"
@@ -568,11 +566,10 @@ export default function AboutPage() {
 
                             {/* Right Image */}
                             <div className="absolute right-0 top-0 bottom-0 w-[45%] hidden md:block">
-                                <Image
+                                <img
                                     src="/aboutus1.jpeg"
                                     alt="Contact Us"
-                                    fill
-                                    className="object-cover object-left"
+                                    className="absolute inset-0 w-full h-full object-cover object-left"
                                 />
                                 {/* Gradient fade left */}
                                 <div className="absolute inset-0 bg-gradient-to-r from-[#f5f8f3] via-[#f5f8f3]/40 to-transparent" />

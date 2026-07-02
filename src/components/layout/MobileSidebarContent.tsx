@@ -3,6 +3,7 @@
 
 import { useState, useEffect, memo } from "react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Mail, Phone, User as UserIcon, X } from "lucide-react";
 import { User } from "../../types";
 
@@ -120,30 +121,36 @@ export const MobileSidebarContent = memo(function MobileSidebarContent({
               tab.show && (
                 <Button
                   key={tab.id}
+                  asChild
                   variant={pathName === tab.path ? "secondary" : "ghost"}
-                  onClick={() => navigateTo(tab.path)}
                   className="w-full justify-start gap-3"
                 >
-                  <tab.icon className="h-4 w-4" />
-                  {tab.label}
+                  <Link href={tab.path} onClick={() => setIsMobileMenuOpen(false)}>
+                    <tab.icon className="h-4 w-4" />
+                    {tab.label}
+                  </Link>
                 </Button>
               )
           )}
 
           <Button
+            asChild
             variant={pathName === "/about" ? "secondary" : "ghost"}
-            onClick={() => navigateTo("/about")}
             className="w-full justify-start gap-3"
           >
-            About Us
+            <Link href="/about" onClick={() => setIsMobileMenuOpen(false)}>
+              About Us
+            </Link>
           </Button>
 
           <Button
+            asChild
             variant={pathName === "/contact" ? "secondary" : "ghost"}
-            onClick={() => navigateTo("/contact")}
             className="w-full justify-start gap-3"
           >
-            Contact Us
+            <Link href="/contact" onClick={() => setIsMobileMenuOpen(false)}>
+              Contact Us
+            </Link>
           </Button>
 
           {/* Profile Section - Integrated with navigation */}

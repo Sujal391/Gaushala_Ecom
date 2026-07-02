@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import UserLayout from '../../components/layout/UserLayout';
 import { useEffect, useRef } from "react";
 import {
@@ -266,12 +265,10 @@ export default function ContactPage() {
                             {/* Hero photo — organic blob shape */}
                             <div className="relative z-10 w-[560px] h-[380px] overflow-hidden shadow-2xl"
                                 style={{ borderRadius: '48% 52% 44% 56% / 46% 54% 50% 50%', boxShadow: '0 30px 70px rgba(26,61,16,0.18)' }}>
-                                <Image
+                                <img
                                     src="/contactus-hero-image.jpeg"
                                     alt="Natural products — mortar, essential oil, plants"
-                                    fill
-                                    className="object-cover object-center"
-                                    priority
+                                    className="absolute inset-0 w-full h-full object-cover object-center"
                                 />
                                 {/* Subtle overlay */}
                                 <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-[#1a3d10]/10" />
@@ -466,6 +463,7 @@ export default function ContactPage() {
                                                 <input
                                                     type={type}
                                                     placeholder={placeholder}
+                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                     value={(formData as any)[key]}
                                                     onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
                                                     className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-[#fafafa] text-[13px] text-gray-700 placeholder:text-gray-300 focus:border-[#6ab04c] focus:bg-white focus:ring-2 focus:ring-[#6ab04c]/15 transition-all duration-200"

@@ -867,7 +867,7 @@ function ShopContent() {
       </section>
 
       {/* Add custom scrollbar hide styles */}
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .scrollbar-hide {
           -ms-overflow-style: none;
           scrollbar-width: none;
@@ -875,7 +875,7 @@ function ShopContent() {
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
         }
-      `}</style>
+      `}} />
     </div>
   );
 }

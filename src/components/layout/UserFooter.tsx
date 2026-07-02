@@ -228,8 +228,13 @@ export const Footer = () => {
         {/* Bottom Bar - Enhanced with subtle gradient */}
         <div className="relative border-t border-slate-200 dark:border-slate-800 pt-6 mt-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              © {currentYear} Untapped Nature. All rights reserved.
+            <div className="flex flex-col">
+              <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">
+                © {currentYear} Untapped Nature. All rights reserved.
+              </div>
+              <div className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                Legal Entity: KAMLA BHANWARLAL PORWAL
+              </div>
             </div>
 
             <div className="flex items-center gap-6 text-sm">
@@ -257,7 +262,7 @@ export const Footer = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes gradient-x {
           0%, 100% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
@@ -266,7 +271,7 @@ export const Footer = () => {
           background-size: 200% 200%;
           animation: gradient-x 15s ease infinite;
         }
-      `}</style>
+      `}} />
     </footer>
   );
 };
@@ -356,9 +361,14 @@ export const MobileFooter = () => {
           </div>
 
           {/* Copyright */}
-          <p className="text-xs text-slate-600 dark:text-slate-400">
-            © {currentYear} Untapped Nature. All rights reserved.
-          </p>
+          <div className="flex flex-col items-center gap-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              © {currentYear} Untapped Nature. All rights reserved.
+            </p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-500">
+              Legal Entity: KAMLA BHANWARLAL PORWAL
+            </p>
+          </div>
 
           {/* Made with love */}
           <div className="flex items-center justify-center gap-1 mt-3 text-xs text-slate-600 dark:text-slate-400">

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -222,32 +223,35 @@ export const UserHeader = memo(function UserHeader({
                 tab.show && (
                   <Button
                     key={tab.id}
+                    asChild
                     variant={pathName === tab.path ? "secondary" : "ghost"}
                     size="sm"
-                    onClick={() => router.push(tab.path)}
-                    className="flex items-center gap-2"
                   >
-                    <tab.icon className="h-4 w-4" />
-                    <span>{tab.label}</span>
+                    <Link href={tab.path} className="flex items-center gap-2">
+                      <tab.icon className="h-4 w-4" />
+                      <span>{tab.label}</span>
+                    </Link>
                   </Button>
                 )
             )}
             <Button
+              asChild
               variant={pathName === "/about" ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => router.push("/about")}
-              className="flex items-center gap-2"
             >
-              About Us
+              <Link href="/about" className="flex items-center gap-2">
+                About Us
+              </Link>
             </Button>
 
             <Button
+              asChild
               variant={pathName === "/contact" ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => router.push("/contact")}
-              className="flex items-center gap-2"
             >
-              Contact Us
+              <Link href="/contact" className="flex items-center gap-2">
+                Contact Us
+              </Link>
             </Button>
           </div>
 
